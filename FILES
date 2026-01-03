@@ -33,10 +33,6 @@ dtlz.ipynb
     Specialized benchmark for geometric manifolds (DTLZ2, DTLZ5) and high-
     dimensional analysis (M=10), featuring 3D reconstruction visualizations.
 
-ISDA_1_0.ipynb
-
-    Legacy or reference notebook for previous versions (if applicable).
-
 
 3. PROJECT METADATA & SETUP
 ----------------------------

@@ -8,8 +8,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # MISDA: Maximal Independent Structural Dimensionality Analysis
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/openscilabs/isda/blob/main/benchmark.ipynb)
-[![REUSE status](https://api.reuse.software/badge/github.com/openscilabs/isda)](https://api.reuse.software/info/github.com/openscilabs/isda)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/benchmark.ipynb)
+[![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
 **MISDA** is a graph-theoretic framework for dimensionality reduction in **Multi-Objective Problems (MOPs)**.
 
@@ -30,8 +30,8 @@ Unlike projection-based methods (e.g., PCA) that create abstract components, MIS
 You can install `misda` directly from the source:
 
 ```bash
-git clone https://github.com/openscilabs/isda.git
-cd isda
+git clone https://github.com/monacofj/misda.git
+cd misda
 pip install .
 ```
 
@@ -74,6 +74,10 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0**. See [LICENSE](LICENSE) for details.
+This project is distributed under the **GNU General Public License v3.0 or later**. See [LICENSE](LICENSE) for more information.
 
-Copyright (C) 2025 Monaco F. J. <monaco@usp.br>
+Some third-party components or specific files may be licensed under different terms. All files in this repository are annotated with SPDX identifiers to clearly indicate their license.
+
+Please consult the file headers or the `LICENSES/` directory for precise licensing information for each file. This project complies with the [REUSE Specification](https://reuse.software/).
+
+
