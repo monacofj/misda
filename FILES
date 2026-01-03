@@ -1,0 +1,95 @@
+
+MISDA PROJECT FILE STRUCTURE
+================================================================================
+
+1. CORE LIBRARY
+----------------
+
+misda.py
+
+    The main library file containing the implementation of the MISDA algorithm
+    (analyze, reduce, compile_benchmark_summary), diagnostic metrics
+    (calculate_ses, calculate_ses_nonlinear), and helper classes.
+
+mop_definitions.py
+
+    Helper module containing definitions for synthetic MOP generators used in
+    tests, though some are also embedded directly in notebooks.
+
+
+2. NOTEBOOKS & BENCHMARKS (User-Facing)
+----------------------------------------
+
+benchmark.ipynb
+
+    The primary test suite covering:
+      - 7 Canonical Cases (structural logic tests: Independence, Redundancy...)
+      - 6 Synthetic MOPs (A-F) testing complex correlations, non-linearity,
+        and regime switching.
+
+
+dtlz.ipynb
+
+    Specialized benchmark for geometric manifolds (DTLZ2, DTLZ5) and high-
+    dimensional analysis (M=10), featuring 3D reconstruction visualizations.
+
+ISDA_1_0.ipynb
+
+    Legacy or reference notebook for previous versions (if applicable).
+
+
+3. PROJECT METADATA & SETUP
+----------------------------
+
+pyproject.toml
+    Modern build configuration file (PEP 612). Defines project metadata,
+    dependencies (numpy, pandas, scipy, networkx, matplotlib, sklearn),
+    and build system requirements (setuptools). Replaces setup.py.
+
+README.md
+
+    Project overview, installation instructions, and quick start guide.
+
+CONTRIBUTING.md
+
+    Guidelines for external contributors.
+
+CHANGELOG.md
+
+    History of version updates and fixes (e.g., transition to v0.2.0).
+
+AUTHORS
+
+    List of project authors/maintainers.
+
+LICENSE
+
+    The primary license file for the project.
+
+LICENSES/
+
+    Directory containing full text of applicable licenses (e.g., GPL-3.0).
+
+REUSE.toml
+
+    Configuration for REUSE compliance (license tracking).
+
+
+4. TESTING & VERIFICATION SCRIPTS (Dev)
+----------------------------------------
+
+verify_example.py
+
+    A minimal script to sanity-check the basic misda.analyze functionality.
+
+verify_table.py
+
+    Script used to verify the output formatting of summary tables.
+
+verify_mop.py
+
+    Dedicated script for verifying MOP generator logic.
+
+run_summary_test.py
+
+    Utility to test the compile_benchmark_summary function specifically.
