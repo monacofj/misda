@@ -5,11 +5,16 @@ SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# MISDA: Maximal Independent Structural Dimensionality Analysis
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/benchmark.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
+
+> This project is distributed under the **GNU General Public License v3.0 or later**. See [LICENSE](LICENSE) for more information.
+> Some third-party components or specific files may be licensed under different terms. All files in this repository are annotated with SPDX identifiers to clearly indicate their license.
+> Please consult the file headers or the `LICENSES/` directory for precise licensing information for each file. This project complies with the [REUSE Specification](https://reuse.software/).
+
+## MISDA
 
 **MISDA** is a graph-theoretic framework for dimensionality reduction in **Multi-Objective Problems (MOPs)**.
 
@@ -48,14 +53,21 @@ Y = np.loadtxt("my_mop_data.csv", delimiter=",")
 
 # 2. Run analysis
 # caution=0.5 balances aggressive vs conservative reduction
-# run_ses=True enables the Structural Evidence Score validation
-result = misda.analyze(Y, caution=0.5, run_ses=True, name="Demo")
+# Note: Validation is now an explicit separate step
+result = misda.analyze(Y, caution=0.5, name="Demo")
+result.validate() 
 
 # 3. View results
 print(result.summary())
+result.plot()
 
 # 4. Access the reduced set indices
-print("Selected Objectives:", result.best_mis['mis_indices'])
+# New: Object-oriented access
+print("Selected Objectives:", result.best_mis.indices)
+
+# 5. Export details
+df = result.to_pandas()
+print(df.head())
 ```
 
 ## Documentation
@@ -72,12 +84,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 > Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.. *Maximal Independent Structural Dimensionality Analysis*, to be submitted, 2026.
 
-## License
 
-This project is distributed under the **GNU General Public License v3.0 or later**. See [LICENSE](LICENSE) for more information.
-
-Some third-party components or specific files may be licensed under different terms. All files in this repository are annotated with SPDX identifiers to clearly indicate their license.
-
-Please consult the file headers or the `LICENSES/` directory for precise licensing information for each file. This project complies with the [REUSE Specification](https://reuse.software/).
 
 

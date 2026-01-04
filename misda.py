@@ -1387,10 +1387,10 @@ def evaluate_pareto_consistency(result_obj, df_original=None):
     Y_full = np.asarray(Y_full)
 
     mis = result_obj.best_mis
-    if not mis or not mis['mis_indices']:
+    if not mis or not mis.indices:
         return 0.0, 0.0
     
-    indices = mis['mis_indices']
+    indices = mis.indices
     Y_sub = Y_full[:, indices]
     
     # 1. True Front
@@ -1422,6 +1422,47 @@ def evaluate_pareto_consistency(result_obj, df_original=None):
 # HIGH-LEVEL API
 # --------------------------------------------------------------------------------------
 
+class MISCandidate:
+    """
+    Represents a single Maximum Independent Set (MIS) solution found by the algorithm.
+    Wrapper around the internal dictionary to provide object-oriented access.
+    """
+    def __init__(self, data: dict):
+        self._data = data
+
+    @property
+    def indices(self):
+        """List of column indices corresponding to the selected variables."""
+        return self._data.get('mis_indices', [])
+
+    @property
+    def labels(self):
+        """List of variable names (column headers) of the selected variables."""
+        return self._data.get('mis_labels', [])
+
+    @property
+    def rank(self):
+        """Rank of this solution (1 = Best)."""
+        return self._data.get('rank', 999)
+
+    @property
+    def size(self):
+        """Number of variables in this solution."""
+        return len(self.indices)
+
+    @property
+    def total_correlation(self):
+        """Sum of internal pair-wise correlations (lower is better)."""
+        return self._data.get('total_correlation', float('inf'))
+
+    @property
+    def max_correlation(self):
+        """Maximum single pair-wise correlation within this set (lower is better)."""
+        return self._data.get('max_correlation', float('inf'))
+    
+    def __repr__(self):
+        return f"<MISCandidate: {self.labels} (Size={self.size}, Rank={self.rank})>"
+
 class MISDAResult:
     """
     Encapsulates the complete result of an MISDA analysis.
@@ -1451,14 +1492,14 @@ class MISDAResult:
         # Linear SES
         if check_linear:
              if self.best_mis:
-                best_ids = self.best_mis["mis_indices"]
+                best_ids = self.best_mis.indices
                 Y_val = self.Y.values if hasattr(self.Y, "values") else self.Y
                 self.validation_metrics['linear'] = calculate_ses(Y_val, best_ids)
         
         # Non-Linear SES
         if check_nonlinear:
              if self.best_mis:
-                best_ids = self.best_mis["mis_indices"]
+                best_ids = self.best_mis.indices
                 # Safeguard: prevent massive RF runs on huge data unless explicit
                 if self.Y.shape[0] <= 10000:
                     self.validation_metrics['nonlinear'] = calculate_ses_nonlinear(self.Y, best_ids)
@@ -1495,23 +1536,108 @@ class MISDAResult:
 
     @property
     def mis_sets(self):
-        """Returns the list of found MIS sets."""
-        return self.isda_results.get('mis_sets')
+        """
+        Returns a list of all MISCandidate objects found, sorted by rank.
+        """
+        raw_sets = self.isda_results.get('mis_ranked', [])
+        return [MISCandidate(d) for d in raw_sets]
     
     @property
     def best_mis(self):
-        """Returns the top-ranked MIS (Minimal Independent Set) or None."""
+        """Returns the top-ranked MISCandidate or None."""
         if self.isda_results.get('mis_ranked'):
-            return self.isda_results['mis_ranked'][0]
+            return MISCandidate(self.isda_results['mis_ranked'][0])
         return None
+
+    @property
+    def best_mis_indices(self):
+        """Returns the list of indices of the best MIS."""
+        mis = self.best_mis
+        return mis.indices if mis else []
+
+    @property
+    def best_mis_labels(self):
+        """Returns the list of labels of the best MIS."""
+        mis = self.best_mis
+        return mis.labels if mis else []
+    
+    @property
+    def ranked_mis_sets(self):
+        """
+        Returns a dictionary mapping rank (int) -> list of MISCandidate objects.
+        """
+        raw_groups = self.isda_results.get('rank_groups', {})
+        return {r: [MISCandidate(d) for d in l] for r, l in raw_groups.items()}
+
+    def get_mis_by_rank(self, rank):
+        """
+        Returns the list of MISCandidate objects for the specified rank.
+        Returns empty list if rank not found.
+        """
+        return self.ranked_mis_sets.get(rank, [])
         
     @property
     def reduction_applied(self):
         """Boolean: True if dim(MIS) < dim(Y)."""
         mis = self.best_mis
         if mis:
-            return len(mis['mis_indices']) < self.Y.shape[1]
+            return mis.size < self.Y.shape[1]
         return False
+
+    # --- Flattened Metrics ---
+    @property
+    def separation_score(self):
+        """The Separation Score (S). Higher is better."""
+        return float(self.metrics.get("S", float('nan')))
+
+    @property
+    def normalized_separation_score(self):
+        """Normalized S-score (S_norm). Closer to 1.0 is better."""
+        return float(self.metrics.get("S_norm", float('nan')))
+
+    # --- Flattened Validation ---
+    @property
+    def ses_nonlinear(self):
+        """Non-Linear SES (Random Forest R2 Score). None if not run."""
+        return self.validation_metrics.get('nonlinear')
+    
+    @property
+    def pareto_precision(self):
+        """Pareto Precision (Safety). None if not run."""
+        p_r = self.validation_metrics.get('pareto')
+        return p_r[0] if p_r else None
+        
+    @property
+    def pareto_recall(self):
+        """Pareto Recall (Coverage). None if not run."""
+        p_r = self.validation_metrics.get('pareto')
+        return p_r[1] if p_r else None
+    
+    def to_pandas(self):
+        """
+        Exports all found independent sets to a pandas DataFrame.
+        Columns: ['rank', 'size', 'max_corr', 'total_corr', 'labels', 'indices']
+        """
+        import pandas as pd
+        data = []
+        for m in self.mis_sets:
+            data.append({
+                'rank': m.rank,
+                'size': m.size,
+                'max_corr': m.max_correlation,
+                'total_corr': m.total_correlation,
+                'labels': m.labels,
+                'indices': m.indices
+            })
+        if not data:
+            return pd.DataFrame(columns=['rank', 'size', 'max_corr', 'total_corr', 'labels', 'indices'])
+        return pd.DataFrame(data)
+
+    def __repr__(self):
+        n_start = self.Y.shape[1]
+        n_end = self.best_mis.size if self.best_mis else "?"
+        name_str = f"'{self.name}'" if self.name else "Untitled"
+        return f"<MISDAResult: {name_str} (Dim {n_start}->{n_end}, Rank={self.best_mis.rank if self.best_mis else '?'})>"
 
     @property
     def diagnosis(self):
@@ -1577,8 +1703,8 @@ class MISDAResult:
         lines.append("\n--- 3. Results ---")
         mis = self.best_mis
         if mis:
-             lines.append(f"Best MIS Size: {len(mis['mis_indices'])}")
-             lines.append(f"Best MIS Labels: {mis['mis_labels']}")
+             lines.append(f"Best MIS Size: {mis.size}")
+             lines.append(f"Best MIS Labels: {mis.labels}")
         else:
              lines.append("No independent set found (or execution failed).")
              
@@ -1626,13 +1752,28 @@ class MISDAResult:
          
         return "\n".join(lines)
 
-    def plot(self):
-        """Returns the matplotlib figure of the ISDA graph."""
-        return plot_custom_misda_graph(
+    def plot(self, show=True):
+        """
+        Plots the ISDA graph.
+        
+        Args:
+            show (bool): If True, calls plt.show() to display the plot immediately.
+            
+        Returns:
+            matplotlib.figure.Figure: The figure object.
+        """
+        ret = plot_custom_misda_graph(
             self.isda_results,
             title=f"{self.name or 'MISDA'} — alpha={self.alpha:.3g} — regime={self.regime.name}",
             show_removed=False
         )
+        fig = ret['fig']
+        
+        if show:
+            import matplotlib.pyplot as plt
+            plt.show()
+            
+        return fig
 
 def analyze(Y, caution=0.5, name=None, ensure_coverage=True):
     """
@@ -1714,7 +1855,7 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         algo_alpha = res.alpha
         
         # MIS Info
-        mis_indices = res.best_mis['mis_indices'] if res.best_mis else []
+        mis_indices = res.best_mis.indices if res.best_mis else []
         dim_red = len(mis_indices)
         
         # Fidelity (Linear)

@@ -9,7 +9,8 @@ misda.py
 
     The main library file containing the implementation of the MISDA algorithm:
       - `analyze`: Core execution (graph construction, MIS finding).
-      - `MISDAResult`: Result object with `validate` and `summary` methods.
+      - `MISDAResult`: Result object with `validate`, `plot`, `to_pandas` methods.
+      - `MISCandidate`: Object-Oriented wrapper for individual solution sets.
       - Diagnostic metrics (Regime, S-value).
       - Helper classes and graph plotting utilities.
 

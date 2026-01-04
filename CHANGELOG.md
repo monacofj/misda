@@ -10,6 +10,22 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-01-04
+
+### Changed (Breaking)
+- **Separation of Concerns**: `misda.analyze()` no longer runs validation (SES, Pareto) by default. The `run_ses` argument has been removed.
+  - **New Workflow**: Call `res = misda.analyze(...)` then `res.validate()`.
+- **API Results**: `MISDAResult.mis_sets` and `res.get_mis_by_rank()` now return `MISCandidate` objects instead of dictionaries.
+  - **Old**: `sol['mis_labels']`
+  - **New**: `sol.labels` or `sol.indices`
+
+### Added
+- **Explicit Validation**: Added `MISDAResult.validate(check_linear=True, check_nonlinear=True, check_pareto=True)`.
+- **Object-Oriented API**: Introduced `MISCandidate` class for cleaner access to solution details.
+- **Flattened Metrics**: Added properties `res.separation_score`, `res.pareto_precision`, etc., to avoid dictionary lookups.
+- **Pandas Export**: Added `res.to_pandas()` to export all findings to a DataFrame.
+- **Rich Interaction**: Added informative `__repr__` for `MISDAResult` and `MISCandidate`.
+
 ## [0.1.0] - 2025-01-03
 
 ### Initial Release
