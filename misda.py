@@ -1428,7 +1428,7 @@ class MISDAResult:
     Stores input parameters, diagnostic regimes, execution results (MIS),
     and validation metrics (SES).
     """
-    def __init__(self, Y, caution, alpha_min, alpha_max, metrics, regime, alpha_exec, isda_res, ses_results=None, name=None):
+    def __init__(self, Y, caution, alpha_min, alpha_max, metrics, regime, alpha_exec, isda_res, name=None):
         self.Y = Y
         self.name = name
         self.caution = caution
@@ -1438,7 +1438,44 @@ class MISDAResult:
         self.regime = regime
         self.alpha = alpha_exec # effectively used alpha
         self.isda_results = isda_res
-        self.ses_results = ses_results
+        self.validation_metrics = {}
+
+    def validate(self, check_linear=True, check_nonlinear=True, check_pareto=True):
+        """
+        Runs post-hoc validation metrics.
+        Args:
+            check_linear (bool): Run calculate_ses (Linear Regression).
+            check_nonlinear (bool): Run calculate_ses_nonlinear (Random Forest).
+            check_pareto (bool): Run evaluate_pareto_consistency.
+        """
+        # Linear SES
+        if check_linear:
+             if self.best_mis:
+                best_ids = self.best_mis["mis_indices"]
+                Y_val = self.Y.values if hasattr(self.Y, "values") else self.Y
+                self.validation_metrics['linear'] = calculate_ses(Y_val, best_ids)
+        
+        # Non-Linear SES
+        if check_nonlinear:
+             if self.best_mis:
+                best_ids = self.best_mis["mis_indices"]
+                # Safeguard: prevent massive RF runs on huge data unless explicit
+                if self.Y.shape[0] <= 10000:
+                    self.validation_metrics['nonlinear'] = calculate_ses_nonlinear(self.Y, best_ids)
+        
+        # Pareto
+        if check_pareto:
+             if self.best_mis:
+                try:
+                    p, r = evaluate_pareto_consistency(self)
+                    self.validation_metrics['pareto'] = (p, r)
+                except Exception:
+                    pass
+
+    @property
+    def ses_results(self):
+        """Backward compatibility for linear SES results."""
+        return self.validation_metrics.get('linear')
 
     @property
     def correlations(self):
@@ -1501,6 +1538,15 @@ class MISDAResult:
              
         return "Ambiguous/Warn"
 
+    @property
+    def validation_status(self):
+        """Returns string describing what has been validated."""
+        validated = []
+        if 'linear' in self.validation_metrics: validated.append("Linear")
+        if 'nonlinear' in self.validation_metrics: validated.append("Non-Linear")
+        if 'pareto' in self.validation_metrics: validated.append("Pareto")
+        return ", ".join(validated) if validated else "None"
+
     def summary(self):
         """Returns a textual summary of the analysis."""
         lines = []
@@ -1517,6 +1563,7 @@ class MISDAResult:
         lines.append("\n--- 1. Diagnosis ---")
         lines.append(describe_alpha_regime(self.metrics))
         lines.append(f"Regime: {self.regime.name}")
+        lines.append(f"Validation: {self.validation_status}")
         
         # Decision
         lines.append("\n--- 2. Decision ---")
@@ -1556,32 +1603,26 @@ class MISDAResult:
                 lines.append("WARNING: High global complexity detected (SE={:.2f}) despite aggressive reduction. Suspected Latent Conflict (Sphere-like topology).".format(se_norm))
 
         # SES (Linear)
-        if self.ses_results:
+        # SES (Linear)
+        if 'linear' in self.validation_metrics:
              lines.append("\n--- 5. Validation (SES - Linear) ---")
-             lines.append(explain_ses(self.ses_results, name=self.name))
+             lines.append(explain_ses(self.validation_metrics['linear'], name=self.name))
         
         # SES (Non-Linear)
-        if self.Y.shape[0] <= 2000: # Limit for RF performance
-             try:
-                 ses_nl = calculate_ses_nonlinear(self.Y, self.best_mis)
-                 lines.append(f"Non-Linear SES (RF): {ses_nl:.4f} (R2 Score)")
-             except Exception:
-                 pass
+        if 'nonlinear' in self.validation_metrics:
+             ses_nl = self.validation_metrics['nonlinear']
+             lines.append(f"Non-Linear SES (RF): {ses_nl:.4f} (R2 Score)")
 
         # Pareto Consistency
-        # Only run if N is reasonable to avoid O(N^2) lag on massive datasets
-        if self.Y.shape[0] <= 5000:
+        if 'pareto' in self.validation_metrics:
              lines.append("\n--- 6. Pareto Consistency ---")
-             try:
-                 prec, rec = evaluate_pareto_consistency(self)
-                 lines.append(f"Precision (Safety):   {prec:.4f}  (Prob. that Surrogate Optimum is True Optimum)")
-                 lines.append(f"Recall    (Coverage): {rec:.4f}  (Prob. that True Optimum is retained)")
-                 if prec < 1.0:
-                     lines.append("WARN: Surrogate introduces false optima (Precision < 1.0).")
-                 if rec < 0.8:
-                     lines.append("WARN: Surrogate misses significant portion of Pareto front (Recall < 0.8).")
-             except Exception:
-                 lines.append("Error calculating Pareto metrics.")
+             prec, rec = self.validation_metrics['pareto']
+             lines.append(f"Precision (Safety):   {prec:.4f}  (Prob. that Surrogate Optimum is True Optimum)")
+             lines.append(f"Recall    (Coverage): {rec:.4f}  (Prob. that True Optimum is retained)")
+             if prec < 1.0:
+                 lines.append("WARN: Surrogate introduces false optima (Precision < 1.0).")
+             if rec < 0.8:
+                 lines.append("WARN: Surrogate misses significant portion of Pareto front (Recall < 0.8).")
          
         return "\n".join(lines)
 
@@ -1593,7 +1634,7 @@ class MISDAResult:
             show_removed=False
         )
 
-def analyze(Y, caution=0.5, run_ses=True, name=None, ensure_coverage=True):
+def analyze(Y, caution=0.5, name=None, ensure_coverage=True):
     """
     Executes the full MISDA pipeline on dataset Y.
     
@@ -1602,17 +1643,17 @@ def analyze(Y, caution=0.5, run_ses=True, name=None, ensure_coverage=True):
     2. Diagnose alpha regime (Separation, Mixed, etc.).
     3. Select execution alpha based on 'caution'.
     4. Run ISDA clustering algorithm.
-    5. (Optional) Run SES validation on the best MIS.
+    
+    Note: Validation (SES) is no longer automatic. Call result.validate() explicitly.
     
     Args:
         Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
         caution (float): Conservatism level [0, 1]. 0 = Aggressive reduction, 1 = Very conservative.
-        run_ses (bool): If True, calculates Structural Evidence Score for the best MIS.
         name (str): Optional name for the case, used in reports.
         ensure_coverage (bool): If True, ensures result covers all input variables.
         
     Returns:
-        MISDAResult: Object containing all analysis artifacts.
+        MISDAResult: Object containing analysis artifacts.
     """
     # 1. Regime Diagnosis
     alpha_min, alpha_max, r_max_real, r_null = estimate_alpha_interval(Y)
@@ -1623,19 +1664,8 @@ def analyze(Y, caution=0.5, run_ses=True, name=None, ensure_coverage=True):
     alpha_exec = select_alpha(alpha_min, alpha_max, caution)
     
     # 3. Execution
-    # 3. Execution
-    # 3. Execution
     res = misda_significance(Y, alpha=alpha_exec, ensure_coverage=ensure_coverage, min_coverage=None)
     
-    # 4. Validation (SES)
-    ses_out = None
-    if run_ses and res.get("mis_ranked"):
-        best_ids = res["mis_ranked"][0]["mis_indices"]
-        # If Y is DataFrame, pass values; calculate_ses handles DataFrame but let's be safe
-        Y_val = Y.values if hasattr(Y, "values") else Y
-        # Pass full Y (original) to calculate_ses
-        ses_out = calculate_ses(Y_val, best_ids)
-        
     return MISDAResult(
         Y=Y,
         caution=caution,
@@ -1645,7 +1675,6 @@ def analyze(Y, caution=0.5, run_ses=True, name=None, ensure_coverage=True):
         regime=regime,
         alpha_exec=alpha_exec,
         isda_res=res,
-        ses_results=ses_out,
         name=name
     )
 

@@ -7,9 +7,11 @@ MISDA PROJECT FILE STRUCTURE
 
 misda.py
 
-    The main library file containing the implementation of the MISDA algorithm
-    (analyze, reduce, compile_benchmark_summary), diagnostic metrics
-    (calculate_ses, calculate_ses_nonlinear), and helper classes.
+    The main library file containing the implementation of the MISDA algorithm:
+      - `analyze`: Core execution (graph construction, MIS finding).
+      - `MISDAResult`: Result object with `validate` and `summary` methods.
+      - Diagnostic metrics (Regime, S-value).
+      - Helper classes and graph plotting utilities.
 
 mop_definitions.py
 
@@ -26,7 +28,6 @@ benchmark.ipynb
       - 7 Canonical Cases (structural logic tests: Independence, Redundancy...)
       - 6 Synthetic MOPs (A-F) testing complex correlations, non-linearity,
         and regime switching.
-
 
 dtlz.ipynb
 
@@ -60,7 +61,7 @@ AUTHORS
 
 LICENSE
 
-    The primary license file for the project.
+    Symbolic link to LICENSES/GPL-3.0-or-later.txt.
 
 LICENSES/
 
@@ -89,3 +90,7 @@ verify_mop.py
 run_summary_test.py
 
     Utility to test the compile_benchmark_summary function specifically.
+
+doc/
+    
+    manual.md: Detailed manual.
