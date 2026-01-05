@@ -10,7 +10,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/benchmark.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
-## MISDA
+
+>Copyright (c) 2025 Monaco F. J. <monaco@usp.br> 
+>
+>This project is distributed under the GNU General Public License v3.0 or later. See the file LICENSE for more information. Some third-party components or specific files may be licensed under different terms. Please, consult the SPDX identifiers in each file's header and the LICENSES/ directory for precise details. 
+
+## Introduction
 
 **MISDA** is a graph-theoretic framework for dimensionality reduction in **Multi-Objective Problems (MOPs)**.
 
@@ -68,7 +73,7 @@ print(df.head())
 
 ## Documentation
 
-For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Manual](docs/usage.md)**.
+For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Guide](docs/usage.md)**.
 
 For performance benchmarks and validation against synthetic MOPs, see the **[Benchmark Suite](benchmark.ipynb)**.
 
@@ -80,12 +85,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 > Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.. *Maximal Independent Structural Dimensionality Analysis*, (in print), 2026.
 
-## License
 
-This project is distributed under the **GNU General Public License v3.0 or later**. See [LICENSE](LICENSE) for more information.
-
-Some third-party components or specific files may be licensed under different terms. All files in this repository are annotated with SPDX identifiers to clearly indicate their license.
-
-Please consult the file headers or the `LICENSES/` directory for precise licensing information for each file. This project complies with the [REUSE Specification](https://reuse.software/).
 
 

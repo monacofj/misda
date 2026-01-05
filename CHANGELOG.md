@@ -10,6 +10,17 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-01-05
+
+### Changed
+- **Defaults**: Updated `misda.analyze` default `caution` to **1.0** (Conservative).
+- **Documentation**: Renamed `docs/manual.md` to `docs/usage.md` and overhauled content.
+  - Added comprehensive `MISDAResult` object breakdown.
+  - Removed redundancy in examples.
+  - Refined definitions of positive (redundant) vs negative (conflicting) correlation.
+- **Reporting**: Added `MISDAResult.report()` for deep technical audits.
+- **Benchmarks**: Neutralized tone in `benchmark.ipynb` conclusions.
+
 ## [0.2.0] - 2026-01-04
 
 ### Changed (Breaking)
