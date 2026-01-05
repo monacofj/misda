@@ -10,10 +10,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/benchmark.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
-> This project is distributed under the **GNU General Public License v3.0 or later**. See [LICENSE](LICENSE) for more information.
-> Some third-party components or specific files may be licensed under different terms. All files in this repository are annotated with SPDX identifiers to clearly indicate their license.
-> Please consult the file headers or the `LICENSES/` directory for precise licensing information for each file. This project complies with the [REUSE Specification](https://reuse.software/).
-
 ## MISDA
 
 **MISDA** is a graph-theoretic framework for dimensionality reduction in **Multi-Objective Problems (MOPs)**.
@@ -84,6 +80,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 > Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.. *Maximal Independent Structural Dimensionality Analysis*, to be submitted, 2026.
 
+## License
 
+This project is distributed under the **GNU General Public License v3.0 or later**. See [LICENSE](LICENSE) for more information.
+
+Some third-party components or specific files may be licensed under different terms. All files in this repository are annotated with SPDX identifiers to clearly indicate their license.
+
+Please consult the file headers or the `LICENSES/` directory for precise licensing information for each file. This project complies with the [REUSE Specification](https://reuse.software/).
 
 

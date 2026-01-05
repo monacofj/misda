@@ -1752,6 +1752,80 @@ class MISDAResult:
          
         return "\n".join(lines)
 
+    def report(self, top_k=5):
+        """
+        Returns a comprehensive technical report of the analysis.
+        Combines the standard summary with deep inspection of internal state.
+        
+        Args:
+            top_k (int): Number of candidates to show per rank (default: 5).
+        """
+        # Start with standard summary
+        base_report = self.summary()
+        
+        lines = []
+        lines.append("\n" + "=" * 70)
+        lines.append("                    DETAILED INSPECTION REPORT")
+        lines.append("=" * 70)
+        
+        # 1. Statistical Foundation
+        lines.append("\n--- A. Statistical Foundation ---")
+        lines.append(f"Sample Size (N): {self.isda_results.get('N')} | Objectives (M): {self.isda_results.get('M')}")
+        lines.append(f"Fisher Transform Error (sigma_z): {self.isda_results.get('sigma_z'):.6f}")
+        lines.append(f"Critical Z-score (z_crit): {self.isda_results.get('z_crit'):.4f} (based on alpha={self.alpha:.6g})")
+        
+        # 2. Graph & Component Details
+        lines.append("\n--- B. Graph Topology Details ---")
+        comps = self.isda_results.get('components_labels', [])
+        homog_stats = self.isda_results.get('homogeneity_stats', {})
+        
+        lines.append(f"Connected Components: {len(comps)}")
+        for i, c in enumerate(comps):
+            # Try to get specific stats for this component if available
+            c_stat = homog_stats.get('details', {}).get(i, {})
+            min_r = c_stat.get('min_r', float('nan'))
+            max_r = c_stat.get('max_r', float('nan'))
+            ratio = c_stat.get('ratio', float('nan'))
+            
+            status = "Tight" if ratio > 0.8 else "Loose"
+            lines.append(f"  C{i+1}: {c}")
+            lines.append(f"      Internal Correlation: [{min_r:.4f} ... {max_r:.4f}] | Homogeneity: {ratio:.4f} ({status})")
+
+        # 3. Solution Space (All Candidates)
+        lines.append("\n--- C. Solution Space (All Candidates) ---")
+        rank_groups = self.ranked_mis_sets
+        
+        if not rank_groups:
+             lines.append("  No solutions found.")
+        
+        for r in sorted(rank_groups.keys()):
+            cands = rank_groups[r]
+            n_cands = len(cands)
+            lines.append(f"  Rank {r} ({n_cands} candidates):")
+            
+            # Smart Truncation
+            show_cands = cands[:top_k]
+            for c in show_cands:
+                lines.append(f"    - {c.labels} (Size={c.size})")
+                lines.append(f"      Criteria: TotalCorr={c.total_correlation:.4f} | MaxCorr={c.max_correlation:.4f}")
+            
+            if n_cands > top_k:
+                lines.append(f"      ... (+ {n_cands - top_k} more candidates. Use `res.to_pandas()` to view all.)")
+
+        # 4. Extended Verification
+        lines.append("\n--- D. Verification Details ---")
+        if self.ses_results:
+            ses = self.ses_results
+            lines.append("  Linear SES Breakdown:")
+            lines.append(f"    Fidelity (Real): {ses.get('F_real', 0):.4f}")
+            lines.append(f"    Fidelity (Null): {ses.get('F_null', 0):.4f}")
+            lines.append(f"    Gap (Signal):    {ses.get('gap', 0):.4f}")
+            lines.append(f"    Raw SES Score:   {ses.get('ses', 0):.4f}")
+        else:
+            lines.append("  Linear SES: Not run (or failed).")
+
+        return base_report + "\n".join(lines)
+
     def plot(self, show=True):
         """
         Plots the ISDA graph.
