@@ -1858,7 +1858,7 @@ class MISDAResult:
             
         return fig
 
-def analyze(Y, caution=0.5, name=None, ensure_coverage=True):
+def analyze(Y, caution=1.0, name=None, ensure_coverage=True):
     """
     Executes the full MISDA pipeline on dataset Y.
     
@@ -1873,6 +1873,7 @@ def analyze(Y, caution=0.5, name=None, ensure_coverage=True):
     Args:
         Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
         caution (float): Conservatism level [0, 1]. 0 = Aggressive reduction, 1 = Very conservative.
+                         Defaults to 1.0 (Most Conservative).
         name (str): Optional name for the case, used in reports.
         ensure_coverage (bool): If True, ensures result covers all input variables.
         
