@@ -456,7 +456,7 @@ def estimate_alpha_interval(Y, B=500, random_state=0):
 def select_alpha(alpha_min: float, alpha_max: float, caution: float) -> float:
     """
     Selects an alpha value between alpha_min and alpha_max based on a caution level.
-    A caution of 0 selects alpha_min (aggressive), 1 selects alpha_max (conservative).
+    A caution of 0 selects alpha_max (aggressive reduction), 1 selects alpha_min (conservative retention).
 
     Args:
         alpha_min (float): The minimum alpha value (most significant real correlation).
@@ -471,7 +471,10 @@ def select_alpha(alpha_min: float, alpha_max: float, caution: float) -> float:
     """
     if not (0 <= caution <= 1):
         raise ValueError("Caution must be between 0 and 1.")
-    return alpha_min * (1 - caution) + alpha_max * caution
+    # Inverted logic:
+    # caution=1.0 -> We want SAFETY (Retention) -> Low Alpha (alpha_min)
+    # caution=0.0 -> We want REDUCTION (Risk)  -> High Alpha (alpha_max)
+    return alpha_max * (1 - caution) + alpha_min * caution
 
 
 class AlphaRegime(IntEnum):
@@ -966,6 +969,10 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     # r = tanh(z)
     z_threshold = z_crit * sigma_z
     r_crit = np.tanh(z_threshold)
+    # Safeguard: prevent infinite loop in coverage if r_crit -> 1.0 (when alpha -> 0)
+    # Max correlation is clipped to 0.999999, so r_crit must be slightly below that.
+    if r_crit >= 0.99999:
+        r_crit = 0.99999
     
     corr_report = report_significant_correlations(corr, z_stat, z_crit, label_prefix="f")
 
@@ -1858,7 +1865,104 @@ class MISDAResult:
             
         return fig
 
-def analyze(Y, caution=1.0, name=None, ensure_coverage=True):
+
+def analyze(Y, method='static', caution=1.0, name=None, ensure_coverage=True, alpha=None, target_fidelity=0.95, max_iter=10):
+    """
+    Executes the MISDA pipeline on dataset Y.
+    
+    Strategies:
+    - 'static' (Default): Uses `caution` to pick a single `alpha`. Fast, standard.
+    - 'adaptive': Ignores `caution`. iteratively searches for `alpha` to meet `target_fidelity`. Robust, slower.
+    
+    Args:
+        Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
+        method (str): 'static' or 'adaptive'.
+        caution (float): [Static Only] Conservatism level [0, 1]. 0 = Aggressive, 1 = Conservative.
+        name (str): Optional name for the case.
+        ensure_coverage (bool): If True, ensures result covers all variables.
+        alpha (float, optional): [Static Only] Explicit alpha override.
+        target_fidelity (float): [Adaptive Only] Minimum SES (0.95) to accept reduction.
+        max_iter (int): [Adaptive Only] Max search iterations.
+        
+    Returns:
+        MISDAResult: Object containing analysis artifacts.
+    """
+    if method == 'static':
+        return _analyze_static(Y, caution=caution, name=name, ensure_coverage=ensure_coverage, alpha=alpha)
+    elif method == 'adaptive':
+        return _analyze_adaptive(Y, target_fidelity=target_fidelity, max_iter=max_iter, name=name, ensure_coverage=ensure_coverage)
+    else:
+        raise ValueError(f"Unknown method '{method}'. Valid options: 'static', 'adaptive'")
+
+def _analyze_adaptive(Y, target_fidelity=0.95, max_iter=10, name=None, ensure_coverage=True):
+    """Internal implementation of adaptive search."""
+    # 1. Estimate Bounds
+    alpha_min, alpha_max, _, _ = estimate_alpha_interval(Y)
+    
+    # Range is [0, alpha_max] effectively
+    low = 0.0 # Strictest
+    high = alpha_max
+    
+    best_valid_res = None
+    best_valid_dim = float('inf')
+    
+    current_alpha = alpha_max # Start aggressive
+    
+    print(f"Adaptive: Searching alpha in [{low:.2e}, {high:.2e}] for SES >= {target_fidelity}")
+    
+    for i in range(max_iter):
+        # Run Static Step
+        res = _analyze_static(Y, alpha=current_alpha, name=f"{name}_iter{i}" if name else None, ensure_coverage=ensure_coverage)
+        res.validate(check_nonlinear=False, check_pareto=False) # Fast linear check
+        
+        fidelity = res.validation_metrics.get("linear", {}).get("F_real", 0.0)
+        dim = len(res.best_mis_indices)
+        
+        is_good = (fidelity >= target_fidelity)
+        
+        print(f"  Iter {i}: alpha={current_alpha:.2e} -> Dim={dim}, SES={fidelity:.4f} [{'OK' if is_good else 'BAD'}]")
+        
+        if is_good:
+            # Good result. 
+            # Optimization logic: We want MINIMAL dimension (max reduction).
+            # Higher alpha -> More edges -> More reduction -> Lower Dim.
+            # So deeper we go into High Alpha, the better reduction we get.
+            
+            # If current is good, we are happy.
+            # Store it.
+            if dim < best_valid_dim:
+                best_valid_res = res
+                best_valid_dim = dim
+            elif dim == best_valid_dim and fidelity > best_valid_res.validation_metrics["linear"]["F_real"]:
+                 best_valid_res = res
+            
+            # If we are already at high bound (max aggression), we can't do better.
+            if abs(current_alpha - high) < 1e-12:
+                break 
+                
+            # If we are good, try to be MORE aggressive (Higher Alpha)
+            # Wait, binary search logic:
+            # Low = Safe (0), High = Aggressive (Max).
+            # If Current is Good, it means we are safe enough. Can we go closer to High?
+            # Yes. So Low = Current.
+            low = current_alpha
+        else:
+            # Bad solution (Unsafe). Too aggressive.
+            # Need Lower Alpha.
+            high = current_alpha
+            
+        current_alpha = (low + high) / 2.0
+    
+    if best_valid_res is None:
+        print("Adaptive: Warning - target fidelity not met. Returning safest fallback.")
+        return _analyze_static(Y, alpha=0.0, name=name, ensure_coverage=ensure_coverage)
+        
+    print(f"Adaptive: Converged. Alpha={best_valid_res.alpha:.2e}, Dim={len(best_valid_res.best_mis_indices)}")
+    # Rename the result to original name since it's the winner
+    best_valid_res.name = name
+    return best_valid_res
+
+def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None):
     """
     Executes the full MISDA pipeline on dataset Y.
     
@@ -1876,6 +1980,8 @@ def analyze(Y, caution=1.0, name=None, ensure_coverage=True):
                          Defaults to 1.0 (Most Conservative).
         name (str): Optional name for the case, used in reports.
         ensure_coverage (bool): If True, ensures result covers all input variables.
+        alpha (float, optional): Explicit override for significance level. If provided, skips 
+                                 automatic estimation logic for alpha selection.
         
     Returns:
         MISDAResult: Object containing analysis artifacts.
@@ -1886,7 +1992,10 @@ def analyze(Y, caution=1.0, name=None, ensure_coverage=True):
     regime = AlphaRegime(metrics["regime"])
     
     # 2. Decision Logic
-    alpha_exec = select_alpha(alpha_min, alpha_max, caution)
+    if alpha is not None:
+        alpha_exec = alpha
+    else:
+        alpha_exec = select_alpha(alpha_min, alpha_max, caution)
     
     # 3. Execution
     res = misda_significance(Y, alpha=alpha_exec, ensure_coverage=ensure_coverage, min_coverage=None)

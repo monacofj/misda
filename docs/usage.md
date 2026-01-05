@@ -98,6 +98,23 @@ The `misda.analyze()` function accepts the following key arguments:
 *   **`name`** (str, optional): A label for the analysis case (e.g., "Experiment 1"), used in reports.
 *   **`ensure_coverage`** (bool): If `True` (default), ensures the final set covers all variables locally.
 
+### Adaptive Analysis (Strategy Pattern)
+
+For high-dimensional ($M \ge 10$) or challenging problems ("Hyper-spheres"), you can switch to the adaptive strategy:
+
+```python
+# Adaptive search for optimal alpha
+# 'method' switches strategy. 'target_fidelity' (0.95) sets the goal.
+res = misda.analyze(df, method='adaptive', target_fidelity=0.95, name="HighDim_Case")
+
+# Validate is already run internally during adaptive search, but you can run it again
+print(res.summary())
+```
+
+Strategies:
+1.  **`'static'`** (Default): Uses `caution` to pick a single `alpha`. Fast ($O(1)$ run).
+2.  **`'adaptive'`**: Ignores `caution`. Performs a binary search on `alpha` to find the maximal reduction that maintains `target_fidelity`. Slower ($O(\log N)$ runs), but robust.
+
 ### Result Object (`MISDAResult`)
 
 The `analyze` function returns a `MISDAResult` object providing rich access to the analysis state:

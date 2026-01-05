@@ -10,6 +10,23 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-05
+
+### Added
+- **Unified API**: `misda.analyze` now supports a **Strategy Pattern** via the `method` argument.
+  - `method='static'` (Default): Standard heuristic execution.
+  - `method='adaptive'`: Robust binary search optimization.
+- **High-Dimensional Robustness**: 
+  - Adaptive strategy solves the **"Sphere Paradox"** (M >= 10), preventing unsafe over-reduction by enforcing a fidelity target (`target_fidelity`).
+  - Added robust fallback to Full Retention (safest option) when no reduction meets the fidelity target.
+
+### Fixed
+- **Infinite Loop**: Fixed a potential infinite loop in `repair_mis_coverage` when `alpha` approaches 0.0 (clamped `r_crit`).
+- **Validation Metrics**: Corrected casing sensitivity in validation metric keys (`"F_real"`).
+- **Defaults & Logic**: 
+  - Ensured `caution` defaults to **1.0** (Conservative).
+  - Fixed semantic inversion: `caution=1.0` now correctly selects `alpha_min` (Safe/Conservative), whereas previously it selected `alpha_max`.
+
 ## [0.2.1] - 2026-01-05
 
 ### Changed
