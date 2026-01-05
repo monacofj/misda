@@ -13,12 +13,17 @@ Introduction
 
 Fundamentally, MISDA operates by identifying the **Maximal Independent Set (MIS)** within an empirically derived objective dependency network. In contrast to projection-based techniques such as Principal Component Analysis (PCA)—which map attributes onto an abstract latent space—MISDA analyzes the topological properties of the correlation graph to isolate the largest subset of *original* decision variables that exhibit mutual statistical independence. Through the maximization of this independent set, the algorithm effectively recovers the intrinsic dimensionality of the problem, ensuring the retention of non-redundant information without semantic loss.
 
+MISDA accepts input as an $(N, M)$ dataset, provided as a NumPy array or pandas DataFrame, where $N$ represents samples and $M$ represents objectives (columns). The core philosophy of MISDA is based on the nature of objective correlations:
+
+*   **Positive Correlation (Redundancy)**: Objectives that vary together convey similar information. Stronger positive correlation implies higher redundancy, allowing for dimensionality reduction by removing one of the pair.
+*   **Negative Correlation (Conflict)**: Objectives that vary inversely represent the trade-offs (Pareto frontier) that define the problem structure. These must be retained to preserve the essential conflict information. 
+
 MISDA Workflow
 -----
 
 MISDA operates on the theoretical premise that the *essential* dimensionality of an MOP corresponds to the size of the largest set of conflicting (or independent) objectives. The framework proceeds in rigorous formal steps:
 
-1.  **Dependency Modeling**: A correlation matrix is computed from the sample data.
+1.  **Dependency Modeling**: A collumn-wise correlation matrix is computed from the sample data.
 2.  **Significance Testing**: Pairwise correlations are subjected to the Fisher Z-transformation to determine statistical significance at a given $\alpha$ level (e.g., $p < 0.05$).
 3.  **Graph Construction**: An undirected graph $G=(V, E)$ is built where vertices $V$ represent objectives and edges $E$ represent significant dependencies (redundancies).
 4.  **MIS Extraction**: The algorithm solves the **Maximum Independent Set** problem (NP-hard) on $G$ using an optimized **Bron-Kerbosch** algorithm. An independent set represents a group of objectives with no pairwise redundancies. The *Maximal* set (MIS) is the largest such group.
@@ -56,25 +61,80 @@ The primary function for end-users is `analyze`. It handles the entire pipeline:
 ```python
 import misda
 
-# Y is a (N, M) numpy array or pandas DataFrame of objective values
-result = misda.analyze(Y, caution=0.5, run_ses=True, name="MyExperiment")
+# 1. Analyse
+res = misda.analyze(df)
 
-print(result.summary())
+# 2. Inspect (Standard summary)
+print(res.summary())
+
+# or Visualise
+res.plot()
+
+# 3. Export reduced dataset
+reduced_df = df[res.best_mis.labels]
+reduced_df.to_csv("reduced_mop.csv")
 ```
+
+### 2. Deep Validation (Scientific)
+
+```python
+# Run analysis and force validation
+res = misda.analyze(df)
+res.validate() # Computes F_real, F_null, SES
+
+# Get full audit report (includes summary details)
+print(res.report())
+
+# Check specific candidates
+all_candidates = res.to_pandas()
+print(all_candidates.head())
+```
+
+The `misda.analyze()` function accepts the following key arguments:
 
 *   **`caution`** (float, 0.0 - 1.0): Controls the conservatism of the significance test.
     *   `0.0`: Aggressive reduction (uses $\alpha_{max}$).
     *   `1.0`: Conservative (uses $\alpha_{min}$), retaining more dimensions if in doubt.
-*   **`run_ses`** (bool): If `True`, performs the computationally expensive but valuable Structural Evidence Score validation.
+*   **`name`** (str, optional): A label for the analysis case (e.g., "Experiment 1"), used in reports.
+*   **`ensure_coverage`** (bool): If `True` (default), ensures the final set covers all variables locally.
 
-### Result Object
+### Result Object (`MISDAResult`)
 
-The `analyze` function returns a `MISDAResult` object with useful properties:
+The `analyze` function returns a `MISDAResult` object providing rich access to the analysis state:
 
-*   **`result.summary()`**: Returns a formatted string report (Diagnosis, Action, Quality, Validation).
-*   **`result.plot()`**: Returns a matplotlib figure visualizing the dependency graph and the selected MIS independent set (in green).
-*   **`result.best_mis`**: Dictionary containing the indices and labels of the best selected subset.
-*   **`result.diagnosis`**: Auto-diagnosis string (e.g., "Ideal (Clique)", "Drift (Chain)").
+#### 1. Core Inputs & Decision Parameters
+*   **`result.Y`**: Original input data.
+*   **`result.name`**: Analysis name.
+*   **`result.caution`**: The user-provided caution level (0.0 - 1.0).
+*   **`result.alpha_min`**: Lower bound of the estimated alpha interval.
+*   **`result.alpha_max`**: Upper bound of the estimated alpha interval.
+*   **`result.alpha`**: The specific alpha value used for execution (alias for `alpha_exec`).
+*   **`result.regime`**: The `AlphaRegime` object (diagnosis of the correlation structure).
+*   **`result.metrics`**: Dictionary of raw diagnosis metrics (e.g., `r_max`, `r_null`).
+
+#### 2. Execution Results (The Answers)
+*   **`result.best_mis_labels`**: The variable names of the best solution.
+*   **`result.best_mis_indices`**: The list of column indices of the best solution.
+*   **`result.best_mis`**: The full `MISCandidate` object for the best solution.
+*   **`result.mis_sets`**: List of all `MISCandidate` solutions found.
+*   **`result.ranked_mis_sets`**: Dictionary mapping rank to list of candidates (access via `ranks_available`).
+*   **`result.reduction_applied`**: Boolean (`True` if dimensionality was actually reduced).
+*   **`result.get_mis_by_rank(k)`**: Method to retrieve all solutions for rank `k`.
+
+#### 3. Quality & Validation
+*   **`result.diagnosis`**: A short string diagnosing quality (e.g., "Ideal (Clique)", "Drift (Chain)").
+*   **`result.homogeneity_ratio`**: Score indicating how consistent clusters are ($min/max$ correlation).
+*   **`result.min_compactness`**: Score for component compactness.
+*   **`result.validation_metrics`**: Dictionary storing SES/Pareto results (populated by `validate()`).
+*   **`result.validation_status`**: String indicating what checks were run (e.g., "Linear, Pareto").
+*   **`result.ses_results`**: Accessor for linear SES results (Legacy/Convenience).
+
+#### 4. Visuals & Reports
+*   **`result.summary()`**: Returns the formatted text report.
+*   **`result.report(top_k=5)`**: Returns the detailed technical audit.
+*   **`result.plot()`**: Returns the network graph figure.
+*   **`result.correlations`**: Returns the textual correlation report.
+*   **`result.to_pandas()`**: Returns a DataFrame of all candidates.
 
 Other user functions
 --------------------
@@ -96,6 +156,6 @@ For advanced users requiring granular control, the component functions are acces
 References
 ----------
 
-1. *Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.* . *Maximal Independent Structural Dimensionality Analysis*, to be submitted, 2026.
+1. *Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.* . *Maximal Independent Structural Dimensionality Analysis*, (in print), 2026.
 2.  **Bron, C., & Kerbosch, J.** (1973). Algorithm 457: finding all cliques of an undirected graph. *Communications of the ACM*, 16(9), 575-577.
 3.  **Deb, K., & Saxena, D. K.** (2005). On finding pareto-optimal solutions through dimensionality reduction for certain large-dimensional multi-objective optimization problems. *KanGAL Report*, 2005011.

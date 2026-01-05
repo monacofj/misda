@@ -68,7 +68,7 @@ print(df.head())
 
 ## Documentation
 
-For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Manual](docs/manual.md)**.
+For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Manual](docs/usage.md)**.
 
 For performance benchmarks and validation against synthetic MOPs, see the **[Benchmark Suite](benchmark.ipynb)**.
 
@@ -78,7 +78,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ## References
 
-> Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.. *Maximal Independent Structural Dimensionality Analysis*, to be submitted, 2026.
+> Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.. *Maximal Independent Structural Dimensionality Analysis*, (in print), 2026.
 
 ## License
 
