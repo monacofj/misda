@@ -544,7 +544,7 @@ def describe_alpha_regime(metrics: dict) -> str:
     S_norm = float(metrics["S_norm"])
 
     def _fmt(x):
-        if math.isnan(x): return "NaN"
+        if math.isnan(x): return "N/A"
         if math.isinf(x): return "+inf" if x > 0 else "-inf"
         return f"{x:.6g}"
 
@@ -1698,7 +1698,7 @@ class MISDAResult:
         else:
             lines.append("Action: Full Dimension Kept (No Reduction)")
         lines.append(f"Alpha Used: {self.alpha:.6g} (Range: [{self.alpha_min:.6g}, {self.alpha_max:.6g}])")
-                             
+                         
         # Results
         lines.append("\n--- 3. Results ---")
         mis = self.best_mis
@@ -1713,10 +1713,14 @@ class MISDAResult:
         ratio = self.homogeneity_ratio
         diag = self.diagnosis
         
-        lines.append(f"Homogeneity Ratio: {ratio:.4f}")
+        def _fmt_ratio(r):
+            if math.isnan(r): return "N/A"
+            return f"{r:.4f}"
+            
+        lines.append(f"Homogeneity Ratio: {_fmt_ratio(ratio)}")
         lines.append(f"Auto-Diagnosis: {diag}")
         
-        if ratio < 0.6:
+        if not math.isnan(ratio) and ratio < 0.6:
             lines.append("WARNING: Low homogeneity ratio (< 0.6). Possible over-reduction due to transitive chains or bridges.")
         else:
             lines.append("Status: OK (Components are internally homogeneous)")
@@ -1751,6 +1755,7 @@ class MISDAResult:
                  lines.append("WARN: Surrogate misses significant portion of Pareto front (Recall < 0.8).")
          
         return "\n".join(lines)
+
 
     def report(self, top_k=5):
         """
@@ -1787,9 +1792,13 @@ class MISDAResult:
             max_r = c_stat.get('max_r', float('nan'))
             ratio = c_stat.get('ratio', float('nan'))
             
-            status = "Tight" if ratio > 0.8 else "Loose"
+            def _fmt_nan(v, default="N/A"):
+                if math.isnan(v): return default
+                return f"{v:.4f}"
+            
+            status = "Tight" if (not math.isnan(ratio) and ratio > 0.8) else "Loose"
             lines.append(f"  C{i+1}: {c}")
-            lines.append(f"      Internal Correlation: [{min_r:.4f} ... {max_r:.4f}] | Homogeneity: {ratio:.4f} ({status})")
+            lines.append(f"      Internal Correlation: [{_fmt_nan(min_r)} ... {_fmt_nan(max_r)}] | Homogeneity: {_fmt_nan(ratio)} ({status})")
 
         # 3. Solution Space (All Candidates)
         lines.append("\n--- C. Solution Space (All Candidates) ---")
