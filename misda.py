@@ -359,12 +359,26 @@ def alpha_from_r(r, n):
     r = float(abs(r))
     if r <= 0.0:
         return 1.0
-    if r >= 0.999999:
-        return 1e-12
-    z = np.arctanh(r)
-    se = 1.0 / np.sqrt(n - 3)
-    z_stat = z / se
-    p = 2.0 * (1.0 - stats.norm.cdf(abs(z_stat)))
+    
+    # Use survival function (sf = 1 - cdf) for better precision at tails
+    # Handle r -> 1.0 case implicitly via large z, clamping p at the end
+    if r >= 1.0 - 1e-15:
+        # Avoid arctanh(1) singularity
+        z_stat = np.inf
+    else:
+        z = np.arctanh(r)
+        se = 1.0 / np.sqrt(n - 3)
+        z_stat = z / se
+        
+    # Use sf instead of (1-cdf) to avoid precision loss near 0
+    p = 2.0 * stats.norm.sf(abs(z_stat))
+    
+    # Clamp to machine epsilon to represent "extremely significant" rather than 0
+    # This allows z_crit lookup to return a finite large number instead of inf
+    min_float = np.finfo(float).tiny
+    if p < min_float:
+        p = min_float
+        
     return float(p)
 
 def max_abs_corr(Y):
@@ -962,7 +976,11 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     z = 0.5 * np.log((1 + corr) / (1 - corr))
     sigma_z = 1 / np.sqrt(N - 3)
     z_stat = z / sigma_z
-    z_crit = stats.norm.ppf(1 - alpha / 2)
+
+    # Use ISF (Inverse Survival Function) for better precision with small alpha
+    # Equivalent to ppf(1 - alpha/2) but avoids precision loss
+    # If alpha is extremely small (e.g. machine min), ISF returns large finite Z instead of inf.
+    z_crit = stats.norm.isf(alpha / 2)
     
     # Calculate correlation threshold corresponding to z_crit
     # z = z_crit * sigma_z
@@ -976,7 +994,7 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     
     corr_report = report_significant_correlations(corr, z_stat, z_crit, label_prefix="f")
 
-    signif = (z_stat > z_crit)
+    signif = (z_stat >= z_crit)
     adjacency = signif.astype(int)
     np.fill_diagonal(adjacency, 0)
 
