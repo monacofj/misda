@@ -10,6 +10,12 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-01-07
+
+### Fixed
+- **High-Correlation Underflow**: Fixed a numerical stability issue where extremely high correlations ($r \approx 0.99+$) caused p-values to underflow to `0.0`, resulting in an infinite significance threshold and failure to detect obvious redundancies. Implemented `stats.norm.sf` (Survival Function) and `stats.norm.isf` for stable tail probability calculations.
+- **Defaults**: Restored `caution` default to **1.0** (Conservative). The improved numerical stability makes this safest setting usable even for highly redundant data.
+
 ## [0.3.0] - 2026-01-05
 
 ### Added
