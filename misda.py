@@ -1884,7 +1884,7 @@ class MISDAResult:
         return fig
 
 
-def analyze(Y, method='static', caution=1.0, name=None, ensure_coverage=True, alpha=None, target_fidelity=0.95, max_iter=10):
+def analyze(Y, method='static', caution=0.5, name=None, ensure_coverage=True, alpha=None, target_fidelity=0.95, max_iter=10):
     """
     Executes the MISDA pipeline on dataset Y.
     
@@ -1896,6 +1896,7 @@ def analyze(Y, method='static', caution=1.0, name=None, ensure_coverage=True, al
         Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
         method (str): 'static' or 'adaptive'.
         caution (float): [Static Only] Conservatism level [0, 1]. 0 = Aggressive, 1 = Conservative.
+                         Defaults to 0.5 (Moderate).
         name (str): Optional name for the case.
         ensure_coverage (bool): If True, ensures result covers all variables.
         alpha (float, optional): [Static Only] Explicit alpha override.
