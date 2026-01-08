@@ -10,6 +10,16 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-01-08
+
+### Added
+- **Comparative Benchmark**: Added `comparative.ipynb` and `comparative.tex`, a rigorous study comparing MISDA against PCA and Clustering.
+  - Demonstrates **Pareto Dominance** of MISDA in Efficiency (Dimension) vs Effectiveness (Fidelity) space.
+  - Highlights MISDA's ability to preserve structural conflicts (MOP-D) that PCA collapses.
+  - Quantifies the "Cost of Interpretability" (~2% fidelity loss) for selecting physical variables over abstract components.
+- **Adaptive Improvements**: Validated `method='adaptive'` robustness on non-linear benchmarks (MOP-A, MOP-D).
+- **MOP Definitions**: Added canonical MOP definitions to `mop_definitions.py` for reproducible research.
+
 ## [0.3.1] - 2026-01-07
 
 ### Fixed

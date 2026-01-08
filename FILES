@@ -35,6 +35,16 @@ dtlz.ipynb
     Specialized benchmark for geometric manifolds (DTLZ2, DTLZ5) and high-
     dimensional analysis (M=10), featuring 3D reconstruction visualizations.
 
+comparative.ipynb
+
+    Rigorous benchmark comparing MISDA vs PCA vs Clustering (Efficiency vs
+    Effectiveness/Fidelity), demonstrating the "Blind Spot" of PCA in preserving
+    structural conflicts.
+
+comparative.tex
+
+    Academic paper draft mirroring the findings of comparative.ipynb.
+
 
 3. PROJECT METADATA & SETUP
 ----------------------------

@@ -75,7 +75,10 @@ print(df.head())
 
 For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Guide](docs/usage.md)**.
 
-For performance benchmarks and validation against synthetic MOPs, see the **[Benchmark Suite](benchmark.ipynb)**.
+### Benchmarks & Papers
+*   **[Standard Benchmark](benchmark.ipynb)**: Validation against canonical structures (Independence, Redundancy, Chains).
+*   **[Optimization Benchmark](dtlz.ipynb)**: High-dimensional DTLZ2 and DTLZ5 test cases.
+*   **[Comparative Analysis](comparative.ipynb)**: Head-to-head comparison vs PCA and Clustering, demonstrating structural advantages.
 
 ## Contributing
 
