@@ -13,7 +13,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 >Copyright (c) 2025 Monaco F. J. <monaco@usp.br> 
 >
->This project is distributed under the GNU General Public License v3.0 or later. See the file LICENSE for more information. Some third-party components or specific files may be licensed under different terms. Please, consult the SPDX identifiers in each file's header and the LICENSES/ directory for precise details. 
+>This project is distributed under the GNU General Public License v3.0 or later. See the file COPYING for more information. Some third-party components or specific files may be licensed under different terms. Please, consult the SPDX identifiers in each file's header and the LICENSES/ directory for precise details. 
 
 ## Introduction
 
@@ -73,7 +73,7 @@ print(df.head())
 
 ## Documentation
 
-For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Guide](docs/usage.md)**.
+For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Guide](docs/userguide.md)**.
 
 ### Benchmarks & Papers
 *   **[Standard Benchmark](benchmark.ipynb)**: Validation against canonical structures (Independence, Redundancy, Chains).
