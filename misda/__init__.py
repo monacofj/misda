@@ -485,10 +485,10 @@ def select_alpha(alpha_min: float, alpha_max: float, caution: float) -> float:
     """
     if not (0 <= caution <= 1):
         raise ValueError("Caution must be between 0 and 1.")
-    # Inverted logic:
-    # caution=1.0 -> We want SAFETY (Retention) -> Low Alpha (alpha_min)
-    # caution=0.0 -> We want REDUCTION (Risk)  -> High Alpha (alpha_max)
-    return alpha_max * (1 - caution) + alpha_min * caution
+    # Consistent mapping:
+    # caution=0.0 -> AGGRESSIVE -> alpha_min (Signal floor)
+    # caution=1.0 -> CONSERVATIVE -> alpha_max (Noise floor)
+    return alpha_min * (1 - caution) + alpha_max * caution
 
 
 class AlphaRegime(IntEnum):
@@ -994,7 +994,7 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     
     corr_report = report_significant_correlations(corr, z_stat, z_crit, label_prefix="f")
 
-    signif = (np.abs(z_stat) >= z_crit)
+    signif = (np.abs(z_stat) > z_crit)
     adjacency = signif.astype(int)
     np.fill_diagonal(adjacency, 0)
 
