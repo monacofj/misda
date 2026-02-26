@@ -3,7 +3,7 @@ import sys
 import os
 import numpy as np
 import pandas as pd
-import isda
+import misda
 import mop_definitions
 
 def run_verification():
@@ -41,15 +41,15 @@ def run_verification():
             df, truth = func(N=1000, seed=42)
             
             # Estimate Alpha
-            alpha_min, alpha_max, _, _ = isda.estimate_alpha_interval(df)
-            metrics = isda.diagnose_alpha_regime(alpha_min, alpha_max)
+            alpha_min, alpha_max, _, _ = misda.estimate_alpha_interval(df)
+            metrics = misda.diagnose_alpha_regime(alpha_min, alpha_max)
             
             # Select Alpha (Automatic / Conservative)
             # Using caution=1 (Conservative) as default for robust verification
-            alpha_exec = isda.select_alpha(alpha_min, alpha_max, caution=1.0)
+            alpha_exec = misda.select_alpha(alpha_min, alpha_max, caution=1.0)
             
             # Run ISDA
-            isda_results = isda.isda_significance(df, alpha=alpha_exec)
+            isda_results = misda.isda_significance(df, alpha=alpha_exec)
             
             # Check results
             mis_sets = isda_results['mis_sets']

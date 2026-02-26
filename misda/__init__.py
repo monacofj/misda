@@ -994,7 +994,7 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     
     corr_report = report_significant_correlations(corr, z_stat, z_crit, label_prefix="f")
 
-    signif = (z_stat >= z_crit)
+    signif = (np.abs(z_stat) >= z_crit)
     adjacency = signif.astype(int)
     np.fill_diagonal(adjacency, 0)
 
