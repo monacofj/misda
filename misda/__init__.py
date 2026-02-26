@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import math
 from enum import IntEnum
 
+__version__ = "0.4.1"
+
 # Constants
 AGGRESSIVE = 0
 MODERATE = 0.5
@@ -178,7 +180,15 @@ def plot_custom_misda_graph(
     if A is None:
         raise ValueError("results['adjacency'] missing.")
 
-    nodes = list(range(1, M + 1))
+    # Use actual labels if provided in the results dict
+    labels = results.get("labels")
+    if labels is not None:
+        nodes = list(labels)
+        # Map node name to 1-based index (internal ISDA logic uses 1-based)
+        node_to_idx = {name: i for i, name in enumerate(nodes)}
+    else:
+        nodes = list(range(1, M + 1))
+        node_to_idx = {i: i-1 for i in nodes}
 
     # --- MIS: UNIQUE and explicit source (mis_ranked) ---
     mis_ranked = results.get("mis_ranked", None)
@@ -191,7 +201,8 @@ def plot_custom_misda_graph(
     best_mis_entry = next(
         m for m in mis_ranked if m.get("rank", 10**9) == best_rank
     )
-    mis1 = _extract_mis_nodes_1based(best_mis_entry, M)
+    mis1_ids = _extract_mis_nodes_1based(best_mis_entry, M) # These are 1-based indices
+    mis1 = [nodes[i-1] for i in mis1_ids] # Map to actual node names (could be strings)
 
     if len(mis1) == 0:
         keys = sorted(best_mis_entry.keys()) if isinstance(best_mis_entry, dict) else []
@@ -211,11 +222,13 @@ def plot_custom_misda_graph(
     removed_edges = []
     for i in range(M):
         for j in range(i + 1, M):
+            u_name = nodes[i]
+            v_name = nodes[j]
             if A[i, j] != 0:
-                preserved_edges.append((i + 1, j + 1))
-                G.add_edge(i + 1, j + 1) # Add edges to G for layout calculations
+                preserved_edges.append((u_name, v_name))
+                G.add_edge(u_name, v_name)
             else:
-                removed_edges.append((i + 1, j + 1))
+                removed_edges.append((u_name, v_name))
 
     density = nx.density(G)
 
@@ -251,8 +264,13 @@ def plot_custom_misda_graph(
 
     # neighbors of Rank1 MIS
     neigh_set = set()
-    for u_mis in mis1:
-        neigh_set.update([k + 1 for k in np.where(A[u_mis - 1] != 0)[0].tolist()])
+    for u_mis_idx in mis1_ids:
+        # A is 0-based
+        neighbor_indices = np.where(A[u_mis_idx - 1] != 0)[0]
+        for k in neighbor_indices:
+            neigh_set.add(nodes[k])
+    
+    mis1_set = set(mis1)
     neigh_set -= mis1_set
 
     # Separate edges for coloring
@@ -486,8 +504,8 @@ def select_alpha(alpha_min: float, alpha_max: float, caution: float) -> float:
     if not (0 <= caution <= 1):
         raise ValueError("Caution must be between 0 and 1.")
     # Consistent mapping:
-    # caution=0.0 -> AGGRESSIVE -> alpha_min (Signal floor)
-    # caution=1.0 -> CONSERVATIVE -> alpha_max (Noise floor)
+    # caution=1.0 -> DEFAULT/STABLE -> alpha_max (Noise floor)
+    # caution=0.0 -> SIGNAL_ONLY   -> alpha_min (Signal floor)
     return alpha_min * (1 - caution) + alpha_max * caution
 
 
@@ -1800,9 +1818,13 @@ class MISDAResult:
         
         # 1. Statistical Foundation
         lines.append("\n--- A. Statistical Foundation ---")
+        lines.append(f"MISDA Version: {__version__}")
         lines.append(f"Sample Size (N): {self.isda_results.get('N')} | Objectives (M): {self.isda_results.get('M')}")
-        lines.append(f"Fisher Transform Error (sigma_z): {self.isda_results.get('sigma_z'):.6f}")
-        lines.append(f"Critical Z-score (z_crit): {self.isda_results.get('z_crit'):.4f} (based on alpha={self.alpha:.6g})")
+        lines.append(f"Fisher Transform Error (sigma_z): {self.isda_results.get('sigma_z', 0):.6f}")
+        lines.append(f"Alpha Range: [min={self.alpha_min:.3g} (Signal), max={self.alpha_max:.3g} (Noise)]")
+        lines.append(f"Caution setting: {self.caution:.2f}")
+        lines.append(f"Effective Alpha: {self.alpha:.6g} (based on regime={self.regime.name})")
+        lines.append(f"Critical Z-score: {self.isda_results.get('z_crit', 0):.4f}")
         
         # 2. Graph & Component Details
         lines.append("\n--- B. Graph Topology Details ---")
