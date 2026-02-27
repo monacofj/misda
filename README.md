@@ -7,7 +7,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/benchmark.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/benchmark.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
 
@@ -76,13 +76,13 @@ print(df.head())
 For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Guide](docs/userguide.md)**.
 
 ### Benchmarks & Papers
-*   **[Standard Benchmark](benchmark.ipynb)**: Validation against canonical structures (Independence, Redundancy, Chains).
-*   **[Optimization Benchmark](dtlz.ipynb)**: High-dimensional DTLZ2 and DTLZ5 test cases.
-*   **[Comparative Analysis](comparative.ipynb)**: Head-to-head comparison vs PCA and Clustering, demonstrating structural advantages.
+*   **[Standard Benchmark](examples/benchmark.ipynb)**: Validation against canonical structures (Independence, Redundancy, Chains).
+*   **[Optimization Benchmark](examples/dtlz.ipynb)**: High-dimensional DTLZ2 and DTLZ5 test cases.
+*   **[Comparative Analysis](examples/comparative.ipynb)**: Head-to-head comparison vs PCA and Clustering, demonstrating structural advantages.
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contact the authors.
+We welcome contributions! Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on how to contact the authors.
 
 ## References
 

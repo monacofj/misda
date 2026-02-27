@@ -1,8 +1,7 @@
 
-import dtlz_lib
+import mop_definitions
 import misda
 import pandas as pd
-import warnings
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -15,6 +14,7 @@ and produces the expected output format.
 """
 
 print("=== FULL SUMMARY for DTLZ5 ===")
-Y5, _ = dtlz_lib.generate_dtlz5(N=300, M=3)
-res5 = misda.analyze(Y5, caution=0.5, run_ses=True)
+Y5, _ = mop_definitions.generate_dtlz5(N=300, M=3)
+res5 = misda.analyze(Y5, caution=0.5)
+res5.validate()
 print(res5.summary())

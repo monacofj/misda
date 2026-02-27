@@ -362,3 +362,57 @@ def mopF_regime_switching(N=1000, seed=123, sharpness=20.0, noise=0.0):
         notes="10 objectives redundant around L (mixture by regime) + 10 redundant around b; global correlation can be misleading."
     )
     return _mop_df(Y), truth
+
+
+# ------------------------------------------------------------
+# DTLZ Suite (Geometric Manifolds)
+# ------------------------------------------------------------
+
+def generate_dtlz2(N=1000, M=3, n_vars=12, on_front=False):
+    """
+    Generates N samples of DTLZ2 with M objectives.
+    """
+    import math
+    rng = np.random.default_rng()
+    k = n_vars - M + 1
+    X = rng.uniform(0.0, 1.0, size=(N, n_vars))
+    if on_front:
+        X[:, (M-1):] = 0.5
+    xm = X[:, (M-1):] 
+    g = np.sum((xm - 0.5)**2, axis=1)
+    F = np.zeros((N, M))
+    for i in range(M):
+        f = (1.0 + g)
+        for j in range(M - 1 - i):
+            f *= np.cos(X[:, j] * math.pi / 2.0)
+        if i > 0:
+            f *= np.sin(X[:, M - 1 - i] * math.pi / 2.0)
+        F[:, i] = f
+    return F, X
+
+def generate_dtlz5(N=1000, M=3, n_vars=12, on_front=False):
+    """
+    Generates N samples of DTLZ5 (Degenerate curve).
+    """
+    import math
+    rng = np.random.default_rng()
+    k = n_vars - M + 1
+    X = rng.uniform(0.0, 1.0, size=(N, n_vars))
+    if on_front:
+        X[:, (M-1):] = 0.5
+    xm = X[:, (M-1):]
+    g = np.sum((xm - 0.5)**2, axis=1)
+    theta = np.zeros((N, M-1))
+    theta[:, 0] = X[:, 0] * math.pi / 2.0
+    gr = g[:, np.newaxis]
+    for i in range(1, M-1):
+        theta[:, i] = ((math.pi / (4.0 * (1.0 + gr))) * (1.0 + 2.0 * gr * X[:, i][:, np.newaxis])).ravel()
+    F = np.zeros((N, M))
+    for i in range(M):
+        f = (1.0 + g)
+        for j in range(M - 1 - i):
+            f *= np.cos(theta[:, j])
+        if i > 0:
+            f *= np.sin(theta[:, M - 1 - i])
+        F[:, i] = f
+    return F, X

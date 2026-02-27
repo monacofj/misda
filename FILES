@@ -14,36 +14,26 @@ misda.py
       - Diagnostic metrics (Regime, S-value).
       - Helper classes and graph plotting utilities.
 
-mop_definitions.py
-
-    Helper module containing definitions for synthetic MOP generators used in
-    tests, though some are also embedded directly in notebooks.
-
-
-2. NOTEBOOKS & BENCHMARKS (User-Facing)
+2. NOTEBOOKS & BENCHMARKS (examples/)
 ----------------------------------------
 
-benchmark.ipynb
+examples/benchmark.ipynb
 
     The primary test suite covering:
       - 7 Canonical Cases (structural logic tests: Independence, Redundancy...)
       - 6 Synthetic MOPs (A-F) testing complex correlations, non-linearity,
         and regime switching.
 
-dtlz.ipynb
+examples/dtlz.ipynb
 
     Specialized benchmark for geometric manifolds (DTLZ2, DTLZ5) and high-
     dimensional analysis (M=10), featuring 3D reconstruction visualizations.
 
-comparative.ipynb
+examples/comparative.ipynb
 
     Rigorous benchmark comparing MISDA vs PCA vs Clustering (Efficiency vs
     Effectiveness/Fidelity), demonstrating the "Blind Spot" of PCA in preserving
     structural conflicts.
-
-comparative.tex
-
-    Academic paper draft mirroring the findings of comparative.ipynb.
 
 
 3. PROJECT METADATA & SETUP
@@ -58,7 +48,7 @@ README.md
 
     Project overview, installation instructions, and quick start guide.
 
-CONTRIBUTING.md
+docs/CONTRIBUTING.md
 
     Guidelines for external contributors.
 
@@ -83,25 +73,26 @@ REUSE.toml
     Configuration for REUSE compliance (license tracking).
 
 
-4. TESTING & VERIFICATION SCRIPTS (Dev)
+4. TESTING & VERIFICATION SCRIPTS (examples/)
 ----------------------------------------
 
-verify_example.py
+examples/verify_example.py
 
     A minimal script to sanity-check the basic misda.analyze functionality.
 
-verify_table.py
+examples/verify_table.py
 
     Script used to verify the output formatting of summary tables.
 
-verify_mop.py
+examples/verify_mop.py
 
     Dedicated script for verifying MOP generator logic.
 
-run_summary_test.py
+examples/run_summary_test.py
 
     Utility to test the compile_benchmark_summary function specifically.
 
 doc/
     
     usage.md: Detailed manual.
+    CONTRIBUTING.md: Guidelines for external contributors.

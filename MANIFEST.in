@@ -1,7 +1,7 @@
-include LICENSE
+include COPYING
 include README.md
 include CHANGELOG.md
-include benchmark.ipynb
-include dtlz.ipynb
-include comparative.ipynb
+include AUTHORS.md
+include FILES
+recursive-include examples *
 recursive-include docs *

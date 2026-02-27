@@ -1,15 +1,6 @@
 MISDA Authorship & Credits
 --------------------------
 
-### Research Framework & Scientific Conception
-
-The underlying research project and the conceptual foundations of the 
-MISDA method are a collaborative work by:
-* Monaco F. J. <monaco@usp.br>
-* Delbem A. C. B.
-* Kuruvilla J. A.
-* Cesar Henrique de Souza
-
 ### Software Authorship
 
 The present codebase was entirely authored by:
@@ -17,6 +8,16 @@ The present codebase was entirely authored by:
 * Monaco F. J. <monaco@usp.br>
 
 from a complete refactoring of Souza's original implementation.
+
+### Research Framework & Scientific Conception
+
+The underlying research project and the conceptual foundations of the 
+MISDA method are a collaborative work by:
+
+* Monaco F. J. <monaco@usp.br>
+* Delbem A. C. B.
+* Kuruvilla J. A.
+* Cesar Henrique de Souza
 
 ### History
 
