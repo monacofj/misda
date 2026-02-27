@@ -487,8 +487,9 @@ def estimate_alpha_interval(Y, B=500, random_state=0):
 
 def select_alpha(alpha_min: float, alpha_max: float, caution: float) -> float:
     """
-    Selects an alpha value between alpha_min and alpha_max based on a caution level.
-    A caution of 0 selects alpha_max (aggressive reduction), 1 selects alpha_min (conservative retention).
+    A caution of 1.0 (conservative) targets alpha_max (noise floor) to ensure structural
+    integrity by identifying more potential dependencies. A caution of 0.0 (aggressive)
+    targets alpha_min (signal floor), prioritizing statistical pureness over structure.
 
     Args:
         alpha_min (float): The minimum alpha value (most significant real correlation).
@@ -1917,8 +1918,12 @@ def analyze(Y, method='static', caution=1.0, name=None, ensure_coverage=True, al
     Args:
         Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
         method (str): 'static' or 'adaptive'.
-        caution (float): [Static Only] Conservatism level [0, 1]. 0 = Aggressive, 1 = Conservative.
-                         Defaults to 1.0 (Most Conservative).
+        caution (float): [Static Only] Conservatism level [0, 1]. 
+                         1.0 = Conservative (Structural): targets noise floor to ensure no 
+                         latent dependencies are missed.
+                         0.0 = Aggressive (Statistical): ignores dependencies unless extremely 
+                         significant, prioritizing literal variable retention.
+                         Defaults to 1.0.
         name (str): Optional name for the case.
         ensure_coverage (bool): If True, ensures result covers all variables.
         alpha (float, optional): [Static Only] Explicit alpha override.
@@ -2017,7 +2022,9 @@ def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None)
     
     Args:
         Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
-        caution (float): Conservatism level [0, 1]. 0 = Aggressive reduction, 1 = Very conservative.
+        caution (float): Conservatism level [0, 1]. 
+                         1.0 = Structural conservatism (default).
+                         0.0 = High statistical threshold (minimum reduction).
                          Defaults to 1.0 (Most Conservative).
         name (str): Optional name for the case, used in reports.
         ensure_coverage (bool): If True, ensures result covers all input variables.
