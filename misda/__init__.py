@@ -22,6 +22,22 @@ AGGRESSIVE = 0
 MODERATE = 0.5
 CONSERVATIVE = 1
 
+# Internal Correlation Mode Configuration
+# "absolute": |r| — Structural dependence / latent dimension (reconstruction)
+# "positive": max(r, 0) — Directional redundancy / Pareto conflict preservation (r < 0 preserved)
+#_CORRELATION_MODE = "absolute"
+_CORRELATION_MODE = "positive"
+
+
+def _correlation_strength(r):
+    """Calculates correlation strength based on internal _CORRELATION_MODE."""
+    if _CORRELATION_MODE == "absolute":
+        return np.abs(r)
+    elif _CORRELATION_MODE == "positive":
+        return np.maximum(r, 0.0)
+    else:
+        raise ValueError(f"Unknown _CORRELATION_MODE: {_CORRELATION_MODE}. Expected 'absolute' or 'positive'.")
+
 # Utilities
 
 
@@ -419,7 +435,7 @@ def max_abs_corr(Y):
     n, m = data.shape
     corr = np.corrcoef(data, rowvar=False)
     iu = np.triu_indices(m, k=1)
-    vals = np.abs(corr[iu])
+    vals = _correlation_strength(corr[iu])
     r_max = float(vals.max()) if vals.size > 0 else 0.0
     return r_max, corr
 
@@ -451,7 +467,7 @@ def estimate_null_max_r(Y, B=500, random_state=None):
             perm[:, j] = rng.permutation(data[:, j])
         corr_perm = np.corrcoef(perm, rowvar=False)
         iu = np.triu_indices(m, k=1)
-        max_nulls.append(np.abs(corr_perm[iu]).max())
+        max_nulls.append(_correlation_strength(corr_perm[iu]).max())
     max_nulls = np.asarray(max_nulls, dtype=float)
     r_max_null = float(max_nulls.max()) if max_nulls.size > 0 else 0.0
     return r_max_null, max_nulls
@@ -848,7 +864,7 @@ def calculate_component_compactness(corr_matrix, components):
             
         # Extract submatrix
         sub_corr = corr_matrix[np.ix_(comp, comp)]
-        sub_corr_abs = np.abs(sub_corr)
+        sub_corr_abs = _correlation_strength(sub_corr)
         
         mask = np.ones_like(sub_corr_abs, dtype=bool)
         np.fill_diagonal(mask, False)
@@ -906,7 +922,7 @@ def repair_mis_coverage(corr_matrix, mis_indices, min_coverage=0.7):
             orphans = list(range(M))
         else:
             mis_cols = corr_matrix[:, current_mis]
-            max_corrs = np.max(np.abs(mis_cols), axis=1) # (M,)
+            max_corrs = np.max(_correlation_strength(mis_cols), axis=1) # (M,)
             
             # Find those below threshold
             orphans = np.where(max_corrs < min_coverage)[0]
@@ -924,7 +940,7 @@ def repair_mis_coverage(corr_matrix, mis_indices, min_coverage=0.7):
         
         # Optimization: only check nodes within the orphan set as candidates
         # (Though a non-orphan could arguably cover them too, but non-orphans are already 'represented')
-        subset_corr = np.abs(corr_matrix[np.ix_(orphans, orphans)])
+        subset_corr = _correlation_strength(corr_matrix[np.ix_(orphans, orphans)])
         
         # Count how many orphans each orphan covers
         coverage_counts = np.sum(subset_corr > min_coverage, axis=1)
@@ -1013,7 +1029,7 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     
     corr_report = report_significant_correlations(corr, z_stat, z_crit, label_prefix="f")
 
-    signif = (np.abs(z_stat) > z_crit)
+    signif = (_correlation_strength(z_stat) > z_crit)
     adjacency = signif.astype(int)
     np.fill_diagonal(adjacency, 0)
 
@@ -2085,7 +2101,7 @@ def compile_benchmark_summary(results_dict, sort_by=None):
             res = item
         elif isinstance(item, dict) and 'result_obj' in item:
             res = item['result_obj']
-            truth_dim = item.get('truth', {}).get('intrinsic_dim_expected', None)
+            truth_dim = item.get('truth', {}).get('structural_expected' if _CORRELATION_MODE == "positive" else 'latent_expected', item.get('truth', {}).get('intrinsic_dim_expected', None))
         
         if res is None:
             continue

@@ -10,10 +10,11 @@ Each generator produces a synthetic dataset (N samples x M objectives) with
 known ground truth regarding intrinsic dimensionality and redundancy structure.
 """
 
-def _mop_truth(name, intrinsic_dim_expected, blocks_expected, notes=""):
+def _mop_truth(name, latent_expected, structural_expected, blocks_expected, notes=""):
     return {
         "name": name,
-        "intrinsic_dim_expected": int(intrinsic_dim_expected),
+        "latent_expected": int(latent_expected),
+        "structural_expected": int(structural_expected),
         "blocks_expected": blocks_expected,  # list of lists of names "f1","f2",...
         "notes": notes,
     }
@@ -73,7 +74,8 @@ def mopA_monotonic_redundancy(N=1000, seed=123, noise=0.0):
 
     truth = _mop_truth(
         name="MOP-A — Monotonic redundancy (1D, M=20)",
-        intrinsic_dim_expected=1,
+        latent_expected=1,
+        structural_expected=1,
         blocks_expected=[_mk_block_names(1, 20)],
         notes="20 objectives as monotonic (and redundant) transformations of the same latent x."
     )
@@ -141,7 +143,8 @@ def mopB_tradeoff_with_redundancies(N=1000, seed=123, noise=0.02):
 
     truth = _mop_truth(
         name="MOP-B — Trade-off + redundancies (~2D, M=20)",
-        intrinsic_dim_expected=2,
+        latent_expected=2,
+        structural_expected=2,
         blocks_expected=[_mk_block_names(1, 7), _mk_block_names(8, 7), _mk_block_names(15, 6)],
         notes="Three families (cost/consumption/performance) with internal redundancies; effective tends to ~2."
     )
@@ -176,7 +179,8 @@ def mopC_latent_blocks_4x5(N=1000, seed=123, noise=0.02):
 
     truth = _mop_truth(
         name="MOP-C — Latent blocks (4×5, M=20)",
-        intrinsic_dim_expected=4,
+        latent_expected=4,
+        structural_expected=4,
         blocks_expected=[_mk_block_names(1,5), _mk_block_names(6,5), _mk_block_names(11,5), _mk_block_names(16,5)],
         notes="Four independent factors; each block (5 objectives) is internally redundant."
     )
@@ -232,7 +236,8 @@ def mopD_pure_conflict_groups(N=1000, seed=123, noise=0.0):
 
     truth = _mop_truth(
         name="MOP-D — Structural conflict (anti-corr) 2-groups (M=20)",
-        intrinsic_dim_expected=2,
+        latent_expected=1,
+        structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,10)],
         notes="Two internally redundant groups (+x and 1-x), but antagonistic to each other: conflict must be preserved."
     )
@@ -296,7 +301,8 @@ def mopE_partial_redundancy_noisy(N=1000, seed=123, noise=0.05):
 
     truth = _mop_truth(
         name="MOP-E — Partial redundancy + noise (M=20)",
-        intrinsic_dim_expected=2,
+        latent_expected=2,
+        structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,4), _mk_block_names(15,6)],
         notes="Trio/quartet of 'a' extended to 10 redundants; 'b' (4); and 6 compounds around s=a+b."
     )
@@ -357,7 +363,8 @@ def mopF_regime_switching(N=1000, seed=123, sharpness=20.0, noise=0.0):
 
     truth = _mop_truth(
         name="MOP-F — Regimes (mixture, M=20)",
-        intrinsic_dim_expected=2,
+        latent_expected=2,
+        structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,10)],
         notes="10 objectives redundant around L (mixture by regime) + 10 redundant around b; global correlation can be misleading."
     )
