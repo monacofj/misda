@@ -1240,44 +1240,43 @@ def _calculate_ses_core(
     test_idx = idx[:n_test]
     train_idx = idx[n_test:]
 
-    def fit_predict_r2(X_train, y_train, X_test, y_test, target_seed):
+    def compute_F_and_r2dict(X_tr, X_te, base_seed):
+        Y_tr = Ymat[train_idx, :][:, T_idx]
+        Y_te = Ymat[test_idx, :][:, T_idx]
+
         if model_type == "linear":
-            Xtr = np.column_stack([np.ones((X_train.shape[0], 1)), X_train])
-            Xte = np.column_stack([np.ones((X_test.shape[0], 1)), X_test])
-            beta, *_ = np.linalg.lstsq(Xtr, y_train, rcond=None)
-            y_hat = Xte @ beta
+            Xtr_b = np.column_stack([np.ones((X_tr.shape[0], 1)), X_tr])
+            Xte_b = np.column_stack([np.ones((X_te.shape[0], 1)), X_te])
+            beta, *_ = np.linalg.lstsq(Xtr_b, Y_tr, rcond=None)
+            Y_hat = Xte_b @ beta
         elif model_type == "nonlinear":
             from sklearn.ensemble import RandomForestRegressor
             rf = RandomForestRegressor(
-                n_estimators=n_estimators, random_state=target_seed, n_jobs=-1
+                n_estimators=n_estimators, random_state=base_seed, n_jobs=-1
             )
-            rf.fit(X_train, y_train)
-            y_hat = rf.predict(X_test)
+            Y_tr_fit = Y_tr.ravel() if Y_tr.shape[1] == 1 else Y_tr
+            rf.fit(X_tr, Y_tr_fit)
+            Y_hat = rf.predict(X_te)
+            if Y_hat.ndim == 1:
+                Y_hat = Y_hat[:, np.newaxis]
         else:
             raise ValueError(f"Unknown model_type '{model_type}'")
 
-        ss_res = float(np.sum((y_test - y_hat) ** 2))
-        y_mean = float(np.mean(y_test))
-        ss_tot = float(np.sum((y_test - y_mean) ** 2))
-        if ss_tot <= 1e-15:
-            # Target is constant in test set: R2 is undefined
-            return None
-        return 1.0 - (ss_res / ss_tot)
-
-    def compute_F_and_r2dict(X_tr, X_te, base_seed):
         r2 = {}
         vals = []
-        for idx_j, j in enumerate(T_idx):
-            y_train = Ymat[train_idx, j]
-            y_test = Ymat[test_idx, j]
-            t_seed = base_seed + idx_j
-            r2_j = fit_predict_r2(X_tr, y_train, X_te, y_test, t_seed)
-            if r2_j is None:
+        for idx_k, j in enumerate(T_idx):
+            y_test_j = Y_te[:, idx_k]
+            y_hat_j = Y_hat[:, idx_k]
+            ss_res = float(np.sum((y_test_j - y_hat_j) ** 2))
+            y_mean = float(np.mean(y_test_j))
+            ss_tot = float(np.sum((y_test_j - y_mean) ** 2))
+            if ss_tot <= 1e-15:
                 r2[names[j]] = None
             else:
-                r2_j = float(r2_j)
+                r2_j = float(1.0 - (ss_res / ss_tot))
                 r2[names[j]] = r2_j
                 vals.append(max(0.0, r2_j))
+
         if len(vals) == 0:
             return None, r2
         return float(np.mean(vals)), r2
