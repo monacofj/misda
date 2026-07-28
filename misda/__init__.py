@@ -1144,6 +1144,265 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
 # MOP (Multi-Objective Pruning) - aka "Reduction" Helpers (for validation)
 # -------------------------------------------------------------------------
 
+def _calculate_ses_core(
+    Y,
+    mis,
+    model_type="linear",
+    n_perm=20,
+    test_size=0.3,
+    seed=123,
+    clip=True,
+    n_estimators=100,
+):
+    """
+    Unified core engine for Linear (OLS) and Non-Linear (Random Forest) SES.
+    Predicts ONLY eliminated targets T from kept predictors S.
+    """
+    if hasattr(Y, "values") and hasattr(Y, "columns"):
+        cols = list(Y.columns)
+        Ymat = np.asarray(Y.values, dtype=float)
+        names = cols
+    else:
+        Ymat = np.asarray(Y, dtype=float)
+        if Ymat.ndim != 2:
+            raise ValueError("Y must be 2D matrix (N x M).")
+        cols = None
+        names = [f"f{i+1}" for i in range(Ymat.shape[1])]
+
+    N, M = Ymat.shape
+    if N < 2:
+        raise ValueError("Y must have at least 2 samples.")
+    if M < 1:
+        raise ValueError("Y must have at least 1 feature.")
+
+    # Process mis (kept indices / labels)
+    if isinstance(mis, dict) and "mis_indices" in mis:
+        mis_list = mis["mis_indices"]
+    else:
+        mis_list = mis
+
+    if len(mis_list) == 0:
+        raise ValueError("mis cannot be empty.")
+
+    if cols is not None and isinstance(mis_list[0], str):
+        S_idx = [cols.index(c) for c in mis_list]
+    else:
+        S_idx = list(map(int, mis_list))
+
+    S_idx = sorted(set(S_idx))
+    if any(i < 0 or i >= M for i in S_idx):
+        raise ValueError("mis contains index outside of range [0, M).")
+
+    # Validate parameters
+    if not (0.0 < test_size < 1.0):
+        raise ValueError("test_size must be strictly between 0 and 1.")
+    if n_perm < 1:
+        raise ValueError("n_perm must be at least 1.")
+
+    T_idx = [j for j in range(M) if j not in S_idx]
+
+    # Edge Case: No Reduction (All objectives kept: T is empty)
+    if len(T_idx) == 0:
+        return {
+            "ses": None,
+            "F_real": None,
+            "F_null": None,
+            "mis_size": len(S_idx),
+            "M": int(M),
+            "N": int(N),
+            "targets_reconstructed": [],
+            "r2_real": {},
+            "r2_null": {},
+            "status": "NO_REDUCTION",
+            "model_type": model_type,
+            "settings": {
+                "n_perm": int(n_perm),
+                "test_size": float(test_size),
+                "seed": int(seed),
+                "clip": bool(clip),
+            },
+        }
+
+    if model_type == "nonlinear":
+        try:
+            from sklearn.ensemble import RandomForestRegressor
+        except ImportError:
+            raise ImportError(
+                "scikit-learn is required to calculate non-linear SES (RandomForestRegressor)."
+            )
+
+    # Train / Test split
+    rng = np.random.default_rng(seed)
+    idx = np.arange(N)
+    rng.shuffle(idx)
+    n_test = int(np.round(test_size * N))
+    n_test = min(max(n_test, 1), N - 1)
+    test_idx = idx[:n_test]
+    train_idx = idx[n_test:]
+
+    def fit_predict_r2(X_train, y_train, X_test, y_test, target_seed):
+        if model_type == "linear":
+            Xtr = np.column_stack([np.ones((X_train.shape[0], 1)), X_train])
+            Xte = np.column_stack([np.ones((X_test.shape[0], 1)), X_test])
+            beta, *_ = np.linalg.lstsq(Xtr, y_train, rcond=None)
+            y_hat = Xte @ beta
+        elif model_type == "nonlinear":
+            from sklearn.ensemble import RandomForestRegressor
+            rf = RandomForestRegressor(
+                n_estimators=n_estimators, random_state=target_seed, n_jobs=-1
+            )
+            rf.fit(X_train, y_train)
+            y_hat = rf.predict(X_test)
+        else:
+            raise ValueError(f"Unknown model_type '{model_type}'")
+
+        ss_res = float(np.sum((y_test - y_hat) ** 2))
+        y_mean = float(np.mean(y_test))
+        ss_tot = float(np.sum((y_test - y_mean) ** 2))
+        if ss_tot <= 1e-15:
+            # Target is constant in test set: R2 is undefined
+            return None
+        return 1.0 - (ss_res / ss_tot)
+
+    def compute_F_and_r2dict(X_tr, X_te, base_seed):
+        r2 = {}
+        vals = []
+        for idx_j, j in enumerate(T_idx):
+            y_train = Ymat[train_idx, j]
+            y_test = Ymat[test_idx, j]
+            t_seed = base_seed + idx_j
+            r2_j = fit_predict_r2(X_tr, y_train, X_te, y_test, t_seed)
+            if r2_j is None:
+                r2[names[j]] = None
+            else:
+                r2_j = float(r2_j)
+                r2[names[j]] = r2_j
+                vals.append(max(0.0, r2_j))
+        if len(vals) == 0:
+            return None, r2
+        return float(np.mean(vals)), r2
+
+    X_real = Ymat[:, S_idx]
+    X_tr_real = X_real[train_idx, :]
+    X_te_real = X_real[test_idx, :]
+    F_real, r2_real = compute_F_and_r2dict(X_tr_real, X_te_real, seed)
+
+    if F_real is None:
+        return {
+            "ses": None,
+            "F_real": None,
+            "F_null": None,
+            "mis_size": len(S_idx),
+            "M": int(M),
+            "N": int(N),
+            "targets_reconstructed": [names[j] for j in T_idx],
+            "r2_real": r2_real,
+            "r2_null": {},
+            "status": "UNDEFINED_TARGETS",
+            "model_type": model_type,
+            "settings": {
+                "n_perm": int(n_perm),
+                "test_size": float(test_size),
+                "seed": int(seed),
+                "clip": bool(clip),
+            },
+        }
+
+    # Permutation null model: permute within train and test independently
+    r2_null_acc = {names[j]: [] for j in T_idx}
+    F_null_vals = []
+
+    for b in range(int(n_perm)):
+        perm_seed_tr = seed + 1000 + b * 2
+        perm_seed_te = seed + 1000 + b * 2 + 1
+        rng_tr = np.random.default_rng(perm_seed_tr)
+        rng_te = np.random.default_rng(perm_seed_te)
+
+        X_tr_perm = X_tr_real.copy()
+        X_te_perm = X_te_real.copy()
+
+        for c in range(X_real.shape[1]):
+            p_tr = rng_tr.permutation(len(train_idx))
+            X_tr_perm[:, c] = X_tr_perm[p_tr, c]
+
+            p_te = rng_te.permutation(len(test_idx))
+            X_te_perm[:, c] = X_te_perm[p_te, c]
+
+        b_seed = seed + 5000 + b * 100
+        Fb, r2b = compute_F_and_r2dict(X_tr_perm, X_te_perm, b_seed)
+        if Fb is not None:
+            F_null_vals.append(Fb)
+            for k, v in r2b.items():
+                if v is not None:
+                    r2_null_acc[k].append(v)
+
+    if len(F_null_vals) > 0:
+        F_null = float(np.mean(F_null_vals))
+    else:
+        F_null = 0.0
+
+    r2_null = {
+        k: (float(np.mean(vs)) if len(vs) > 0 else None)
+        for k, vs in r2_null_acc.items()
+    }
+
+    denom = 1.0 - F_null
+    if denom <= 0:
+        ses = 0.0 if (F_real <= F_null) else 1.0
+    else:
+        ses = (F_real - F_null) / denom
+
+    if clip:
+        ses = float(np.clip(ses, 0.0, 1.0))
+    else:
+        ses = float(ses)
+
+    return {
+        "ses": ses,
+        "F_real": float(F_real),
+        "F_null": float(F_null),
+        "mis_size": len(S_idx),
+        "M": int(M),
+        "N": int(N),
+        "targets_reconstructed": [names[j] for j in T_idx],
+        "r2_real": r2_real,
+        "r2_null": r2_null,
+        "status": "SUCCESS",
+        "model_type": model_type,
+        "settings": {
+            "n_perm": int(n_perm),
+            "test_size": float(test_size),
+            "seed": int(seed),
+            "clip": bool(clip),
+        },
+    }
+
+
+def calculate_ses_linear(
+    Y,
+    mis,
+    *,
+    n_perm=20,
+    test_size=0.3,
+    seed=123,
+    clip=True,
+    return_details=True,
+):
+    """
+    Calculates Linear SES (Structural Evidence Score) using OLS Linear Regression.
+    """
+    out = _calculate_ses_core(
+        Y,
+        mis,
+        model_type="linear",
+        n_perm=n_perm,
+        test_size=test_size,
+        seed=seed,
+        clip=clip,
+    )
+    return out if return_details else out["ses"]
+
+
 def calculate_ses(
     Y,
     mis,
@@ -1157,175 +1416,59 @@ def calculate_ses(
     """
     calculate_ses(Y, mis) -> ses (0..1) + details
 
-    SES = Structural Evidence Score.
+    SES = Structural Evidence Score (Linear OLS).
+    Alias for calculate_ses_linear.
     """
-
-    if hasattr(Y, "values") and hasattr(Y, "columns"):
-        cols = list(Y.columns)
-        Ymat = np.asarray(Y.values, dtype=float)
-        if len(mis) == 0:
-            raise ValueError("mis cannot be empty.")
-        if isinstance(mis[0], str):
-            S_idx = [cols.index(c) for c in mis]
-        else:
-            S_idx = list(map(int, mis))
-        M = Ymat.shape[1]
-        names = cols
-    else:
-        Ymat = np.asarray(Y, dtype=float)
-        if Ymat.ndim != 2:
-            raise ValueError("Y must be 2D (NxM).")
-        if len(mis) == 0:
-            raise ValueError("mis cannot be empty.")
-        S_idx = list(map(int, mis))
-        M = Ymat.shape[1]
-        names = [f"f{i+1}" for i in range(M)]
-
-    N = Ymat.shape[0]
-    S_idx = sorted(set(S_idx))
-    if any(i < 0 or i >= M for i in S_idx):
-        raise ValueError("mis contains index outside of [0, M).")
-
-    T_idx = [j for j in range(M) if j not in S_idx]
-    if len(T_idx) == 0:
-        out = {"ses": 1.0, "F_real": 1.0, "F_null": 0.0, "r2_real": {}, "r2_null": {}}
-        return out if return_details else 1.0
-
-    rng = np.random.default_rng(seed)
-    idx = np.arange(N)
-    rng.shuffle(idx)
-    n_test = int(np.round(test_size * N))
-    n_test = min(max(n_test, 1), N - 1)
-    test_idx = idx[:n_test]
-    train_idx = idx[n_test:]
-
-    def fit_predict_r2(X_train, y_train, X_test, y_test):
-        Xtr = np.column_stack([np.ones((X_train.shape[0], 1)), X_train])
-        Xte = np.column_stack([np.ones((X_test.shape[0], 1)), X_test])
-        beta, *_ = np.linalg.lstsq(Xtr, y_train, rcond=None)
-        y_hat = Xte @ beta
-        ss_res = np.sum((y_test - y_hat) ** 2)
-        y_mean = np.mean(y_test)
-        ss_tot = np.sum((y_test - y_mean) ** 2)
-        if ss_tot <= 0:
-            return 0.0
-        return 1.0 - (ss_res / ss_tot)
-
-    def compute_F_and_r2dict(X):
-        X_train = X[train_idx, :]
-        X_test = X[test_idx, :]
-        r2 = {}
-        vals = []
-        for j in T_idx:
-            y_train = Ymat[train_idx, j]
-            y_test = Ymat[test_idx, j]
-            r2_j = fit_predict_r2(X_train, y_train, X_test, y_test)
-            r2[names[j]] = float(r2_j)
-            vals.append(max(0.0, r2_j))
-        return float(np.mean(vals)), r2
-
-    X_real = Ymat[:, S_idx]
-    F_real, r2_real = compute_F_and_r2dict(X_real)
-
-    r2_null_acc = {names[j]: [] for j in T_idx}
-    F_null_vals = []
-    for b in range(int(n_perm)):
-        Xn = X_real.copy()
-        for c in range(Xn.shape[1]):
-            perm = rng.permutation(N)
-            Xn[:, c] = Xn[perm, c]
-        Fb, r2b = compute_F_and_r2dict(Xn)
-        F_null_vals.append(Fb)
-        for k, v in r2b.items():
-            r2_null_acc[k].append(v)
-
-    F_null = float(np.mean(F_null_vals))
-    r2_null = {k: float(np.mean(vs)) for k, vs in r2_null_acc.items()}
-
-    denom = (1.0 - F_null)
-    if denom <= 0:
-        ses = 0.0 if (F_real <= F_null) else 1.0
-    else:
-        ses = (F_real - F_null) / denom
-    if clip:
-        ses = float(np.clip(ses, 0.0, 1.0))
-    else:
-        ses = float(ses)
-
-    out = {
-        "ses": ses,
-        "F_real": float(F_real),
-        "F_null": float(F_null),
-        "mis_size": len(S_idx),
-        "M": int(M),
-        "N": int(N),
-        "targets_reconstructed": [names[j] for j in T_idx],
-        "r2_real": r2_real,
-        "r2_null": r2_null,
-        "settings": {
-            "n_perm": int(n_perm),
-            "test_size": float(test_size),
-            "seed": int(seed),
-            "clip": bool(clip),
-        },
-    }
-    return out if return_details else out["ses"]
+    return calculate_ses_linear(
+        Y,
+        mis,
+        n_perm=n_perm,
+        test_size=test_size,
+        seed=seed,
+        clip=clip,
+        return_details=return_details,
+    )
 
 
 def calculate_ses_nonlinear(
     Y,
     mis,
     *,
+    n_perm=20,
     test_size=0.3,
     seed=123,
-    n_estimators=100
+    clip=True,
+    n_estimators=100,
+    return_details=False,
 ):
     """
     Calculates Non-Linear SES using Random Forest Regression.
-    Returns the R2 score of reconstructing Y from Y[:, mis].
-    
-    Args:
-        Y: (N, M) matrix
-        mis: list of indices (or dict from result)
-        test_size: fraction for validation (default 0.3)
-        n_estimators: trees for RF
-        
-    Returns:
-        float: R2 score (0..1)
-    """
-    try:
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.model_selection import train_test_split
-    except ImportError:
-        print("Warning: sklearn not found. calculate_ses_nonlinear returning 0.0.")
-        return 0.0
+    Returns scalar SES by default (or detailed dict if return_details=True).
 
-    # Handle input types
-    Y = np.asarray(Y)
-    if isinstance(mis, dict) and 'mis_indices' in mis:
-        indices = mis['mis_indices']
-    else:
-        indices = mis
-        
-    if not len(indices):
-        return 0.0
-        
-    M = Y.shape[1]
-    # Identify target columns (all, or just dependent ones? SES reconstructs ALL usually or remaining?)
-    # Linear SES validates F_real: R2 of Y ~ Y_mis. 
-    # Usually we want to know if Y_mis predicts Y (especially Y_dependent).
-    # Since Y_mis predicts itself perfectly (R2=1), the score is dominated by dependents.
-    # We will predict ALL M columns to match F_real logic (which is avg R2).
-    
-    Y_mis = Y[:, indices]
-    
-    X_train, X_test, Y_train, Y_test = train_test_split(Y_mis, Y, test_size=test_size, random_state=seed)
-    
-    reg = RandomForestRegressor(n_estimators=n_estimators, random_state=seed, n_jobs=-1)
-    reg.fit(X_train, Y_train)
-    
-    score = reg.score(X_test, Y_test)
-    return max(0.0, score)
+    Args:
+        Y: (N, M) matrix or DataFrame
+        mis: list of indices/labels (or dict from result)
+        n_perm: number of permutations for null model
+        test_size: fraction for test set (default 0.3)
+        seed: random seed for reproducibility
+        clip: clip SES score to [0, 1]
+        n_estimators: trees in RF
+        return_details: if True, returns full dict instead of float
+
+    Returns:
+        float or None (if return_details=False) or dict (if return_details=True)
+    """
+    out = _calculate_ses_core(
+        Y,
+        mis,
+        model_type="nonlinear",
+        n_perm=n_perm,
+        test_size=test_size,
+        seed=seed,
+        clip=clip,
+        n_estimators=n_estimators,
+    )
+    return out if return_details else out["ses"]
 
 
 
@@ -1340,22 +1483,29 @@ def explain_ses(out, top_k=8, name=None, show_all=False):
     lines = []
     def _p(x): lines.append(str(x))
 
-    ses = out.get("ses", None)
-    F_real = out.get("F_real", None)
-    F_null = out.get("F_null", None)
-    r2_by_target = out.get("r2_real", None) # Corrected key
-    mis = out.get("mis_size", None)
-
     title = f"Structural Evidence Score for {name}" if name else "Structural Evidence Score"
     _p("\n" + " " * 72)
     _p(title)
     _p("-" * 72)
 
+    status = out.get("status", None)
+    mis = out.get("mis_size", None)
     if mis is not None:
         _p(f"Surrogate size (mis): {mis}")
 
+    if status == "NO_REDUCTION":
+        _p("Status: NO_REDUCTION (All objectives kept; reconstruction N/A).")
+        _p("SES = N/A  |  F_real = N/A  |  F_null = N/A")
+        return "\n".join(lines)
+
+    ses = out.get("ses", None)
+    F_real = out.get("F_real", None)
+    F_null = out.get("F_null", None)
+    r2_by_target = out.get("r2_real", None)
+
     if ses is None or F_real is None or F_null is None:
-        _p("Output does not contain expected keys ('ses', 'F_real', 'F_null').")
+        _p("Status: UNDEFINED or missing metrics ('ses', 'F_real', 'F_null').")
+        _p("SES = N/A  |  F_real = N/A  |  F_null = N/A")
         return "\n".join(lines)
 
     gap = F_real - F_null
@@ -1385,19 +1535,24 @@ def explain_ses(out, top_k=8, name=None, show_all=False):
         worst = items_sorted[:min(top_k, len(items_sorted))]
         best = items_sorted[-min(top_k, len(items_sorted)):] if len(items_sorted) > 1 else []
 
+        def _fmt_r2(v):
+            if v is None or np.isneginf(v):
+                return "N/A"
+            return f"{v:.4f}"
+
         _p("\nWorst targets (lowest R² in test):")
         for k, v in worst:
-            _p(f"  {k}: R² = {v:.4f}")
+            _p(f"  {k}: R² = {_fmt_r2(v)}")
 
         if best:
             _p("\nBest targets (highest R² in test):")
             for k, v in reversed(best):
-                _p(f"  {k}: R² = {v:.4f}")
+                _p(f"  {k}: R² = {_fmt_r2(v)}")
 
         if show_all:
             _p("\nR² by target (all):")
             for k, v in items_sorted:
-                _p(f"  {k}: R² = {v:.4f}")
+                _p(f"  {k}: R² = {_fmt_r2(v)}")
     else:
         _p("\nR² by target is not available.")
 
@@ -1554,7 +1709,7 @@ class MISDAResult:
              if self.best_mis:
                 best_ids = self.best_mis.indices
                 Y_val = self.Y.values if hasattr(self.Y, "values") else self.Y
-                self.validation_metrics['linear'] = calculate_ses(Y_val, best_ids)
+                self.validation_metrics['linear'] = calculate_ses(Y_val, best_ids, return_details=True)
         
         # Non-Linear SES
         if check_nonlinear:
@@ -1562,7 +1717,10 @@ class MISDAResult:
                 best_ids = self.best_mis.indices
                 # Safeguard: prevent massive RF runs on huge data unless explicit
                 if self.Y.shape[0] <= 10000:
-                    self.validation_metrics['nonlinear'] = calculate_ses_nonlinear(self.Y, best_ids)
+                    try:
+                        self.validation_metrics['nonlinear'] = calculate_ses_nonlinear(self.Y, best_ids, return_details=True)
+                    except ImportError:
+                        pass
         
         # Pareto
         if check_pareto:
@@ -1702,12 +1860,15 @@ class MISDAResult:
     @property
     def diagnosis(self):
         """Returns a short diagnostic string based on Fidelity and Homogeneity."""
-        f = 0.0
-        if self.ses_results:
-            f = self.ses_results.get('F_real', 0.0)
+        f = None
+        if self.ses_results and isinstance(self.ses_results, dict):
+            f = self.ses_results.get('F_real', None)
         
         h = self.homogeneity_ratio
         
+        if f is None or math.isnan(f):
+            return "Unvalidated (No Reduction or Missing SES)"
+
         # Heuristic Decision Tree
         if f >= 0.9 and h >= 0.8:
             return "Ideal (Clique)"
@@ -1793,15 +1954,22 @@ class MISDAResult:
                 lines.append("WARNING: High global complexity detected (SE={:.2f}) despite aggressive reduction. Suspected Latent Conflict (Sphere-like topology).".format(se_norm))
 
         # SES (Linear)
-        # SES (Linear)
         if 'linear' in self.validation_metrics:
              lines.append("\n--- 5. Validation (SES - Linear) ---")
              lines.append(explain_ses(self.validation_metrics['linear'], name=self.name))
         
         # SES (Non-Linear)
         if 'nonlinear' in self.validation_metrics:
-             ses_nl = self.validation_metrics['nonlinear']
-             lines.append(f"Non-Linear SES (RF): {ses_nl:.4f} (R2 Score)")
+             nl_res = self.validation_metrics['nonlinear']
+             if isinstance(nl_res, dict):
+                 ses_nl = nl_res.get('ses')
+                 f_real_nl = nl_res.get('F_real')
+                 nl_str = f"{ses_nl:.4f}" if ses_nl is not None else "N/A"
+                 f_str = f"{f_real_nl:.4f}" if f_real_nl is not None else "N/A"
+                 lines.append(f"Non-Linear SES (RF): {nl_str} (F_real = {f_str})")
+             else:
+                 nl_str = f"{nl_res:.4f}" if nl_res is not None else "N/A"
+                 lines.append(f"Non-Linear SES (RF): {nl_str}")
 
         # Pareto Consistency
         if 'pareto' in self.validation_metrics:
@@ -1889,11 +2057,17 @@ class MISDAResult:
         lines.append("\n--- D. Verification Details ---")
         if self.ses_results:
             ses = self.ses_results
+            f_real = ses.get('F_real')
+            f_null = ses.get('F_null')
+            s_val = ses.get('ses')
+            
+            def _fmt_v(val):
+                return f"{val:.4f}" if val is not None else "N/A"
+
             lines.append("  Linear SES Breakdown:")
-            lines.append(f"    Fidelity (Real): {ses.get('F_real', 0):.4f}")
-            lines.append(f"    Fidelity (Null): {ses.get('F_null', 0):.4f}")
-            lines.append(f"    Gap (Signal):    {ses.get('gap', 0):.4f}")
-            lines.append(f"    Raw SES Score:   {ses.get('ses', 0):.4f}")
+            lines.append(f"    Fidelity (Real): {_fmt_v(f_real)}")
+            lines.append(f"    Fidelity (Null): {_fmt_v(f_null)}")
+            lines.append(f"    Raw SES Score:   {_fmt_v(s_val)}")
         else:
             lines.append("  Linear SES: Not run (or failed).")
 
@@ -1977,12 +2151,13 @@ def _analyze_adaptive(Y, target_fidelity=0.95, max_iter=10, name=None, ensure_co
         res = _analyze_static(Y, alpha=current_alpha, name=f"{name}_iter{i}" if name else None, ensure_coverage=ensure_coverage)
         res.validate(check_nonlinear=False, check_pareto=False) # Fast linear check
         
-        fidelity = res.validation_metrics.get("linear", {}).get("F_real", 0.0)
+        fidelity = res.validation_metrics.get("linear", {}).get("F_real", None)
         dim = len(res.best_mis_indices)
         
-        is_good = (fidelity >= target_fidelity)
+        is_good = (fidelity is not None and fidelity >= target_fidelity)
+        fid_str = f"{fidelity:.4f}" if fidelity is not None else "N/A"
         
-        print(f"  Iter {i}: alpha={current_alpha:.2e} -> Dim={dim}, SES={fidelity:.4f} [{'OK' if is_good else 'BAD'}]")
+        print(f"  Iter {i}: alpha={current_alpha:.2e} -> Dim={dim}, SES={fid_str} [{'OK' if is_good else 'BAD'}]")
         
         if is_good:
             # Good result. 
@@ -1995,8 +2170,10 @@ def _analyze_adaptive(Y, target_fidelity=0.95, max_iter=10, name=None, ensure_co
             if dim < best_valid_dim:
                 best_valid_res = res
                 best_valid_dim = dim
-            elif dim == best_valid_dim and fidelity > best_valid_res.validation_metrics["linear"]["F_real"]:
-                 best_valid_res = res
+            elif dim == best_valid_dim and fidelity is not None:
+                prev_fid = best_valid_res.validation_metrics.get("linear", {}).get("F_real")
+                if prev_fid is not None and fidelity > prev_fid:
+                    best_valid_res = res
             
             # If we are already at high bound (max aggression), we can't do better.
             if abs(current_alpha - high) < 1e-12:
@@ -2116,23 +2293,27 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         dim_red = len(mis_indices)
         
         # Fidelity (Linear)
-        fidel_lin = 0.0
-        if res.ses_results:
-             fidel_lin = res.ses_results.get("F_real", 0.0)
+        fidel_lin = None
+        if res.ses_results and isinstance(res.ses_results, dict):
+            fidel_lin = res.ses_results.get("F_real", None)
              
         # Fidelity (Non-Linear)
-        fidel_nl = 0.0
+        fidel_nl = None
         try:
             if N <= 5000: # Per safeguard
-                fidel_nl = calculate_ses_nonlinear(res.Y, mis_indices, n_estimators=50)
-        except:
-             pass
+                nl_out = calculate_ses_nonlinear(res.Y, mis_indices, n_estimators=50, return_details=True)
+                if isinstance(nl_out, dict):
+                    fidel_nl = nl_out.get("F_real", None)
+                else:
+                    fidel_nl = nl_out
+        except Exception:
+            pass
              
         # Pareto Consistency
         prec, rec = 0.0, 0.0
         try:
              prec, rec = evaluate_pareto_consistency(res, res.Y)
-        except:
+        except Exception:
              pass
              
         # Homogeneity
@@ -2140,7 +2321,9 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         
         # Status
         status = "OK"
-        if fidel_lin < 0.9 and fidel_nl < 0.9:
+        low_lin = (fidel_lin is not None and fidel_lin < 0.9)
+        low_nl = (fidel_nl is not None and fidel_nl < 0.9)
+        if low_lin and low_nl:
             status = "LOW_FIDEL"
         if prec < 1.0:
             status = "UNSAFE(Prec)"
@@ -2150,6 +2333,9 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         # Alpha Bounds
         a_min = res.alpha_min if hasattr(res, 'alpha_min') else 0.0
         a_max = res.alpha_max if hasattr(res, 'alpha_max') else 1.0
+
+        def _fmt_f(val):
+            return f"{val:.2f}" if val is not None else "N/A"
 
         row = {
             "Case": case_name,
@@ -2161,8 +2347,8 @@ def compile_benchmark_summary(results_dict, sort_by=None):
             "Min": f"{a_min:.2f}",
             "Max": f"{a_max:.2f}",
             "Homog": f"{homog:.2f}",
-            "Fidel(Lin)": f"{fidel_lin:.2f}",
-            "Fidel(NL)": f"{fidel_nl:.2f}",
+            "Fidel(Lin)": _fmt_f(fidel_lin),
+            "Fidel(NL)": _fmt_f(fidel_nl),
             "Prec": f"{prec:.2f}",
             "Rec": f"{rec:.2f}",
             "Status": status
