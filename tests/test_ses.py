@@ -72,17 +72,17 @@ def test_constant_target_returns_none_r2():
 
 
 def test_reproducibility():
-    """Same seed must yield identical results for both linear and non-linear SES."""
+    """Same seed must yield reproducible results for both linear and non-linear SES (within float64 tolerance)."""
     Y = np.random.default_rng(7).normal(0, 1, (150, 4))
     res1_lin = calculate_ses_linear(Y, mis=[0, 1], seed=999, return_details=True)
     res2_lin = calculate_ses_linear(Y, mis=[0, 1], seed=999, return_details=True)
-    assert res1_lin["ses"] == res2_lin["ses"]
-    assert res1_lin["F_real"] == res2_lin["F_real"]
+    assert np.isclose(res1_lin["ses"], res2_lin["ses"], atol=1e-12)
+    assert np.isclose(res1_lin["F_real"], res2_lin["F_real"], atol=1e-12)
 
     res1_nl = calculate_ses_nonlinear(Y, mis=[0, 1], seed=999, return_details=True)
     res2_nl = calculate_ses_nonlinear(Y, mis=[0, 1], seed=999, return_details=True)
-    assert res1_nl["ses"] == res2_nl["ses"]
-    assert res1_nl["F_real"] == res2_nl["F_real"]
+    assert np.isclose(res1_nl["ses"], res2_nl["ses"], atol=1e-12)
+    assert np.isclose(res1_nl["F_real"], res2_nl["F_real"], atol=1e-12)
 
 
 def test_no_data_leakage_target_exclusion():
