@@ -1317,15 +1317,12 @@ def _calculate_ses_core(
         rng_tr = np.random.default_rng(perm_seed_tr)
         rng_te = np.random.default_rng(perm_seed_te)
 
-        X_tr_perm = X_tr_real.copy()
-        X_te_perm = X_te_real.copy()
+        # Joint row permutation: permute rows of S in block to preserve internal multivariate structure
+        p_tr = rng_tr.permutation(len(train_idx))
+        X_tr_perm = X_tr_real[p_tr, :].copy()
 
-        for c in range(X_real.shape[1]):
-            p_tr = rng_tr.permutation(len(train_idx))
-            X_tr_perm[:, c] = X_tr_perm[p_tr, c]
-
-            p_te = rng_te.permutation(len(test_idx))
-            X_te_perm[:, c] = X_te_perm[p_te, c]
+        p_te = rng_te.permutation(len(test_idx))
+        X_te_perm = X_te_real[p_te, :].copy()
 
         b_seed = seed + 5000 + b * 100
         Fb, r2b = compute_F_and_r2dict(X_tr_perm, X_te_perm, b_seed)
@@ -1814,9 +1811,18 @@ class MISDAResult:
 
     # --- Flattened Validation ---
     @property
+    def ses_nonlinear_results(self):
+        """Detailed Non-Linear SES dict result. None if not run."""
+        val = self.validation_metrics.get('nonlinear')
+        return val if isinstance(val, dict) else None
+
+    @property
     def ses_nonlinear(self):
-        """Non-Linear SES (Random Forest R2 Score). None if not run."""
-        return self.validation_metrics.get('nonlinear')
+        """Non-Linear SES scalar metric score (float or None)."""
+        val = self.validation_metrics.get('nonlinear')
+        if isinstance(val, dict):
+            return val.get('ses')
+        return val
     
     @property
     def pareto_precision(self):
@@ -1859,17 +1865,30 @@ class MISDAResult:
     @property
     def diagnosis(self):
         """Returns a short diagnostic string based on Fidelity and Homogeneity."""
+        if not self.reduction_applied:
+            return "Valid (No Reduction Required)"
+
         f = None
+        status = None
         if self.ses_results and isinstance(self.ses_results, dict):
             f = self.ses_results.get('F_real', None)
+            status = self.ses_results.get('status', None)
+
+        if status == "NO_REDUCTION":
+            return "Valid (No Reduction Required)"
         
         h = self.homogeneity_ratio
         
         if f is None or math.isnan(f):
-            return "Unvalidated (No Reduction or Missing SES)"
+            return "Unvalidated (Missing SES)"
+
+        comps = self.isda_results.get('components_labels', [])
+        num_comps = len(comps)
 
         # Heuristic Decision Tree
         if f >= 0.9 and h >= 0.8:
+            if num_comps > 1:
+                return "Ideal (Disjoint Cliques)"
             return "Ideal (Clique)"
         if f >= 0.9 and h < 0.2:
              return "Entangled (Mixed)"
