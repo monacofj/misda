@@ -89,10 +89,12 @@ Graph Independence algorithms (Bron-Kerbosch) maximize the *size* of the indepen
 
 ### 5.1. Structural Evidence Score (SES)
 Why create a new metric instead of just $R^2$?
-*   **$F_{real}$**: How well we reconstruct the data using the selected subset.
-*   **$F_{null}$**: How well we reconstruct the data using a *random* subset of the same size.
+*   **Target Selection ($T$)**: Reconstruction is evaluated strictly out-of-sample (70/30 train/test split) predicting only the eliminated targets $T = \{j \notin S\}$ from the retained predictors $S$. When no reduction occurs ($T = \emptyset$), $SES$ and $F_{real}$ return `None` (`N/A`).
+*   **$F_{real}$**: Out-of-sample $R^2$ score reconstructing eliminated targets $T$ from predictors $S$.
+*   **$F_{null}$**: Null baseline computed by permuting the rows of $S$ in block (joint row permutation within train and test independently). This destroys the structural relationship between $S$ and $T$ while preserving the joint multivariate covariance distribution of $S$.
 *   **SES**: $\frac{F_{real} - F_{null}}{1 - F_{null}}$.
-*   *Rationale*: A reconstruction of 0.8 might look good, but if a random subset also gives 0.8 (due to high collinearity), our specific selection isn't "special". SES measures the **Marginal Value** of our structural choice.
+*   **Multi-Output Efficiency**: Both Linear (OLS) and Non-Linear (Random Forest) core engines utilize multi-output regression to fit $T$ simultaneously, reducing computational complexity from $(1 + n_{\text{perm}}) \times |T|$ down to $1 + n_{\text{perm}}$ model fits.
+*   *Rationale*: A reconstruction score $F_{real} = 0.8$ might look good, but if permuting $S$ still yields $0.8$ (due to high background noise or collinearity), our specific selection isn't structural. SES measures the true **Marginal Evidence** of our structural choice relative to a chance baseline.
 
 ### 5.2. Pareto Consistency
 For MOO, Linear Reconstruction is a proxy. The real truth is: **Does the reduced set generate the same Pareto Front?**

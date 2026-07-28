@@ -10,6 +10,25 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-07-28
+
+### Changed (Breaking & Semantic)
+- **True Non-Linear SES**: Reimplemented `calculate_ses_nonlinear()` to compute a true Non-Linear Structural Evidence Score ($SES_{NL}$) using out-of-sample Random Forest regression predicting only eliminated targets $T = \{j \notin S\}$ from retained predictors $S$. Replaced legacy multivariate $R^2$ with normalized score $\frac{F_{\text{real}}^{NL} - F_{\text{null}}^{NL}}{1 - F_{\text{null}}^{NL}}$.
+
+### Added
+- **Explicit API Functions**: Added `calculate_ses_linear()` as the primary linear OLS accessor while retaining `calculate_ses()` as a backward-compatible alias.
+- **API Properties**: Introduced `MISDAResult.ses_nonlinear_results` to expose the detailed dictionary outcome, while `MISDAResult.ses_nonlinear` returns the scalar score (or `None`).
+- **N/A Metric Handling**: When no reduction occurs ($T = \emptyset$) or targets are constant in the test split, $SES$ and $F_{\text{real}}$ return `None` (`N/A`) instead of misleading `1.0` or `0.0`.
+- **Diagnosis Refinements**: 
+  - Added `"Valid (No Reduction Required)"` diagnosis for full retention cases ($S=M, T=\emptyset$).
+  - Added strict clique completeness check ($\text{min\_compactness} \ge \alpha_{\text{exec}}$) to differentiate `"Ideal (Disjoint Cliques)"` from `"Ideal (Multiple Components)"`.
+
+### Fixed
+- **Null Model Permutation**: Replaced independent column-by-column permutation in $F_{\text{null}}$ with **joint row permutation** of $S$ in block (separately within train and test splits), destroying structural association to $T$ while preserving the joint multivariate covariance distribution of $S$.
+- **Multi-Output Optimization**: Vectorized `_calculate_ses_core` via multi-output regression `rf.fit(X_tr, Y_tr)`, reducing Random Forest model fits per validation from $(1 + n_{\text{perm}}) \times |T|$ down to $1 + n_{\text{perm}}$ fits (yielding a 10x-50x execution speedup).
+- **Component Report Details**: Added `details` dictionary (`min_r`, `max_r`, `ratio`) to `calculate_component_compactness()`, eliminating `N/A` placeholders in `MISDAResult.report()` component inspections.
+- **Case 7 Graph Description**: Updated benchmark description for Case 7 (and MOP-D) to accurately reflect its 2 disconnected complete subgraphs ($2 \times K_{10}$, 90 total edges, 2 connected components) under positive correlation thresholding.
+
 ## [0.4.0] - 2026-01-08
 
 ### Added

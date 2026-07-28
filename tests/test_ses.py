@@ -128,3 +128,19 @@ def test_diagnosis_presentation():
     res7 = misda.analyze(Y_c7, caution=1.0)
     res7.validate()
     assert res7.diagnosis == "Ideal (Disjoint Cliques)"
+
+
+def test_component_report_homogeneity_details():
+    """Verify that res.report() formats internal correlation and homogeneity ratio without N/A for components."""
+    rng = np.random.default_rng(123)
+    x = rng.normal(size=200)
+    pos = np.column_stack([x + 0.01 * rng.normal(size=200) for _ in range(5)])
+    neg = np.column_stack([(-x) + 0.01 * rng.normal(size=200) for _ in range(5)])
+    Y_c7 = np.column_stack([pos, neg])
+    res7 = misda.analyze(Y_c7, caution=1.0)
+    report_text = res7.report()
+
+    assert "Internal Correlation: [N/A ... N/A]" not in report_text
+    assert "Homogeneity: N/A" not in report_text
+    assert "Internal Correlation: [" in report_text
+    assert "(Tight)" in report_text

@@ -139,19 +139,26 @@ The `analyze` function returns a `MISDAResult` object providing rich access to t
 *   **`result.get_mis_by_rank(k)`**: Method to retrieve all solutions for rank `k`.
 
 #### 3. Quality & Validation
-*   **`result.diagnosis`**: A short string diagnosing quality (e.g., "Ideal (Clique)", "Drift (Chain)").
-*   **`result.homogeneity_ratio`**: Score indicating how consistent clusters are ($min/max$ correlation).
-*   **`result.min_compactness`**: Score for component compactness.
+*   **`result.diagnosis`**: Short diagnostic string summarizing graph topology and surrogate fidelity:
+    *   `"Valid (No Reduction Required)"`: When all objectives are retained ($S = M, T = \emptyset$).
+    *   `"Ideal (Clique)"`: High fidelity ($F_{real} \ge 0.9$), high homogeneity ($h \ge 0.8$), 1 component, strictly verified clique ($\text{min\_compactness} \ge \alpha$).
+    *   `"Ideal (Disjoint Cliques)"`: High fidelity ($F_{real} \ge 0.9$), high homogeneity ($h \ge 0.8$), $>1$ components, strictly verified cliques ($\text{min\_compactness} \ge \alpha$).
+    *   `"Ideal (Multiple Components)"`: High fidelity ($F_{real} \ge 0.9$), high homogeneity ($h \ge 0.8$), $>1$ components, but not all components are complete cliques ($\text{min\_compactness} < \alpha$).
+    *   `"Entangled (Mixed)"`, `"Good (Robust)"`, `"Drift (Chain)"`, `"Fragmented (Bridge)"`.
+*   **`result.homogeneity_ratio`**: Score indicating cluster correlation consistency ($\text{min\_corr}/\text{max\_corr}$).
+*   **`result.min_compactness`**: Lowest internal correlation strength across all components.
 *   **`result.validation_metrics`**: Dictionary storing SES/Pareto results (populated by `validate()`).
-*   **`result.validation_status`**: String indicating what checks were run (e.g., "Linear, Pareto").
-*   **`result.ses_results`**: Accessor for linear SES results (Legacy/Convenience).
+*   **`result.validation_status`**: String indicating validation checks run (e.g., "Linear, Non-Linear, Pareto").
+*   **`result.ses_results`**: Detailed dictionary of linear SES metrics (`F_real`, `F_null`, `ses`, `status`). Returns `status: "NO_REDUCTION"` and `ses: None` (`N/A`) if no reduction occurred.
+*   **`result.ses_nonlinear`**: Scalar Non-Linear SES score (`float` or `None`).
+*   **`result.ses_nonlinear_results`**: Detailed dictionary of non-linear Random Forest SES metrics (`F_real`, `F_null`, `ses`, `status`).
 
 #### 4. Visuals & Reports
-*   **`result.summary()`**: Returns the formatted text report.
-*   **`result.report(top_k=5)`**: Returns the detailed technical audit.
-*   **`result.plot()`**: Returns the network graph figure.
-*   **`result.correlations`**: Returns the textual correlation report.
-*   **`result.to_pandas()`**: Returns a DataFrame of all candidates.
+*   **`result.summary()`**: Returns formatted text summary.
+*   **`result.report(top_k=5)`**: Returns comprehensive technical audit report, including per-component internal correlation range, homogeneity ratio, and compactness status (`Tight` vs `Loose`).
+*   **`result.plot()`**: Returns network graph figure.
+*   **`result.correlations`**: Returns textual correlation report.
+*   **`result.to_pandas()`**: Returns DataFrame of all candidate solutions.
 
 Other user functions
 --------------------
@@ -159,13 +166,19 @@ Other user functions
 For advanced users requiring granular control, the component functions are accessible:
 
 *   **`estimate_alpha_interval(Y)`**:
-    Calculates the lower and upper bounds for the significance level $\alpha$ based on the signal-to-noise ratio of the dataset.
+    Calculates the lower and upper bounds for the significance level $\alpha$ based on dataset signal-to-noise ratio.
 
 *   **`misda_significance(Y, alpha, ...)`**:
-    The core engine. Runs the graph construction and Bron-Kerbosch algorithm for a *specific* manual $\alpha$ value. Returns the raw dictionary of graph artifacts (adjacency, components, all MIS sets).
+    Core engine. Runs graph construction and Bron-Kerbosch algorithm for a specific manual $\alpha$ value.
 
-*   **`calculate_ses(Y, mis_indices)`**:
-    Runs the validation procedure independently. Useful if you want to test a specific subset of objectives `mis_indices` against the dataset `Y` without running the full graph discovery.
+*   **`calculate_ses_linear(Y, mis, return_details=True)`**:
+    Runs out-of-sample linear OLS reconstruction on eliminated targets $T$. Returns dict with `ses`, `F_real`, `F_null`. Returns `None` (`N/A`) when $T = \emptyset$.
+
+*   **`calculate_ses_nonlinear(Y, mis, n_estimators=100, return_details=False)`**:
+    Runs out-of-sample multi-output Random Forest non-linear reconstruction on eliminated targets $T$. Computes null baseline $F_{\text{null}}^{NL}$ via joint row permutation. By default returns scalar `ses` (or `None`). Set `return_details=True` for complete dictionary.
+
+*   **`calculate_ses(Y, mis)`**:
+    Alias for `calculate_ses_linear`.
 
 *   **`diagnose_alpha_regime(alpha_min, alpha_max)`**:
     Returns the statistical regime (e.g., `SIGNAL_BELOW_NOISE` or `IMMEDIATE_SEPARATION`) describing how distinguishable the dependencies are from random noise.

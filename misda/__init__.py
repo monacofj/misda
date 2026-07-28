@@ -848,10 +848,11 @@ def calculate_component_compactness(corr_matrix, components):
         tuple: A tuple containing:
             - float: The lowest internal correlation (min_compactness) across all components.
             - dict: A dictionary mapping component index to its compactness (min internal correlation).
-            - dict: A dictionary with 'min_ratio', 'worst_comp_idx', and 'ratios' (dict of comp_idx to ratio).
+            - dict: A dictionary with 'min_ratio', 'worst_comp_idx', 'ratios', and 'details'.
     """
     metrics = {}
     ratios = {}
+    details = {}
     min_compactness = 1.0
     min_ratio = 1.0
     worst_comp_idx = -1
@@ -860,6 +861,11 @@ def calculate_component_compactness(corr_matrix, components):
         if len(comp) < 2:
             metrics[idx] = 1.0 
             ratios[idx] = 1.0
+            details[idx] = {
+                "min_r": 1.0,
+                "max_r": 1.0,
+                "ratio": 1.0,
+            }
             continue
             
         # Extract submatrix
@@ -879,6 +885,11 @@ def calculate_component_compactness(corr_matrix, components):
             
         metrics[idx] = c_min
         ratios[idx] = ratio
+        details[idx] = {
+            "min_r": c_min,
+            "max_r": c_max,
+            "ratio": ratio,
+        }
         
         if c_min < min_compactness:
             min_compactness = c_min
@@ -890,7 +901,8 @@ def calculate_component_compactness(corr_matrix, components):
     homogeneity_stats = {
         "min_ratio": min_ratio,
         "worst_comp_idx": worst_comp_idx,
-        "ratios": ratios
+        "ratios": ratios,
+        "details": details,
     }
             
     return min_compactness, metrics, homogeneity_stats
@@ -1885,11 +1897,14 @@ class MISDAResult:
         comps = self.isda_results.get('components_labels', [])
         num_comps = len(comps)
 
+        # Strict clique completeness check (min_compactness >= alpha)
+        is_true_clique = (self.min_compactness >= self.alpha)
+
         # Heuristic Decision Tree
         if f >= 0.9 and h >= 0.8:
             if num_comps > 1:
-                return "Ideal (Disjoint Cliques)"
-            return "Ideal (Clique)"
+                return "Ideal (Disjoint Cliques)" if is_true_clique else "Ideal (Multiple Components)"
+            return "Ideal (Clique)" if is_true_clique else "Good (Robust)"
         if f >= 0.9 and h < 0.2:
              return "Entangled (Mixed)"
         if f >= 0.9:
