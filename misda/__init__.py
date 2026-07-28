@@ -14,6 +14,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import math
 from enum import IntEnum
+from dataclasses import dataclass, field
+from typing import Optional, Tuple, Dict, List, Any
 
 __version__ = "0.4.1"
 
@@ -965,77 +967,22 @@ def repair_mis_coverage(corr_matrix, mis_indices, min_coverage=0.7):
     return sorted(current_mis)
 
 
-def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
+def misda_significance_from_corr(corr, N, M, alpha=0.05, labels=None, ensure_coverage=True, min_coverage=None):
     """
-    Executes the Maximal Independent Structural Dimensionality Analysis (MISDA) logic.
-    It constructs a dependency graph based on significant correlations, finds Maximal
-    Independent Sets (MIS), and computes various metrics for them.
-
-    Args:
-        Y (pd.DataFrame or np.ndarray): Input data, where rows are samples and columns are features.
-        alpha (float): Significance level for determining significant correlations (e.g., 0.05).
-        ensure_coverage (bool): If True, the MIS will be expanded to ensure all original
-                                variables are 'covered' by at least one MIS member.
-        min_coverage (float, optional): Minimum absolute correlation required for a variable
-                                        to be considered 'covered' by an MIS member.
-                                        If None, it's derived from the `alpha` parameter.
-
-    Returns:
-        dict: A dictionary containing the results of the MISDA analysis, including:
-            - 'corr': The full correlation matrix.
-            - 'adjacency': The adjacency matrix of the dependency graph.
-            - 'components': List of connected components (node indices).
-            - 'components_labels': List of connected components (node labels).
-            - 'mis_sets': All found Maximal Independent Sets (node indices).
-            - 'mis_sets_labels': All found Maximal Independent Sets (node labels).
-            - 'mis_metrics': Detailed metrics for each MIS.
-            - 'mis_sorted': MIS metrics sorted by ranking criteria.
-            - 'mis_ranked': MIS metrics with assigned ranks.
-            - 'rank_groups': MIS grouped by rank.
-            - 'best_mis_rank1': The top-ranked MIS.
-            - 'best_mis_rank2': The second-ranked MIS (if available).
-            - 'unique_metric_values': Unique values for various MIS metrics.
-            - 'min_component_compactness': The minimum compactness across all components.
-            - 'component_compactness': Compactness for each component.
-            - 'homogeneity_stats': Statistics related to component homogeneity.
-            - 'labels': List of feature labels.
-            - 'alpha': The significance level used.
-            - 'N': Number of samples.
-            - 'M': Number of features.
-            - 'sigma_z': Standard error of Fisher's z-transform.
-            - 'z_crit': Critical z-value for the given alpha.
-            - 'corr_report': A string report of significant correlations.
+    Executes MISDA logic given a precomputed correlation matrix.
     """
-    # Accepts DataFrame or array
-    if isinstance(Y, pd.DataFrame):
-        X = Y.values
-        labels = list(Y.columns)
-    else:
-        X = np.asarray(Y)
-        M = X.shape[1]
+    if labels is None:
         labels = [f"f{i+1}" for i in range(M)]
 
-    N, M = X.shape
-
-    corr = np.corrcoef(X, rowvar=False)
     corr = np.clip(corr, -0.999999, 0.999999)
 
     z = 0.5 * np.log((1 + corr) / (1 - corr))
     sigma_z = 1 / np.sqrt(N - 3)
     z_stat = z / sigma_z
 
-    # Use ISF (Inverse Survival Function) for better precision with small alpha
-    # Equivalent to ppf(1 - alpha/2) but avoids precision loss
-    # If alpha is extremely small (e.g. machine min), ISF returns large finite Z instead of inf.
     z_crit = stats.norm.isf(alpha / 2)
-    
-    # Calculate correlation threshold corresponding to z_crit
-    # z = z_crit * sigma_z
-    # r = tanh(z)
     z_threshold = z_crit * sigma_z
     r_crit = np.tanh(z_threshold)
-    # Safeguard: prevent infinite loop in coverage if r_crit -> 1.0 (when alpha -> 0)
-    # Max correlation is clipped to 0.999999, so r_crit must be slightly below that.
     if r_crit >= 0.99999:
         r_crit = 0.99999
     
@@ -1072,11 +1019,8 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     
     if ensure_coverage:
         repaired_sets = []
-        # Use r_crit as the coverage threshold to ensure consistency with graph construction
         coverage_threshold = min_coverage if min_coverage is not None else r_crit
-        
         for ms in mis_sets:
-            # repair returns sorted list
             repaired = repair_mis_coverage(corr, ms, min_coverage=coverage_threshold)
             if repaired not in repaired_sets:
                 repaired_sets.append(repaired)
@@ -1123,7 +1067,7 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
 
     min_compactness, component_metrics, homogeneity_stats = calculate_component_compactness(corr, components)
 
-    results = {
+    return {
         "corr": corr,
         "adjacency": adjacency,
         "components": components,
@@ -1149,7 +1093,22 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
         "corr_report": corr_report
     }
 
-    return results
+
+def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
+    """
+    Executes the Maximal Independent Structural Dimensionality Analysis (MISDA) logic.
+    """
+    if isinstance(Y, pd.DataFrame):
+        X = Y.values
+        labels = list(Y.columns)
+    else:
+        X = np.asarray(Y)
+        M = X.shape[1]
+        labels = [f"f{i+1}" for i in range(M)]
+
+    N, M = X.shape
+    corr = np.corrcoef(X, rowvar=False)
+    return misda_significance_from_corr(corr, N, M, alpha=alpha, labels=labels, ensure_coverage=ensure_coverage, min_coverage=min_coverage)
 
 
 # -------------------------------------------------------------------------
@@ -1629,10 +1588,57 @@ def evaluate_pareto_consistency(result_obj, df_original=None):
     denom_p = mask_surr.sum()
     precision = intersection / denom_p if denom_p > 0 else 0.0
     
-    # Recall: Of the true optima, how many did the surrogate keep?
+    return precision, recall
+
+
+def evaluate_pareto_raw(Y, selected_indices, directions=None):
+    """
+    Evaluates Pareto precision and recall directly on raw objective matrix Y.
+    Assumes minimization by default for all objectives unless directions specifies otherwise.
+
+    Args:
+        Y (np.ndarray or pd.DataFrame): Shape (N, M) matrix of objective values.
+        selected_indices (sequence of int): Indices of selected/kept objectives.
+        directions (sequence of int, optional): Objective optimization directions (+1 for max, -1 for min).
+
+    Returns:
+        tuple[float, float]: (precision, recall)
+    """
+    if hasattr(Y, "values"):
+        data = np.asarray(Y.values, dtype=float)
+    else:
+        data = np.asarray(Y, dtype=float)
+
+    N, M = data.shape
+    if N == 0 or M == 0:
+        return 0.0, 0.0
+
+    if directions is not None:
+        dirs = np.asarray(directions, dtype=float)
+        Y_eval = data * (-dirs)
+    else:
+        Y_eval = data
+
+    mask_true = get_nondominated_mask(Y_eval)
+    sel = list(selected_indices)
+
+    if len(sel) == M:
+        return 1.0, 1.0
+
+    if len(sel) == 0:
+        return 0.0, 0.0
+
+    Y_sub = Y_eval[:, sel]
+    mask_surr = get_nondominated_mask(Y_sub)
+
+    intersection = (mask_true & mask_surr).sum()
+
+    denom_p = mask_surr.sum()
+    precision = float(intersection / denom_p) if denom_p > 0 else 0.0
+
     denom_r = mask_true.sum()
-    recall = intersection / denom_r if denom_r > 0 else 0.0
-    
+    recall = float(intersection / denom_r) if denom_r > 0 else 0.0
+
     return precision, recall
 
 
@@ -2130,148 +2136,507 @@ class MISDAResult:
         return fig
 
 
-def analyze(Y, method='static', caution=1.0, name=None, ensure_coverage=True, alpha=None, target_fidelity=0.95, max_iter=10):
+# --------------------------------------------------------------------------------------
+# ADAPTIVE DATA STRUCTURES & ALGORITHM
+# --------------------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class BootstrapObservation:
+    repetition: int
+    seed: int
+    alpha_used: float
+    selected: tuple
+    dimension: int
+    reduction_rate: float
+    pareto_recall: float
+    n_inbag: int
+    n_oob: int
+
+
+@dataclass
+class OOBSummary:
+    recall_mean: float
+    recall_median: float
+    recall_ci: tuple
+    dimension_mean: float
+    dimension_distribution: dict
+    objective_frequencies: np.ndarray
+    subset_stability: float
+    valid_repetitions: int
+    failed_repetitions: int
+    observations: tuple
+
+
+@dataclass
+class AdaptiveCandidate:
+    candidate_id: str
+    alpha: float
+    is_static: bool
+    result: MISDAResult
+    reduction_rate: float
+    fitted_recall: float
+    oob: Optional[OOBSummary] = None
+    ses: Optional[dict] = None
+
+
+@dataclass
+class AdaptiveResult:
+    static_candidate: AdaptiveCandidate
+    candidates: tuple
+    fitted_frontier: tuple
+    validated_frontier: tuple
+    recommended_candidate: str
+    static_dominators: tuple
+    dominated_candidates: tuple
+    bootstrap_config: dict
+    adaptive_config: dict
+
+    @property
+    def recommended(self) -> AdaptiveCandidate:
+        """Returns the recommended AdaptiveCandidate object (knee point on validated frontier)."""
+        for c in self.candidates:
+            if c.candidate_id == self.recommended_candidate:
+                return c
+        return self.static_candidate
+
+    def get_candidate(self, candidate_id: str) -> Optional[AdaptiveCandidate]:
+        """Finds candidate by candidate_id."""
+        for c in self.candidates:
+            if c.candidate_id == candidate_id:
+                return c
+        return None
+
+    def to_pandas(self) -> pd.DataFrame:
+        """Exports comparative table of all candidates to pandas DataFrame."""
+        rows = []
+        for c in self.candidates:
+            oob_rec = c.oob.recall_mean if c.oob else np.nan
+            oob_stab = c.oob.subset_stability if c.oob else np.nan
+            dim = c.result.best_mis.size if c.result.best_mis else c.result.Y.shape[1]
+            rows.append({
+                "candidate_id": c.candidate_id,
+                "is_static": c.is_static,
+                "alpha": c.alpha,
+                "dimension": dim,
+                "reduction_rate": c.reduction_rate,
+                "fitted_recall": c.fitted_recall,
+                "oob_recall_mean": oob_rec,
+                "subset_stability": oob_stab,
+                "in_fitted_frontier": c.candidate_id in self.fitted_frontier,
+                "in_validated_frontier": c.candidate_id in self.validated_frontier,
+                "is_recommended": c.candidate_id == self.recommended_candidate,
+            })
+        return pd.DataFrame(rows)
+
+    def summary(self) -> str:
+        """Returns textual summary of Adaptive analysis."""
+        lines = []
+        lines.append("\n" + "=" * 70)
+        lines.append("                    MISDA ADAPTIVE ANALYSIS SUMMARY")
+        lines.append("=" * 70)
+        lines.append(f"Total Candidates Analyzed: {len(self.candidates)}")
+        lines.append(f"Recommended Candidate: {self.recommended_candidate}")
+        rec = self.recommended
+        dim = rec.result.best_mis.size if rec.result.best_mis else "Full"
+        lines.append(f"  Alpha: {rec.alpha:.6g}")
+        lines.append(f"  Dimension: {dim} (Reduction: {rec.reduction_rate:.2%})")
+        lines.append(f"  Fitted Recall: {rec.fitted_recall:.4f}")
+        if rec.oob:
+            lines.append(f"  OOB Mean Recall: {rec.oob.recall_mean:.4f} (95% CI: [{rec.oob.recall_ci[0]:.4f}, {rec.oob.recall_ci[1]:.4f}])")
+            lines.append(f"  Subset Stability (Jaccard): {rec.oob.subset_stability:.4f}")
+        lines.append(f"Fitted Frontier: {list(self.fitted_frontier)}")
+        lines.append(f"Validated Frontier: {list(self.validated_frontier)}")
+        if self.static_dominators:
+            lines.append(f"Candidates Dominating Static Baseline: {list(self.static_dominators)}")
+        else:
+            lines.append("Candidates Dominating Static Baseline: None (Static is Non-Dominated)")
+        return "\n".join(lines)
+
+
+def analyze(
+    Y,
+    method='static',
+    caution=1.0,
+    name=None,
+    ensure_coverage=True,
+    alpha=None,
+    target_fidelity=None,
+    max_iter=None,
+    b_bootstrap=50,
+    seed=123
+):
     """
     Executes the MISDA pipeline on dataset Y.
     
     Strategies:
     - 'static' (Default): Uses `caution` to pick a single `alpha`. Fast, standard.
-    - 'adaptive': Ignores `caution`. iteratively searches for `alpha` to meet `target_fidelity`. Robust, slower.
+    - 'adaptive': Searches discrete critical alpha levels for optimal Pareto reduction-recall trade-off with OOB bootstrap.
     
     Args:
         Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
         method (str): 'static' or 'adaptive'.
-        caution (float): [Static Only] Conservatism level [0, 1]. 
-                         1.0 = Conservative (Structural): targets noise floor to ensure no 
-                         latent dependencies are missed.
-                         0.0 = Aggressive (Statistical): ignores dependencies unless extremely 
-                         significant, prioritizing literal variable retention.
-                         Defaults to 1.0.
+        caution (float): [Static Only] Conservatism level [0, 1]. 1.0 = Conservative (default).
         name (str): Optional name for the case.
         ensure_coverage (bool): If True, ensures result covers all variables.
         alpha (float, optional): [Static Only] Explicit alpha override.
-        target_fidelity (float): [Adaptive Only] Minimum SES (0.95) to accept reduction.
-        max_iter (int): [Adaptive Only] Max search iterations.
+        target_fidelity (float, optional): Deprecated parameter for adaptive.
+        max_iter (int, optional): Deprecated parameter for adaptive.
+        b_bootstrap (int): [Adaptive Only] Number of bootstrap resamples (default: 50).
+        seed (int): [Adaptive Only] Random seed for reproducibility (default: 123).
         
     Returns:
-        MISDAResult: Object containing analysis artifacts.
+        MISDAResult or AdaptiveResult: Result object containing analysis artifacts.
     """
     if method == 'static':
         return _analyze_static(Y, caution=caution, name=name, ensure_coverage=ensure_coverage, alpha=alpha)
     elif method == 'adaptive':
-        return _analyze_adaptive(Y, target_fidelity=target_fidelity, max_iter=max_iter, name=name, ensure_coverage=ensure_coverage)
+        return _analyze_adaptive(Y, b_bootstrap=b_bootstrap, seed=seed, name=name, ensure_coverage=ensure_coverage)
     else:
         raise ValueError(f"Unknown method '{method}'. Valid options: 'static', 'adaptive'")
 
-def _analyze_adaptive(Y, target_fidelity=0.95, max_iter=10, name=None, ensure_coverage=True):
-    """Internal implementation of adaptive search."""
-    # 1. Estimate Bounds
-    alpha_min, alpha_max, _, _ = estimate_alpha_interval(Y)
-    
-    # Range is [0, alpha_max] effectively
-    low = 0.0 # Strictest
-    high = alpha_max
-    
-    best_valid_res = None
-    best_valid_dim = float('inf')
-    
-    current_alpha = alpha_max # Start aggressive
-    
-    print(f"Adaptive: Searching alpha in [{low:.2e}, {high:.2e}] for SES >= {target_fidelity}")
-    
-    for i in range(max_iter):
-        # Run Static Step
-        res = _analyze_static(Y, alpha=current_alpha, name=f"{name}_iter{i}" if name else None, ensure_coverage=ensure_coverage)
-        res.validate(check_nonlinear=False, check_pareto=False) # Fast linear check
-        
-        fidelity = res.validation_metrics.get("linear", {}).get("F_real", None)
-        dim = len(res.best_mis_indices)
-        
-        is_good = (fidelity is not None and fidelity >= target_fidelity)
-        fid_str = f"{fidelity:.4f}" if fidelity is not None else "N/A"
-        
-        print(f"  Iter {i}: alpha={current_alpha:.2e} -> Dim={dim}, SES={fid_str} [{'OK' if is_good else 'BAD'}]")
-        
-        if is_good:
-            # Good result. 
-            # Optimization logic: We want MINIMAL dimension (max reduction).
-            # Higher alpha -> More edges -> More reduction -> Lower Dim.
-            # So deeper we go into High Alpha, the better reduction we get.
-            
-            # If current is good, we are happy.
-            # Store it.
-            if dim < best_valid_dim:
-                best_valid_res = res
-                best_valid_dim = dim
-            elif dim == best_valid_dim and fidelity is not None:
-                prev_fid = best_valid_res.validation_metrics.get("linear", {}).get("F_real")
-                if prev_fid is not None and fidelity > prev_fid:
-                    best_valid_res = res
-            
-            # If we are already at high bound (max aggression), we can't do better.
-            if abs(current_alpha - high) < 1e-12:
-                break 
-                
-            # If we are good, try to be MORE aggressive (Higher Alpha)
-            # Wait, binary search logic:
-            # Low = Safe (0), High = Aggressive (Max).
-            # If Current is Good, it means we are safe enough. Can we go closer to High?
-            # Yes. So Low = Current.
-            low = current_alpha
+
+def _generate_critical_alphas(corr, n_samples, alpha_static, alpha_max):
+    """
+    Generates discrete critical alpha levels corresponding to positive correlation thresholds
+    in the range (alpha_static, alpha_max].
+    """
+    M = corr.shape[0]
+    iu = np.triu_indices(M, k=1)
+    r_vals = _correlation_strength(corr[iu])
+
+    alpha_events = []
+    for r in r_vals:
+        if r > 0:
+            a = alpha_from_r(r, n_samples)
+            alpha_events.append(a)
+
+    valid_events = [a for a in alpha_events if a > alpha_static]
+    valid_events = sorted(set(valid_events))
+
+    critical_alphas = []
+    for a in valid_events:
+        a_next = float(np.nextafter(a, 1.0))
+        if a_next <= alpha_max and a_next not in critical_alphas:
+            critical_alphas.append(a_next)
+
+    if alpha_max not in critical_alphas and alpha_max > alpha_static:
+        critical_alphas.append(alpha_max)
+
+    return sorted(critical_alphas)
+
+
+def _compute_pareto_frontier_ids(candidates, x_func, y_func):
+    """
+    Computes non-dominated candidate IDs for two maximized objectives (x_func, y_func).
+    """
+    pts = []
+    for c in candidates:
+        pts.append((x_func(c), y_func(c), c.candidate_id))
+
+    frontier = []
+    for i, p_i in enumerate(pts):
+        is_dominated = False
+        for j, p_j in enumerate(pts):
+            if i == j:
+                continue
+            if p_j[0] >= p_i[0] and p_j[1] >= p_i[1] and (p_j[0] > p_i[0] or p_j[1] > p_i[1]):
+                is_dominated = True
+                break
+        if not is_dominated:
+            frontier.append(p_i[2])
+
+    frontier_cands = [next(c for c in candidates if c.candidate_id == cid) for cid in frontier]
+    frontier_cands = sorted(frontier_cands, key=lambda c: (x_func(c), y_func(c)))
+    return [c.candidate_id for c in frontier_cands]
+
+
+def _select_knee_candidate_id(frontier_candidates):
+    """
+    Selects recommended candidate using maximum distance to chord line between extremes.
+    Deterministic tie-breaker: Max OOB Recall -> Max Reduction -> Min Alpha -> Lexicographical ID.
+    """
+    if not frontier_candidates:
+        return "static"
+    if len(frontier_candidates) <= 2:
+        best = sorted(frontier_candidates, key=lambda c: (- (c.oob.recall_mean if c.oob else 0.0), -c.reduction_rate, c.alpha))[0]
+        return best.candidate_id
+
+    cands = sorted(frontier_candidates, key=lambda c: c.reduction_rate)
+    p_first = (cands[0].reduction_rate, cands[0].oob.recall_mean if cands[0].oob else 0.0)
+    p_last = (cands[-1].reduction_rate, cands[-1].oob.recall_mean if cands[-1].oob else 0.0)
+
+    x1, y1 = p_first
+    x2, y2 = p_last
+    denom = math.sqrt((y2 - y1)**2 + (x2 - x1)**2)
+
+    scored = []
+    for c in cands:
+        x0 = c.reduction_rate
+        y0 = c.oob.recall_mean if c.oob else 0.0
+        if denom < 1e-12:
+            dist = 0.0
         else:
-            # Bad solution (Unsafe). Too aggressive.
-            # Need Lower Alpha.
-            high = current_alpha
-            
-        current_alpha = (low + high) / 2.0
+            num = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+            dist = num / denom
+
+        scored.append((
+            dist,
+            c.oob.recall_mean if c.oob else 0.0,
+            c.reduction_rate,
+            -c.alpha,
+            c.candidate_id,
+            c
+        ))
+
+    scored.sort(key=lambda item: (-item[0], -item[1], -item[2], -item[3], item[4]))
+    return scored[0][5].candidate_id
+
+
+def _analyze_static_fast(Y, corr, alpha_min, alpha_max, alpha_exec, name=None, ensure_coverage=True):
+    """
+    Executes static analysis using precomputed correlation matrix and alpha bounds.
+    """
+    metrics = diagnose_alpha_regime(alpha_min, alpha_max)
+    regime = AlphaRegime(metrics["regime"])
     
-    if best_valid_res is None:
-        print("Adaptive: Warning - target fidelity not met. Returning safest fallback.")
-        return _analyze_static(Y, alpha=0.0, name=name, ensure_coverage=ensure_coverage)
+    if hasattr(Y, "values"):
+        data = np.asarray(Y.values, dtype=float)
+        labels = list(Y.columns)
+    else:
+        data = np.asarray(Y, dtype=float)
+        labels = [f"f{i+1}" for i in range(data.shape[1])]
         
-    print(f"Adaptive: Converged. Alpha={best_valid_res.alpha:.2e}, Dim={len(best_valid_res.best_mis_indices)}")
-    # Rename the result to original name since it's the winner
-    best_valid_res.name = name
-    return best_valid_res
+    N, M = data.shape
+    res = misda_significance_from_corr(corr, N, M, alpha=alpha_exec, labels=labels, ensure_coverage=ensure_coverage)
+    
+    return MISDAResult(
+        Y=Y,
+        caution=1.0,
+        alpha_min=alpha_min,
+        alpha_max=alpha_max,
+        metrics=metrics,
+        regime=regime,
+        alpha_exec=alpha_exec,
+        isda_res=res,
+        name=name
+    )
+
+
+def _analyze_adaptive(
+    Y,
+    b_bootstrap=50,
+    seed=123,
+    name=None,
+    ensure_coverage=True,
+    target_fidelity=None,
+    max_iter=None
+):
+    """Internal implementation of adaptive search."""
+    if hasattr(Y, "values"):
+        data = np.asarray(Y.values, dtype=float)
+        Y_input = Y
+    else:
+        data = np.asarray(Y, dtype=float)
+        Y_input = Y
+
+    N, M = data.shape
+
+    # 1. Statistical Baseline (Static run with caution=1.0)
+    alpha_min, alpha_max, r_max_real, r_null = estimate_alpha_interval(data)
+    corr = np.corrcoef(data, rowvar=False)
+
+    res_static = _analyze_static_fast(
+        Y_input, corr, alpha_min, alpha_max, alpha_max,
+        name=f"{name}_static" if name else "static",
+        ensure_coverage=ensure_coverage
+    )
+
+    mis_static = res_static.best_mis_indices
+    subset_static = tuple(sorted(mis_static)) if mis_static else tuple(range(M))
+    red_static = float(1.0 - len(subset_static) / M)
+    prec_static, rec_static = evaluate_pareto_raw(data, subset_static)
+
+    cand_static = AdaptiveCandidate(
+        candidate_id="static",
+        alpha=float(res_static.alpha),
+        is_static=True,
+        result=res_static,
+        reduction_rate=red_static,
+        fitted_recall=rec_static
+    )
+
+    # 2. Discrete Critical Level Generation
+    critical_alphas = _generate_critical_alphas(corr, N, alpha_static=res_static.alpha, alpha_max=alpha_max)
+
+    # 3. Candidate Generation and Subset Deduplication
+    candidates_dict = {"static": cand_static}
+    seen_subsets = {subset_static: "static"}
+
+    for a_crit in critical_alphas:
+        cid = f"alpha_{a_crit:.4f}"
+        res_k = _analyze_static_fast(
+            Y_input, corr, alpha_min, alpha_max, a_crit,
+            name=f"{name}_{cid}" if name else cid,
+            ensure_coverage=ensure_coverage
+        )
+        mis_k = res_k.best_mis_indices
+        subset_k = tuple(sorted(mis_k)) if mis_k else tuple(range(M))
+
+        if subset_k not in seen_subsets:
+            seen_subsets[subset_k] = cid
+            red_k = float(1.0 - len(subset_k) / M)
+            prec_k, rec_k = evaluate_pareto_raw(data, subset_k)
+            cand_k = AdaptiveCandidate(
+                candidate_id=cid,
+                alpha=float(a_crit),
+                is_static=False,
+                result=res_k,
+                reduction_rate=red_k,
+                fitted_recall=rec_k
+            )
+            candidates_dict[cid] = cand_k
+
+    all_candidates_list = list(candidates_dict.values())
+
+    # 4. Out-of-Bag (OOB) Bootstrap Validation
+    rng_master = np.random.default_rng(seed)
+    bootstrap_seeds = [int(s) for s in rng_master.integers(0, 10**9, size=b_bootstrap)]
+
+    for cand in all_candidates_list:
+        sub_full = tuple(sorted(cand.result.best_mis_indices)) if cand.result.best_mis else tuple(range(M))
+        obs_list = []
+        recalls_oob = []
+        dims = []
+        freq_counts = np.zeros(M, dtype=int)
+        jaccard_sum = 0.0
+
+        for b in range(b_bootstrap):
+            b_seed = bootstrap_seeds[b]
+            rng_b = np.random.default_rng(b_seed)
+            inbag_idx = rng_b.choice(N, size=N, replace=True)
+            oob_mask = np.ones(N, dtype=bool)
+            oob_mask[inbag_idx] = False
+            oob_idx = np.where(oob_mask)[0]
+
+            if len(oob_idx) == 0:
+                oob_idx = inbag_idx
+
+            Y_inbag = data[inbag_idx, :]
+            Y_oob = data[oob_idx, :]
+
+            corr_inbag = np.corrcoef(Y_inbag, rowvar=False)
+            res_b = misda_significance_from_corr(corr_inbag, len(inbag_idx), M, cand.alpha, ensure_coverage=ensure_coverage)
+
+            mis_b = res_b['mis_sets'][0] if res_b['mis_sets'] else list(range(M))
+            sub_b = tuple(sorted(mis_b))
+            dim_b = len(sub_b)
+            red_b = float(1.0 - dim_b / M)
+
+            _, rec_oob = evaluate_pareto_raw(Y_oob, sub_b)
+
+            for idx in sub_b:
+                freq_counts[idx] += 1
+
+            set_full = set(sub_full)
+            set_b = set(sub_b)
+            union_len = len(set_full.union(set_b))
+            jacc = len(set_full.intersection(set_b)) / union_len if union_len > 0 else 1.0
+            jaccard_sum += jacc
+
+            obs = BootstrapObservation(
+                repetition=b,
+                seed=b_seed,
+                alpha_used=cand.alpha,
+                selected=sub_b,
+                dimension=dim_b,
+                reduction_rate=red_b,
+                pareto_recall=float(rec_oob),
+                n_inbag=len(inbag_idx),
+                n_oob=len(oob_idx)
+            )
+            obs_list.append(obs)
+            recalls_oob.append(rec_oob)
+            dims.append(dim_b)
+
+        recalls_arr = np.asarray(recalls_oob, dtype=float)
+        mean_rec = float(np.mean(recalls_arr))
+        med_rec = float(np.median(recalls_arr))
+        ci_lower = float(np.percentile(recalls_arr, 2.5))
+        ci_upper = float(np.percentile(recalls_arr, 97.5))
+
+        dim_counts = {}
+        for d in dims:
+            dim_counts[d] = dim_counts.get(d, 0) + 1
+
+        cand.oob = OOBSummary(
+            recall_mean=mean_rec,
+            recall_median=med_rec,
+            recall_ci=(ci_lower, ci_upper),
+            dimension_mean=float(np.mean(dims)),
+            dimension_distribution=dim_counts,
+            objective_frequencies=freq_counts / b_bootstrap,
+            subset_stability=float(jaccard_sum / b_bootstrap),
+            valid_repetitions=b_bootstrap,
+            failed_repetitions=0,
+            observations=tuple(obs_list)
+        )
+
+    # 5. Frontier Construction & Knee-Point Recommendation
+    fitted_frontier_ids = _compute_pareto_frontier_ids(
+        all_candidates_list,
+        x_func=lambda c: c.reduction_rate,
+        y_func=lambda c: c.fitted_recall
+    )
+
+    validated_frontier_ids = _compute_pareto_frontier_ids(
+        all_candidates_list,
+        x_func=lambda c: c.reduction_rate,
+        y_func=lambda c: c.oob.recall_mean if c.oob else 0.0
+    )
+
+    val_candidates = [candidates_dict[cid] for cid in validated_frontier_ids]
+    recommended_id = _select_knee_candidate_id(val_candidates)
+
+    static_oob_rec = cand_static.oob.recall_mean if cand_static.oob else cand_static.fitted_recall
+    static_red = cand_static.reduction_rate
+
+    static_doms = []
+    for c in all_candidates_list:
+        if c.candidate_id == "static":
+            continue
+        c_oob_rec = c.oob.recall_mean if c.oob else c.fitted_recall
+        if (c.reduction_rate >= static_red and c_oob_rec >= static_oob_rec) and \
+           (c.reduction_rate > static_red or c_oob_rec > static_oob_rec):
+            static_doms.append(c.candidate_id)
+
+    dominated_ids = [c.candidate_id for c in all_candidates_list if c.candidate_id not in validated_frontier_ids]
+
+    return AdaptiveResult(
+        static_candidate=cand_static,
+        candidates=tuple(all_candidates_list),
+        fitted_frontier=tuple(fitted_frontier_ids),
+        validated_frontier=tuple(validated_frontier_ids),
+        recommended_candidate=recommended_id,
+        static_dominators=tuple(static_doms),
+        dominated_candidates=tuple(dominated_ids),
+        bootstrap_config={"b_bootstrap": b_bootstrap, "seed": seed},
+        adaptive_config={"name": name, "ensure_coverage": ensure_coverage}
+    )
+
 
 def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None):
     """
     Executes the full MISDA pipeline on dataset Y.
-    
-    Steps:
-    1. Estimate alpha interval (p=0.01 vs p=0.05).
-    2. Diagnose alpha regime (Separation, Mixed, etc.).
-    3. Select execution alpha based on 'caution'.
-    4. Run ISDA clustering algorithm.
-    
-    Note: Validation (SES) is no longer automatic. Call result.validate() explicitly.
-    
-    Args:
-        Y (np.ndarray or pd.DataFrame): Input data (N samples x M features).
-        caution (float): Conservatism level [0, 1]. 
-                         1.0 = Structural conservatism (default).
-                         0.0 = High statistical threshold (minimum reduction).
-                         Defaults to 1.0 (Most Conservative).
-        name (str): Optional name for the case, used in reports.
-        ensure_coverage (bool): If True, ensures result covers all input variables.
-        alpha (float, optional): Explicit override for significance level. If provided, skips 
-                                 automatic estimation logic for alpha selection.
-        
-    Returns:
-        MISDAResult: Object containing analysis artifacts.
     """
-    # 1. Regime Diagnosis
     alpha_min, alpha_max, r_max_real, r_null = estimate_alpha_interval(Y)
     metrics = diagnose_alpha_regime(alpha_min, alpha_max)
     regime = AlphaRegime(metrics["regime"])
     
-    # 2. Decision Logic
     if alpha is not None:
         alpha_exec = alpha
     else:
         alpha_exec = select_alpha(alpha_min, alpha_max, caution)
     
-    # 3. Execution
     res = misda_significance(Y, alpha=alpha_exec, ensure_coverage=ensure_coverage, min_coverage=None)
     
     return MISDAResult(
