@@ -100,24 +100,32 @@ The `misda.analyze()` function accepts the following key arguments:
 
 ### Adaptive Analysis (Strategy Pattern)
 
-For high-dimensional ($M \ge 10$) or challenging problems ("Hyper-spheres"), you can switch to the adaptive strategy:
+For complex multi-objective optimization (MOP) problems, you can switch to the adaptive strategy:
 
 ```python
-# Adaptive search for optimal alpha
-# 'method' switches strategy. 'target_fidelity' (0.95) sets the goal.
-res = misda.analyze(df, method='adaptive', target_fidelity=0.95, name="HighDim_Case")
+# Adaptive discrete Pareto search with Out-of-Bag (OOB) bootstrap validation
+res = misda.analyze(df, method='adaptive', caution=1.0, b_bootstrap=50, seed=123, name="HighDim_Case")
 
-# Validate is already run internally during adaptive search, but you can run it again
+# Returns an AdaptiveResult object
 print(res.summary())
+print(res.report())
+df_table = res.to_pandas()
 ```
 
 Strategies:
-1.  **`'static'`** (Default): Uses `caution` to pick a single `alpha`. Fast ($O(1)$ run).
-2.  **`'adaptive'`**: Ignores `caution`. Performs a binary search on `alpha` to find the maximal reduction that maintains `target_fidelity`. Slower ($O(\log N)$ runs), but robust.
+1.  **`'static'`** (Default): Uses `caution` to select a single significance level $\alpha$. Returns a `MISDAResult` object.
+2.  **`'adaptive'`**: Searches discrete critical $\alpha$ levels for the optimal Pareto trade-off between dimensionality reduction rate and Out-of-Bag (OOB) Pareto recall. Validates solutions via paired bootstrap resampling and selects the recommended candidate using the knee point on the validated Pareto frontier. Returns an `AdaptiveResult` object.
 
-### Result Object (`MISDAResult`)
+### Result Objects (`MISDAResult` and `AdaptiveResult`)
 
-The `analyze` function returns a `MISDAResult` object providing rich access to the analysis state:
+- **`method='static'`** returns a `MISDAResult` object providing rich access to single-run graph topology, connected components, MIS candidates, and regression SES validation metrics.
+- **`method='adaptive'`** returns an `AdaptiveResult` object aggregating:
+  - **`res.static_candidate`**: The baseline `static` candidate.
+  - **`res.candidates`**: Tuple of all unique `AdaptiveCandidate` objects.
+  - **`res.recommended`**: The recommended candidate selected via knee-point chord distance on the validated OOB frontier.
+  - **`res.fitted_frontier`**: Candidates forming the non-dominated reduction vs. sample recall frontier.
+  - **`res.validated_frontier`**: Candidates forming the non-dominated OOB mean reduction vs. OOB mean recall frontier.
+  - **`res.summary()` / `res.report()` / `res.to_pandas()`**: Rich summary, detailed multi-candidate inspection report, and pandas table export.
 
 #### 1. Core Inputs & Decision Parameters
 *   **`result.Y`**: Original input data.
