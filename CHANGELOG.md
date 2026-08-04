@@ -10,6 +10,20 @@ All notable changes to the **MISDA** (Maximal Independent Structural Dimensional
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-08-07
+
+### Added
+- **Out-of-Bag (OOB) Bootstrap Validation**: Integrated paired OOB resample validation (`b_bootstrap=50`) into `method='adaptive'`, measuring unbiased reduction rate, Pareto recall confidence intervals (95% CI), and Jaccard subset stability.
+- **Discrete Critical Alpha Event Generation**: Implemented `_generate_critical_alphas()` to construct discrete correlation thresholds from pairwise positive dependence transitions, deduplicating candidate objective subsets.
+- **Adaptive Strategy API Classes**: Introduced dataclasses `AdaptiveResult`, `AdaptiveCandidate`, `OOBSummary`, and `BootstrapObservation`, providing pandas DataFrame export (`.to_pandas()`), structured textual summary (`.summary()`), and candidate inspection (`.report()`).
+- **Pareto Knee-Point Recommendation**: Implemented max-chord-distance candidate recommendation (`_select_knee_candidate_id`) on the validated OOB Pareto frontier (Reduction Rate vs. Pareto Recall).
+
+### Changed
+- **Adaptive Search Refactoring**: Replaced continuous alpha search in `misda.analyze(Y, method='adaptive')` with discrete critical level extraction and OOB validated frontier optimization.
+
+### Fixed
+- **Floating-Point Reproducibility**: Used `np.isclose` in `test_ses.py` to account for `float64` non-associativity across parallel reduction implementations.
+
 ## [0.4.1] - 2026-07-28
 
 ### Changed (Breaking & Semantic)

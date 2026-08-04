@@ -17,7 +17,7 @@ from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, Dict, List, Any
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 # Constants
 AGGRESSIVE = 0
