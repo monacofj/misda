@@ -28,11 +28,20 @@ DEFAULT_SEED = 123
 
 
 def software_versions():
-    packages = ("misda", "numpy", "pandas", "scipy", "scikit-learn")
-    return {
-        "python": platform.python_version(),
-        **{name: importlib.metadata.version(name) for name in packages},
-    }
+    packages = ("numpy", "pandas", "scipy", "scikit-learn")
+    res = {"python": platform.python_version()}
+    try:
+        res["misda"] = importlib.metadata.version("misda")
+    except importlib.metadata.PackageNotFoundError:
+        from ._metadata import __version__
+
+        res["misda"] = __version__
+    for name in packages:
+        try:
+            res[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            res[name] = "unknown"
+    return res
 
 
 def write_json(artifact, output):

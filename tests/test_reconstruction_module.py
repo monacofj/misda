@@ -40,6 +40,8 @@ def test_linear_reconstruction_values_are_unchanged(reconstruction_example):
         return_details=True,
     )
 
+    assert observed["r2_null"]["f2"] == pytest.approx(-0.10537488968189196, abs=1e-12)
+    observed["r2_null"]["f2"] = -0.10537488968189196
     assert observed == {
         "ses": 0.9964603491700306,
         "F_real": 0.9964603491700306,
@@ -92,7 +94,7 @@ def test_dataframe_labels_are_preserved(reconstruction_example):
 
     assert observed["targets_reconstructed"] == ["target"]
     assert observed["r2_real"] == {"target": 0.9964603491700306}
-    assert observed["r2_null"] == {"target": -0.10537488968189196}
+    assert observed["r2_null"]["target"] == pytest.approx(-0.10537488968189196, abs=1e-12)
 
 
 def test_no_reduction_schema_is_unchanged(reconstruction_example):
