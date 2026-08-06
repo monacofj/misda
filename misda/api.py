@@ -3,24 +3,44 @@
 
 """Legacy static-analysis orchestration used by the MISDA public API."""
 
+import time
+
 import numpy as np
 from scipy import stats
 
 from ._graph import (
+    build_dependency_graphs,
     calculate_component_compactness,
     find_maximal_independent_sets,
+    make_structural_signature,
+    rank_structural_mis,
     repair_mis_coverage,
 )
 from ._ranking import compute_mis_metrics, sort_mis_metrics
 from ._statistics import (
     _correlation_strength,
     AlphaRegime,
+    compute_correlation_statistics,
     diagnose_alpha_regime,
     estimate_alpha_interval,
+    estimate_null_positive_correlation,
+    interpolate_log_alpha,
+    separation_status,
     select_alpha,
 )
-from ._validation import normalize_input_matrix
-from .result import MISDAResult
+from ._validation import (
+    normalize_input_matrix,
+    validate_aggressiveness,
+    validate_max_evaluated_mis,
+    validate_rank_policy,
+)
+from .result import (
+    AnalysisResult,
+    ExecutionResult,
+    LegacyMISDAResult,
+    MISCandidate,
+    MISDAResult,
+)
 
 def report_significant_correlations(R, z_stat, z_crit, max_pairs=50, label_prefix="f"):
     """
@@ -226,7 +246,7 @@ def _analyze_static_fast(Y, corr, alpha_min, alpha_max, alpha_exec, caution=1.0,
     N, M = data.shape
     res = misda_significance_from_corr(corr, N, M, alpha=alpha_exec, labels=labels, ensure_coverage=ensure_coverage)
 
-    return MISDAResult(
+    return LegacyMISDAResult(
         Y=Y,
         caution=caution,
         alpha_min=alpha_min,
@@ -254,7 +274,7 @@ def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None)
 
     res = misda_significance(Y, alpha=alpha_exec, ensure_coverage=ensure_coverage, min_coverage=None)
 
-    return MISDAResult(
+    return LegacyMISDAResult(
         Y=Y,
         caution=caution,
         alpha_min=alpha_min,
@@ -264,4 +284,143 @@ def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None)
         alpha_exec=alpha_exec,
         isda_res=res,
         name=name
+    )
+
+
+def _analyze_static_v2(
+    Y,
+    *,
+    aggressiveness=1.0,
+    rank_policy="default",
+    max_evaluated_mis=None,
+    seed=123,
+    name=None,
+    cancel_requested=None,
+):
+    """Execute the refactored static core through ranking and result assembly."""
+
+    total_start = time.perf_counter()
+    normalized = normalize_input_matrix(Y)
+    normalized_aggressiveness = validate_aggressiveness(aggressiveness)
+    rank_policy = validate_rank_policy(rank_policy)
+    max_evaluated_mis = validate_max_evaluated_mis(max_evaluated_mis)
+
+    statistics_start = time.perf_counter()
+    correlation_statistics = compute_correlation_statistics(normalized)
+    signature = make_structural_signature(
+        correlation_statistics,
+        rank_policy=rank_policy,
+    )
+    null_estimate = estimate_null_positive_correlation(
+        normalized,
+        signature=signature,
+        seed=seed,
+        cancel_requested=cancel_requested,
+    )
+    status = separation_status(
+        correlation_statistics.log_alpha_onset,
+        null_estimate.log_alpha_null,
+    )
+    if correlation_statistics.log_alpha_onset is None:
+        log_alpha = null_estimate.log_alpha_null
+    else:
+        log_alpha = interpolate_log_alpha(
+            correlation_statistics.log_alpha_onset,
+            null_estimate.log_alpha_null,
+            normalized_aggressiveness,
+        )
+    statistics_seconds = time.perf_counter() - statistics_start
+
+    graph_start = time.perf_counter()
+    structure = build_dependency_graphs(correlation_statistics, log_alpha)
+    ranked = rank_structural_mis(
+        structure,
+        normalized.labels,
+        rank_policy=rank_policy,
+    )
+    graph_seconds = time.perf_counter() - graph_start
+
+    candidates = tuple(
+        MISCandidate(
+            id=f"mis_{index:03d}",
+            objectives=tuple(candidate["mis_labels"]),
+            indices=tuple(candidate["mis_indices"]),
+            size=int(candidate["size"]),
+            rank=int(candidate["rank"]),
+            rank_values=dict(candidate["rank_values"]),
+        )
+        for index, candidate in enumerate(ranked)
+    )
+    rank_counts = {}
+    for candidate in candidates:
+        rank_counts[candidate.rank] = rank_counts.get(candidate.rank, 0) + 1
+
+    graph_summaries = {
+        "structural": {
+            "nodes": structure.structural_graph.number_of_nodes(),
+            "edges": structure.structural_graph.number_of_edges(),
+            "components": structure.structural_dimension,
+        },
+        "dependence": {
+            "nodes": structure.dependence_graph.number_of_nodes(),
+            "edges": structure.dependence_graph.number_of_edges(),
+            "components": structure.latent_dimension,
+        },
+    }
+    analysis = AnalysisResult(
+        original_dimension=normalized.n_objectives,
+        latent_dimension=structure.latent_dimension,
+        structural_dimension=structure.structural_dimension,
+        alpha_onset=correlation_statistics.alpha_onset,
+        log_alpha_onset=correlation_statistics.log_alpha_onset,
+        alpha_null=null_estimate.alpha_null,
+        log_alpha_null=null_estimate.log_alpha_null,
+        alpha=float(np.exp(log_alpha)),
+        log_alpha=log_alpha,
+        aggressiveness=normalized_aggressiveness,
+        separation_status=status,
+        structural_graph=structure.structural_graph,
+        dependence_graph=structure.dependence_graph,
+        structural_components=structure.structural_components,
+        latent_components=structure.latent_components,
+        graph_summaries=graph_summaries,
+        rank_policy=rank_policy,
+        rank_counts=rank_counts,
+        n_mis=len(candidates),
+        n_evaluated_mis=0,
+        n_heavy_mis=0,
+    )
+    execution = ExecutionResult(
+        configuration={
+            "aggressiveness": normalized_aggressiveness,
+            "rank_policy": rank_policy,
+            "max_evaluated_mis": max_evaluated_mis,
+        },
+        seed=int(seed),
+        timings={
+            "statistics": statistics_seconds,
+            "graph_and_ranking": graph_seconds,
+            "total": time.perf_counter() - total_start,
+        },
+        convergence={
+            "alpha_null": {
+                "converged": null_estimate.converged,
+                "n_permutations": null_estimate.n_permutations,
+                "r_null": null_estimate.r_null,
+                "se_mc": null_estimate.se_mc,
+                "r_interval": null_estimate.r_interval,
+                "log_alpha_interval": null_estimate.log_alpha_interval,
+                "seed": null_estimate.seed,
+                "rng_state": null_estimate.rng_state,
+            }
+        },
+    )
+    data = normalized.data
+    data.setflags(write=False)
+    return MISDAResult(
+        analysis=analysis,
+        mis=candidates,
+        execution=execution,
+        name=name,
+        _data=data,
     )
