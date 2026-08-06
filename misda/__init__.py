@@ -46,7 +46,7 @@ from ._pareto import (
     evaluate_pareto_consistency,
     evaluate_pareto_raw,
 )
-from ._validation import _validate_input_matrix
+from ._validation import _validate_input_matrix, normalize_input_matrix
 from ._metadata import __version__
 from ._plotting import (
     _enforce_min_distance,
@@ -256,8 +256,6 @@ def analyze(
     - 'static' (Default): Uses `caution` to pick a single `alpha`. Fast, standard.
     - 'adaptive': Searches discrete critical alpha levels for optimal Pareto reduction-recall trade-off with OOB bootstrap.
     """
-    _validate_input_matrix(Y)
-
     if method == 'static':
         return _analyze_static(Y, caution=caution, name=name, ensure_coverage=ensure_coverage, alpha=alpha)
     elif method == 'adaptive':
