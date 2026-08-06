@@ -10,9 +10,9 @@ from typing import Any, Dict, Optional, Tuple
 
 from ._metadata import __version__
 from ._pareto import evaluate_pareto_consistency
-from ._plotting import plot_custom_misda_graph
+from ._plotting import plot_custom_misda_graph, plot_result_graph
 from ._reconstruction import calculate_ses, calculate_ses_nonlinear
-from ._reporting import explain_ses
+from ._reporting import explain_ses, render_result_report
 from ._statistics import calculate_spectral_entropy, describe_alpha_regime
 
 class LegacyMISCandidate:
@@ -671,6 +671,21 @@ class MISDAResult:
         return "\n".join(lines)
 
     def report(self):
-        """Return the stored-result summary until reporting is expanded in stage 8."""
+        """Render all compact metrics already stored for representative MISs."""
 
-        return self.summary()
+        return render_result_report(self)
+
+    def graph_plot(self, show=True):
+        """Visualize the stored positive structural graph."""
+
+        return plot_result_graph(self, show=show)
+
+    def plot(self, show=True):
+        """Deprecated alias for :meth:`graph_plot`."""
+
+        warnings.warn(
+            "plot() is deprecated; use graph_plot().",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.graph_plot(show=show)

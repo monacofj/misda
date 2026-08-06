@@ -1,11 +1,50 @@
 # SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Legacy MISDA graph visualization."""
+"""MISDA graph visualization."""
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+
+
+def plot_result_graph(result, *, show=True):
+    """Render the stored structural graph with the established MISDA design."""
+
+    analysis = result.analysis
+    n_objectives = analysis.original_dimension
+    labels = [
+        analysis.structural_graph.nodes[index]["label"]
+        for index in range(n_objectives)
+    ]
+    payload = {
+        "M": n_objectives,
+        "adjacency": nx.to_numpy_array(
+            analysis.structural_graph,
+            nodelist=range(n_objectives),
+            dtype=int,
+            weight=None,
+        ),
+        "labels": labels,
+        "mis_ranked": [
+            {
+                "rank": candidate.rank,
+                "mis_indices": list(candidate.indices),
+            }
+            for candidate in result.mis
+        ],
+    }
+    rendered = plot_custom_misda_graph(
+        payload,
+        title=(
+            f"{result.name or 'MISDA'} — alpha={analysis.alpha:.3g} — "
+            f"{analysis.separation_status.value}"
+        ),
+        show_removed=False,
+    )
+    if show:
+        plt.show()
+    return rendered["fig"]
 
 def _enforce_min_distance(pos, min_dist=0.28, iters=900, jitter=1e-3, seed=7):
     """Adjusts 2D layout positions to enforce a minimum distance between nodes."""
