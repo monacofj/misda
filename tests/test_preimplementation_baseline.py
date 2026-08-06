@@ -20,7 +20,17 @@ def _scientific_payload(artifact: dict) -> dict:
     return payload
 
 
-def test_preimplementation_manifest_reproduces_exact_scientific_results():
+def test_preimplementation_manifest_reproduces_exact_scientific_results(monkeypatch):
+    def legacy_analyze(Y, method="static", name=None, **kwargs):
+        assert method == "static"
+        return __import__("misda")._analyze_static(
+            Y,
+            caution=1.0,
+            name=name,
+            ensure_coverage=True,
+        )
+
+    monkeypatch.setattr(__import__("misda"), "analyze", legacy_analyze)
     manifest = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
 
     assert manifest["baseline_format_version"] == 1

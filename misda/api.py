@@ -17,6 +17,11 @@ from ._graph import (
     repair_mis_coverage,
 )
 from ._ranking import compute_mis_metrics, sort_mis_metrics
+from ._pareto import (
+    evaluate_pareto_preservation,
+    get_nondominated_mask_minimize,
+)
+from ._reconstruction import evaluate_linear_reconstruction
 from ._statistics import (
     _correlation_strength,
     AlphaRegime,
@@ -351,6 +356,28 @@ def _analyze_static_v2(
         )
         for index, candidate in enumerate(ranked)
     )
+    evaluation_start = time.perf_counter()
+    if max_evaluated_mis is None:
+        n_evaluated = len(candidates)
+    else:
+        n_evaluated = min(max_evaluated_mis, len(candidates))
+    full_front = get_nondominated_mask_minimize(normalized.data)
+    for candidate in candidates[:n_evaluated]:
+        candidate.evaluation["linear_reconstruction"] = (
+            evaluate_linear_reconstruction(
+                normalized.data,
+                candidate.indices,
+                normalized.labels,
+            )
+        )
+        candidate.evaluation["pareto_preservation"] = (
+            evaluate_pareto_preservation(
+                normalized.data,
+                candidate.indices,
+                full_front=full_front,
+            )
+        )
+    evaluation_seconds = time.perf_counter() - evaluation_start
     rank_counts = {}
     for candidate in candidates:
         rank_counts[candidate.rank] = rank_counts.get(candidate.rank, 0) + 1
@@ -387,7 +414,7 @@ def _analyze_static_v2(
         rank_policy=rank_policy,
         rank_counts=rank_counts,
         n_mis=len(candidates),
-        n_evaluated_mis=0,
+        n_evaluated_mis=n_evaluated,
         n_heavy_mis=0,
     )
     execution = ExecutionResult(
@@ -400,6 +427,7 @@ def _analyze_static_v2(
         timings={
             "statistics": statistics_seconds,
             "graph_and_ranking": graph_seconds,
+            "evaluation": evaluation_seconds,
             "total": time.perf_counter() - total_start,
         },
         convergence={
