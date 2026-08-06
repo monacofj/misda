@@ -17,12 +17,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Discrete Critical Alpha Event Generation**: Implemented `_generate_critical_alphas()` to construct discrete correlation thresholds from pairwise positive dependence transitions, deduplicating candidate objective subsets.
 - **Adaptive Strategy API Classes**: Introduced dataclasses `AdaptiveResult`, `AdaptiveCandidate`, `OOBSummary`, and `BootstrapObservation`, providing pandas DataFrame export (`.to_pandas()`), structured textual summary (`.summary()`), and candidate inspection (`.report()`).
 - **Pareto Knee-Point Recommendation**: Implemented max-chord-distance candidate recommendation (`_select_knee_candidate_id`) on the validated OOB Pareto frontier (Reduction Rate vs. Pareto Recall).
+- **Refactored Static v2 Architecture**: Refactored static result tree with separate analysis, MIS candidate, and execution branches.
+- **Graph Structures**: Positive structural and signed dependence graphs with distinct structural and latent dimensions.
+- **Sequential Null Estimation**: Data-driven sequential null estimation with stored convergence and RNG diagnostics.
+- **Linear Reconstruction & Pareto Evaluation**: Light linear reconstruction, jackknife uncertainty, and Pareto preservation attached to a configurable ranked MIS prefix.
+- **Heavy Evaluation Engine**: On-demand `misda.heavy()` evaluation with nested nonlinear reconstruction, optional sequential null reference, and explicit cancellation.
+- **Benchmark Battery**: Versioned external benchmark artifacts and executable benchmark CLIs (`examples/benchmarks/run_benchmark.py`).
 
 ### Changed
 - **Adaptive Search Refactoring**: Replaced continuous alpha search in `misda.analyze(Y, method='adaptive')` with discrete critical level extraction and OOB validated frontier optimization.
+- **Static v2 Pipeline Routing**: `misda.analyze()` now routes the default static method through the v2 pipeline using `aggressiveness`, `rank_policy`, and `max_evaluated_mis`.
+- **Notebook & Reporting Facade**: Reports render stored evidence; benchmark and comparative notebooks act as thin front ends over CLI modules.
 
 ### Fixed
 - **Floating-Point Reproducibility**: Used `np.isclose` in `test_ses.py` to account for `float64` non-associativity across parallel reduction implementations.
+
+### Deprecated
+- The `caution` argument and result aliases `alpha_min`, `alpha_max`, `mis_sets`, `ranked_mis_sets`, and `plot()` emit `DeprecationWarning`.
 
 ## [0.4.1] - 2026-07-28
 

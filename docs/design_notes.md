@@ -1,114 +1,122 @@
-# MISDA: Comparison of Design Decisions & Technical Rationale
+<!--
+SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
 
-*This document serves as the comprehensive "Brain Dump" of the MISDA project. It details the theoretical foundations, the specific implementation choices, and the historical rationales behind key architectural decisions. It is intended to bridge the context for drafting the formal academic paper.*
+# MISDA static design notes
 
----
+This document records the methodological boundaries of the refactored static
+pipeline. The implementation favors explicit estimands, reproducible stopping
+rules, and result objects that distinguish stored evidence from presentation.
 
-## 1. Core Philosophy: Structural Dimensionality
+## 1. Positive structure and signed dependence
 
-### 1.1. The Problem with PCA
-Standard dimensionality reduction (PCA) relies on **Variance** explanation. In Multi-Objective Optimization (MOO), variance is often irrelevant; what matters is **Conflict Structure**. A variable with low variance might still be the "key" to a tradeoff.
+Positive and negative correlation have different meanings in objective
+reduction:
 
-### 1.2. The MISDA Solution (Graph Theory)
-MISDA redefines reduction as a **Graph Theory** problem:
-*   **Nodes**: Objectives/Variables.
-*   **Edges**: "Significant Statistical Dependency" (Correlation > Critical Threshold).
-*   **Goal**: Find the **Maximal Independent Set (MIS)**.
-    *   If $A$ and $B$ are connected (Dependent), we only need one.
-    *   If $A$ and $B$ are not connected (Independent), we must keep both to preserve information.
-*   **Rationale**: The MIS is the smallest set of variables that can "cover" the entire variance space through observed dependencies.
+- a statistically supported positive association is a candidate redundancy
+  edge;
+- a supported negative association is a conflict and must not become a
+  redundancy edge.
 
----
+MISDA therefore constructs two graph projections. The positive structural
+graph drives maximal independent set enumeration and structural components.
+The signed dependence graph includes both signs and describes latent
+connectivity. This is why latent dimension, structural dimension, and MIS size
+are stored as separate fields.
 
-## 2. Statistical Foundation: The Alpha ($\alpha$) Parameter
+Constant objectives cannot support a valid pairwise Fisher-z test. They remain
+isolated nodes with explicit metadata so the pipeline never loses an input
+column silently.
 
-The parameter $\alpha$ is often misunderstood as just a "p-value". In MISDA, it acts as a **Sensitivity Tuner** for the graph construction.
+## 2. Log-domain statistical layer
 
-### 2.1. Fisher Z-Transform
-We do not use raw correlations $r$. We use the Fisher Z-transform:
-$$ z = 0.5 \ln \left( \frac{1+r}{1-r} \right) $$
-$$ z_{stat} = \frac{z}{\sqrt{N-3}} $$
-This normalizes the distribution of correlations, allowing us to set thresholds based on sample size $N$ dynamically.
+The static pipeline tests positive correlation with a one-tailed Fisher-z
+probability. Probabilities are stored and compared in log space, preserving
+extreme evidence that would underflow in ordinary floating-point probability
+space.
 
-### 2.2. The Alpha-Risk Spectrum
-*   **Standard View**: "Lower $\alpha$ means we are more sure."
-*   **MISDA View**: "Lower $\alpha$ means we satisfy **Fewer Edges**, which means **Less Reduction**, which means **Higher Safety**."
-    *   **High $\alpha$ (e.g., 0.05)**: Loose filter. Weak correlations accepted. Graph is dense. **Aggressive Reduction**. (Risk: False Positives/Over-reduction).
-    *   **Low $\alpha$ (e.g., $10^{-6}$)**: Strict filter. Only strong correlations accepted. Graph is sparse. **Conservative Retention**. (Safety: We keep variables unless proven redundant).
+Two thresholds delimit the analysis:
 
----
+- `alpha_onset`: first observed positive structural event;
+- `alpha_null`: null-calibrated endpoint obtained by permuting each objective
+  independently and tracking the maximum positive correlation.
 
-## 3. High-Dimensional Pathology ("The Sphere Paradox")
+Null estimation begins with at least `N` permutations. It stops only when the
+structural signature is identical across the Monte Carlo uncertainty interval,
+or when an external cancellation request is received. There is no hidden
+iteration cap. The result stores the number of permutations, uncertainty
+intervals, convergence, seed, and RNG state.
 
-One of the most critical insights of this project was the failure of standard heuristics in $M \ge 10$ dimensions.
+`aggressiveness` interpolates between the endpoints in a numerically stable
+log-domain calculation. A value of `0` selects the onset; `1` selects the
+null-calibrated endpoint.
 
-### 3.1. The Phenomenon
-In high-dimensional spaces (e.g., Hyperspheres like DTLZ2 $M=10$), random vectors tend to be **nearly orthogonal**.
-*   A random pair of vectors will have $r \approx 0$.
-*   A true geometric relationship in DTLZ2 also looks like $r \approx 0$ (due to the spherical manifold).
+## 3. Candidate enumeration and ranking
 
-### 3.2. The Failure of Heuristics
-Standard heuristics (like $\alpha=0.01$) assume that "Signal" is strong ($r > 0.3$) and "Noise" is weak ($r < 0.1$).
-In the Sphere Paradox, **Signal looks like Noise**.
-*   `analyze` with standard $\alpha$ sees "weak correlations" everywhere.
-*   It interprets them as "Dependencies" (if N is large) or "Independence" (if N is small) erratically.
-*   **Result**: It frequently over-reduces the set to 5-6 variables, destroying the manifold structure.
+Maximal independent sets are enumerated from the positive structural graph.
+Every result is unique, maximal, and deterministically ordered. The default
+ranking records its criterion values, while objective labels are used only as a
+stable final tie-breaker. Equal criterion values share a rank.
 
-### 3.3. The Solution: Adaptive Control Loop
-Since we cannot trust the *input* (p-values) to distinguish signal from noise, we must validate the *output* (Reconstruction Quality).
-*   **Open Loop (`static`)**: Guess $\alpha$ $\to$ Reduce. (Fails on Spheres).
-*   **Closed Loop (`adaptive`)**: Try $\alpha$ $\to$ Reduce $\to$ **Check SES** $\to$ Adjust $\alpha$.
+All candidates are retained in `result.mis`; evaluation limits affect evidence
+collection, not visibility or ranking.
 
----
+## 4. Light and heavy evidence
 
-## 4. Architectural Decisions & API Evolution
+Light evaluation runs for a ranked prefix during `analyze()`:
 
-### 4.1. The Logic of "Caution"
-We introduced a `caution` parameter [0, 1] to abstract $\alpha$ for users.
-*   *Initial Design*: Linearly mapped `caution` $\to$ `[alpha_min, alpha_max]`.
-*   *The Bug*: This meant `caution=1.0` (max) selected `alpha_max` (High Alpha = Aggressive). This was semantically inverted. "Maximum Caution" should not yield "Maximum Aggression".
-*   *The Fix (v0.3.0)*: Inverted the mapping.
-    *   `caution=1.0` $\to$ `alpha_min` (Conservative/Safe).
-    *   `caution=0.0` $\to$ `alpha_max` (Aggressive/Risky).
+- linear reconstruction predicts eliminated objectives only and uses external
+  predictions;
+- delete-one jackknife estimates sampling uncertainty;
+- Pareto retention, validity, and Jaccard compare nondominated row masks.
 
-### 4.2. Unified Strategy Pattern
-We initially built `misda.tune()` as a separate function.
-*   *Critique*: It fragmented the API. Users had to know *when* to switch functions.
-*   *Refactor (v0.3.0)*: Merged into `misda.analyze(method='adaptive')`.
-*   *Rationale*: It allows the user to simply state their **Intent** (`target_fidelity`) without changing their workflow. The library handles the complexity.
+Undefined quantities carry `None` plus a machine-readable reason. In
+particular, full retention has no eliminated-objective reconstruction score.
 
-### 4.3. Coverage Repair (`ensure_coverage`)
-Graph Independence algorithms (Bron-Kerbosch) maximize the *size* of the independent set but do not guarantee that the discarded nodes are actually "covered" (correlated) by the kept nodes.
-*   *Problem*: You could drop a variable that is independent of the kept set just because the algorithm was greedy.
-*   *Solution*: The `repair_mis_coverage` step. It iterates through discarded nodes and checks if `max(corr(discarded, kept)) < threshold`. If so, it forces the discarded node back into the set.
-*   *Infinite Loop Fix*: When $\alpha \to 0$, the threshold $r_{crit} \to 1.0$. If $r_{crit} > 0.999999$, nothing can ever "cover" anything. We clamped $r_{crit}$ to prevent infinite loops in the repair step.
+Heavy evaluation is separate and on demand. It uses nested leave-one-out
+Random Forest reconstruction, model selection inside each outer fold, and a
+tree count determined by uncertainty stability. An optional sequential
+permutation null reports reconstruction beyond chance and incidental
+reconstruction frequency. Both expensive layers preserve partial results and
+explicitly record cancellation or non-convergence.
 
----
+## 5. Result and reporting boundaries
 
-## 5. Validation Logic
+The result tree has three responsibilities:
 
-### 5.1. Structural Evidence Score (SES)
-Why create a new metric instead of just $R^2$?
-*   **Target Selection ($T$)**: Reconstruction is evaluated strictly out-of-sample (70/30 train/test split) predicting only the eliminated targets $T = \{j \notin S\}$ from the retained predictors $S$. When no reduction occurs ($T = \emptyset$), $SES$ and $F_{real}$ return `None` (`N/A`).
-*   **$F_{real}$**: Out-of-sample $R^2$ score reconstructing eliminated targets $T$ from predictors $S$.
-*   **$F_{null}$**: Null baseline computed by permuting the rows of $S$ in block (joint row permutation within train and test independently). This destroys the structural relationship between $S$ and $T$ while preserving the joint multivariate covariance distribution of $S$.
-*   **SES**: $\frac{F_{real} - F_{null}}{1 - F_{null}}$.
-*   **Multi-Output Efficiency**: Both Linear (OLS) and Non-Linear (Random Forest) core engines utilize multi-output regression to fit $T$ simultaneously, reducing computational complexity from $(1 + n_{\text{perm}}) \times |T|$ down to $1 + n_{\text{perm}}$ model fits.
-*   *Rationale*: A reconstruction score $F_{real} = 0.8$ might look good, but if permuting $S$ still yields $0.8$ (due to high background noise or collinearity), our specific selection isn't structural. SES measures the true **Marginal Evidence** of our structural choice relative to a chance baseline.
+- `AnalysisResult`: global scientific properties and graph state;
+- `MISCandidate`: stable candidate identity, rank values, and attached evidence;
+- `ExecutionResult`: effective controls, reproducibility, timing, and
+  convergence.
 
-### 5.2. Pareto Consistency
-For MOO, Linear Reconstruction is a proxy. The real truth is: **Does the reduced set generate the same Pareto Front?**
-*   **Precision (Safety)**: If a point is non-dominated in reduced space, is it non-dominated in full space? (1.0 = Safe).
-*   **Recall (Coverage)**: If a point is non-dominated in full space, is it non-dominated in reduced space? (1.0 = No Loss).
+`summary()`, `report()`, and `graph_plot()` are views over stored state. They do
+not run validation, tune parameters, or mutate scientific results. Metric names
+and explanations are centralized in reporting metadata.
 
----
+## 6. External benchmarks
 
-## 6. Summary for Paper
+Benchmark declarations are external expectations, not inputs to `analyze()`.
+Each run records its input digest, seed, software versions, estimates, and
+assessment. Comparing with a frozen pre-refactor artifact is a regression gate;
+it does not force the new schema to reproduce legacy field names or known
+legacy defects.
 
-**The central thesis of the MISDA paper should be:**
+The comparative suite keeps two estimands separate:
 
-> "Dimensionality Reduction in Many-Objective Optimization is not just about Variance (PCA); it is about **Conflict Structure** (Dependency). While Graph-Theoretic methods (like MISDA) successfully map this structure, they fail in high-dimensional hyperspheres due to statistical sparsity (The Sphere Paradox). We propose an **Adaptive, Closed-Loop Strategy** that utilizes Structural Evidence Score (SES) to dynamically tune the statistical sensitivity ($\alpha$), guaranteeing robust preservation of the Pareto Manifold even when signal-to-noise ratios approach zero."
+- PCA: global standardized reconstruction R² over all objectives;
+- MISDA: external reconstruction of eliminated objectives from selected
+  original objectives.
 
----
-*Created: 2026-01-05*
-*Author: Antigravity Agent (Brain Dump)*
+They may be displayed together as complementary evidence but must not be
+collapsed into one unqualified fidelity axis.
+
+## 7. Compatibility boundary
+
+The static v2 pipeline is the supported scientific contract. Unambiguous legacy
+spellings are temporary deprecated forwards. Ambiguous legacy validation fields
+are not recreated on the new result.
+
+The previous adaptive implementation is suspended. It remains isolated for
+future methodological work and is excluded from current acceptance tests,
+benchmarks, examples, and claims.
