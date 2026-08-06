@@ -65,6 +65,7 @@ def build_dependency_graphs(
         attributes = {
             "index": index,
             "name": label,
+            "label": label,
             "constant": index in correlation_statistics.constant_indices,
         }
         structural_graph.add_node(index, **attributes)

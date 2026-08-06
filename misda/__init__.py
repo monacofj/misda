@@ -42,6 +42,7 @@ from ._reconstruction import (
     calculate_ses_nonlinear,
     evaluate_linear_reconstruction,
 )
+from ._heavy import heavy
 from ._pareto import (
     evaluate_pareto_preservation,
     get_nondominated_mask,
