@@ -5,9 +5,12 @@
 
 import math
 
+from ._metadata import __version__
 from ._pareto import evaluate_pareto_consistency
+from ._plotting import plot_custom_misda_graph
 from ._reconstruction import calculate_ses, calculate_ses_nonlinear
-from ._statistics import describe_alpha_regime
+from ._reporting import explain_ses
+from ._statistics import calculate_spectral_entropy, describe_alpha_regime
 
 class MISCandidate:
     """
@@ -294,8 +297,6 @@ class MISDAResult:
 
     def summary(self):
         """Returns a textual summary of the analysis."""
-        from . import calculate_spectral_entropy, explain_ses
-
         lines = []
         lines.append("\n" + "" * 70)
         title = f"MISDA Analysis Summary: {self.name}" if self.name else "MISDA Analysis Summary"
@@ -393,8 +394,6 @@ class MISDAResult:
         Args:
             top_k (int): Number of candidates to show per rank (default: 5).
         """
-        from . import __version__
-
         # Start with standard summary
         base_report = self.summary()
 
@@ -485,8 +484,6 @@ class MISDAResult:
         Returns:
             matplotlib.figure.Figure: The figure object.
         """
-        from . import plot_custom_misda_graph
-
         ret = plot_custom_misda_graph(
             self.isda_results,
             title=f"{self.name or 'MISDA'} — alpha={self.alpha:.3g} — regime={self.regime.name}",
