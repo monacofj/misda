@@ -4,7 +4,6 @@
 """Legacy static-analysis orchestration used by the MISDA public API."""
 
 import numpy as np
-import pandas as pd
 from scipy import stats
 
 from ._graph import (
@@ -20,7 +19,7 @@ from ._statistics import (
     estimate_alpha_interval,
     select_alpha,
 )
-from ._validation import _validate_input_matrix
+from ._validation import normalize_input_matrix
 from .result import MISDAResult
 
 def report_significant_correlations(R, z_stat, z_crit, max_pairs=50, label_prefix="f"):
@@ -205,14 +204,9 @@ def misda_significance(Y, alpha=0.05, ensure_coverage=True, min_coverage=None):
     """
     Executes the Maximal Independent Structural Dimensionality Analysis (MISDA) logic.
     """
-    if isinstance(Y, pd.DataFrame):
-        X = Y.values
-        labels = list(Y.columns)
-    else:
-        X = np.asarray(Y)
-        M = X.shape[1]
-        labels = [f"f{i+1}" for i in range(M)]
-
+    normalized = normalize_input_matrix(Y)
+    X = normalized.data
+    labels = list(normalized.labels)
     N, M = X.shape
     corr = np.corrcoef(X, rowvar=False)
     return misda_significance_from_corr(corr, N, M, alpha=alpha, labels=labels, ensure_coverage=ensure_coverage, min_coverage=min_coverage)
@@ -225,12 +219,9 @@ def _analyze_static_fast(Y, corr, alpha_min, alpha_max, alpha_exec, caution=1.0,
     metrics = diagnose_alpha_regime(alpha_min, alpha_max)
     regime = AlphaRegime(metrics["regime"])
 
-    if hasattr(Y, "values"):
-        data = np.asarray(Y.values, dtype=float)
-        labels = list(Y.columns)
-    else:
-        data = np.asarray(Y, dtype=float)
-        labels = [f"f{i+1}" for i in range(data.shape[1])]
+    normalized = normalize_input_matrix(Y)
+    data = normalized.data
+    labels = list(normalized.labels)
 
     N, M = data.shape
     res = misda_significance_from_corr(corr, N, M, alpha=alpha_exec, labels=labels, ensure_coverage=ensure_coverage)
@@ -251,7 +242,7 @@ def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None)
     """
     Executes the full MISDA pipeline on dataset Y.
     """
-    _validate_input_matrix(Y)
+    normalize_input_matrix(Y)
     alpha_min, alpha_max, r_max_real, r_null = estimate_alpha_interval(Y)
     metrics = diagnose_alpha_regime(alpha_min, alpha_max)
     regime = AlphaRegime(metrics["regime"])
