@@ -5,6 +5,56 @@
 
 import numpy as np
 
+from ._validation import validate_rank_policy
+
+
+DEFAULT_RANK_FIELDS = (
+    "size",
+    "neighborhood",
+    "avg_external_degree",
+    "span",
+)
+
+
+def _default_rank_values(candidate):
+    return tuple(candidate[field] for field in DEFAULT_RANK_FIELDS)
+
+
+def _default_sort_key(candidate):
+    return (
+        -candidate["size"],
+        -candidate["neighborhood"],
+        -candidate["avg_external_degree"],
+        -candidate["span"],
+        tuple(repr(label) for label in candidate["mis_labels"]),
+    )
+
+
+def rank_mis_candidates(mis_list, adjacency, labels, rank_policy="default"):
+    """Measure and rank MISs under the named deterministic policy."""
+
+    rank_policy = validate_rank_policy(rank_policy)
+    metrics = compute_mis_metrics(mis_list, adjacency, labels)
+    if rank_policy == "default":
+        ordered = sorted(metrics, key=_default_sort_key)
+    else:  # pragma: no cover - validation currently makes this unreachable
+        raise ValueError(f"Unsupported rank policy: {rank_policy!r}.")
+
+    ranks_by_values = {}
+    ranked = []
+    for candidate in ordered:
+        values = _default_rank_values(candidate)
+        if values not in ranks_by_values:
+            ranks_by_values[values] = len(ranks_by_values) + 1
+        enriched = dict(candidate)
+        enriched["rank"] = ranks_by_values[values]
+        enriched["rank_values"] = {
+            field: candidate[field]
+            for field in DEFAULT_RANK_FIELDS
+        }
+        ranked.append(enriched)
+    return ranked
+
 
 def compute_mis_metrics(mis_list, adjacency, labels):
     """
