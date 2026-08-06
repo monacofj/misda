@@ -1,93 +1,135 @@
-Maximal Independent Structural Dimensionality Analysis
-=======
+# Maximal Independent Structural Dimensionality Analysis
+
 <!--
 SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/benchmark.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/refactor/examples/benchmark.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
+MISDA is a graph-theoretic method for reducing the objectives of a
+multi-objective problem while retaining original, interpretable variables. The
+current supported workflow is the refactored **static** pipeline.
 
->Copyright (c) 2025 Monaco F. J. <monaco@usp.br> 
->
->This project is distributed under the GNU General Public License v3.0 or later. See the file COPYING for more information. Some third-party components or specific files may be licensed under different terms. Please, consult the SPDX identifiers in each file's header and the LICENSES/ directory for precise details. 
+MISDA reports three deliberately distinct quantities:
 
-## Introduction
+- **latent dimension**: connected components in the signed dependence graph;
+- **structural dimension**: connected components in the positive-dependence
+  graph;
+- **preferred MIS size**: number of original objectives selected in the
+  highest-ranked maximal independent set.
 
-**MISDA** is a graph-theoretic framework for dimensionality reduction in **Multi-Objective Problems (MOPs)**.
-
-Unlike projection-based methods (e.g., PCA) that create abstract components, MISDA identifies the **Maximal Independent Set (MIS)** of existing objectives. It builds a dependency graph from data correlations and mathematically extracts the largest subset of mutually independent features. This allows you to reduce the dimensionality of your problem while preserving the original meaning of your objectives and maintaining the topological structure of the solution space.
-
----
-
-## Features
-
-*   **Graph-Theoretic Reduction**: Uses the Bron-Kerbosch algorithm to find the Maximal Independent Set.
-*   **Statistical Rigor**: Automatically estimates significance thresholds ($\alpha$) based on signal-to-noise ratio.
-*   **Structure Preservation**: Ensures reduced sets "cover" the discarded objectives via strong correlation.
-*   **Validation Metrics**: Includes **SES** ($R^2$ predictive fidelity) and **Homogeneity** (internal consistency) scores.
-*   **Auto-Diagnosis**: Automatically flags potential topological issues like *Concept Drift* (Chains) or *Entanglement*.
+Negative associations connect latent structure but never create redundancy
+edges in the structural graph. Constant objectives remain explicit isolated
+vertices.
 
 ## Installation
-
-You can install `misda` directly from the source:
 
 ```bash
 git clone https://github.com/monacofj/misda.git
 cd misda
-pip install .
+python -m pip install .
 ```
 
-## Quick Start
+MISDA requires Python 3.8 or newer and depends on NumPy, pandas, SciPy,
+NetworkX, Matplotlib, and scikit-learn.
 
-The main entry point is `misda.analyze`, which handles the entire pipeline.
+## Quick start
 
 ```python
-import numpy as np
+import pandas as pd
 import misda
 
-# 1. Load your data (N samples x M objectives)
-Y = np.loadtxt("my_mop_data.csv", delimiter=",")
+frame = pd.read_csv("my_mop_data.csv")
 
-# 2. Run analysis
-# caution=0.5 balances aggressive vs conservative reduction
-# Note: Validation is now an explicit separate step
-result = misda.analyze(Y, caution=0.5, name="Demo")
-result.validate() 
+result = misda.analyze(
+    frame,
+    aggressiveness=0.5,
+    max_evaluated_mis=3,
+    seed=123,
+    name="Demo",
+)
 
-# 3. View results
 print(result.summary())
-result.plot()
+print(result.best_mis.objectives)
+print(result.best_mis.evaluation["linear_reconstruction"])
 
-# 4. Access the reduced set indices
-# New: Object-oriented access
-print("Selected Objectives:", result.best_mis.indices)
-
-# 5. Export details
-df = result.to_pandas()
-print(df.head())
+figure = result.graph_plot(show=False)
 ```
 
-## Documentation
+`analyze()` always stores every ranked MIS. Light evaluation — external linear
+reconstruction, delete-one uncertainty, and Pareto preservation — is attached
+to the requested ranked prefix. Use `max_evaluated_mis` to limit that work.
 
-For a detailed explanation of the theory, pipeline steps, and advanced usage, see the **[User Guide](docs/userguide.md)**.
+The result tree separates global analysis, candidates, and reproducibility:
 
-### Benchmarks & Papers
-*   **[Standard Benchmark](examples/benchmark.ipynb)**: Validation against canonical structures (Independence, Redundancy, Chains).
-*   **[Optimization Benchmark](examples/dtlz.ipynb)**: High-dimensional DTLZ2 and DTLZ5 test cases.
-*   **[Comparative Analysis](examples/comparative.ipynb)**: Head-to-head comparison vs PCA and Clustering, demonstrating structural advantages.
+```python
+result.analysis.structural_dimension
+result.analysis.latent_dimension
+result.analysis.separation_status
+result.mis
+result.execution.configuration
+result.execution.timings
+result.execution.convergence
+```
+
+## On-demand heavy evaluation
+
+Nonlinear reconstruction is intentionally opt-in. Select candidates by their
+position in `result.mis`:
+
+```python
+misda.heavy(result, [0, 2], null_reference=True)
+print(result.report())
+```
+
+The heavy path uses nested leave-one-out Random Forest evaluation, internal
+model selection, data-driven tree stopping, and an optional sequential null
+reference. It mutates the selected candidates in place and records convergence,
+uncertainty, seed, and timing. A callable `cancel_requested` may be supplied by
+interactive applications.
+
+## Reproducible benchmarks
+
+The executable benchmark modules are the source of truth; the notebooks are
+thin front ends over the same functions.
+
+```bash
+python -m examples.benchmarks.run_benchmark --output results/benchmark.json
+python -m examples.benchmarks.run_comparative --output results/comparative.json
+```
+
+- [Canonical benchmark notebook](examples/benchmark.ipynb)
+- [Static MISDA and PCA notebook](examples/comparative.ipynb)
+
+The comparative artifact keeps PCA global standardized reconstruction R²
+separate from MISDA reconstruction of eliminated objectives. They describe
+different estimands and are not merged into a single score.
+
+## Compatibility status
+
+The supported and acceptance-tested path is `misda.analyze(...,
+method="static")`, which is also the default. Transitional aliases such as
+`caution`, `result.plot()`, `result.alpha_min`, and `result.mis_sets` emit
+`DeprecationWarning`; use `aggressiveness`, `graph_plot()`, the `analysis` tree,
+and `result.mis` instead.
+
+The earlier adaptive implementation remains suspended for compatibility work.
+It is not part of the current scientific baseline, documentation contract, or
+test acceptance gate.
+
+See the [user guide](docs/userguide.md) for the complete result schema,
+evaluation semantics, migration notes, and limitations. See
+[design notes](docs/design_notes.md) for the statistical and architectural
+rationale.
 
 ## Contributing
 
-We welcome contributions! Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on how to contact the authors.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
-## References
+## Reference
 
-> Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.. *Maximal Independent Structural Dimensionality Analysis*, (in print), 2026.
-
-
-
-
+Souza, C. H., Monaco, F. J., Delbem, A. C. B., and Kuruvilla, J. A.
+*Maximal Independent Structural Dimensionality Analysis* (in print), 2026.

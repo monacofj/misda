@@ -3,197 +3,213 @@ SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-MISDA User Guide
-================
+# MISDA static user guide
 
-Introduction
-------------
+This guide documents the refactored static API. It distinguishes structural
+estimation, representative selection, and optional evaluation so that a result
+never implies evidence that was not computed.
 
-**Maximal Independent Structural Dimensionality Analysis (MISDA)** constitutes a graph-theoretic framework designed for dimensionality reduction in **Multi-Objective Problems (MOPs)**. Its primary objective is to rationalize the optimization search space by eliminating redundant objectives while strictly preserving the underlying conflict structure of the Pareto frontier.
+## 1. Input contract
 
-Fundamentally, MISDA operates by identifying the **Maximal Independent Set (MIS)** within an empirically derived objective dependency network. In contrast to projection-based techniques such as Principal Component Analysis (PCA)—which map attributes onto an abstract latent space—MISDA analyzes the topological properties of the correlation graph to isolate the largest subset of *original* decision variables that exhibit mutual statistical independence. Through the maximization of this independent set, the algorithm effectively recovers the intrinsic dimensionality of the problem, ensuring the retention of non-redundant information without semantic loss.
-
-MISDA accepts input as an $(N, M)$ dataset, provided as a NumPy array or pandas DataFrame, where $N$ represents samples and $M$ represents objectives (columns). The core philosophy of MISDA is based on the nature of objective correlations:
-
-*   **Positive Correlation (Redundancy)**: Objectives that vary together convey similar information. Stronger positive correlation implies higher redundancy, allowing for dimensionality reduction by removing one of the pair.
-*   **Negative Correlation (Conflict)**: Objectives that vary inversely represent the trade-offs (Pareto frontier) that define the problem structure. These must be retained to preserve the essential conflict information. 
-
-MISDA Workflow
------
-
-MISDA operates on the theoretical premise that the *essential* dimensionality of an MOP corresponds to the size of the largest set of conflicting (or independent) objectives. The framework proceeds in rigorous formal steps:
-
-1.  **Dependency Modeling**: A collumn-wise correlation matrix is computed from the sample data.
-2.  **Significance Testing**: Pairwise correlations are subjected to the Fisher Z-transformation to determine statistical significance at a given $\alpha$ level (e.g., $p < 0.05$).
-3.  **Graph Construction**: An undirected graph $G=(V, E)$ is built where vertices $V$ represent objectives and edges $E$ represent significant dependencies (redundancies).
-4.  **MIS Extraction**: The algorithm solves the **Maximum Independent Set** problem (NP-hard) on $G$ using an optimized **Bron-Kerbosch** algorithm. An independent set represents a group of objectives with no pairwise redundancies. The *Maximal* set (MIS) is the largest such group.
-5.  **Coverage Repair**: The initial MIS is iteratively refined to ensure that every discarded objective is "covered" (strongly correlated) by at least one objective retained in the MIS, guaranteeing representativeness.
-6.  **Metric Selection**: If multiple MIS solutions of the same size exist, MISDA ranks them using secondary topological metrics:
-    *   **Neighborhood**: Maximizing the number of covered external variables.
-    *   **Span**: Maximizing the total correlation strength with external variables.
-
-**Validation & Diagnosis**
-To assess the quality of the reduction, MISDA computes:
-
-*   **SES (Structural Evidence Score)**: Computes the predictive power ($R^2$) of the reduced set (MIS) against the full set, using a linear model compared to a permutation null model.
-    *   $SES \approx 1.0$: Perfect reconstruction (Lossless).
-    *   $SES \approx 0.0$: No better than noise (High Information Loss).
-
-*   **Homogeneity Ratio**: Measures the internal consistency of connected components by comparing the weakest correlation to the strongest correlation within the component ($min/max$).
-    *   $Ratio < 0.6$ warns of "transitive chains" (A-B-C) where A and C are independent but linked by B.
-
-*   **Auto-Diagnosis**: Automatically categorizes the topology based on the intersection of Fidelity ($F$) and Homogeneity ($H$):
-    *   **Ideal (Clique)** ($F>0.9, H>0.8$): Perfect dense groups. Safe reduction.
-    *   **Good (Robust)** ($F>0.9$): Reliable reduction.
-    *   **Entangled** ($F>0.9, H<0.2$): High fidelity but messy topology (mixed positive/negative correlations).
-    *   **Drift (Chain)** ($F<0.8, H \ge 0.6$): Warning state. Potential loss of transitivity.
-    *   **Fragmented (Bridge)** ($F<0.6, H<0.6$): Failure state. Graph is held together by weak links (bridges).
-
-Usage
------
-
-The library is designed for ease of use with a single high-level entry point.
-
-### Main Function
-
-The primary function for end-users is `analyze`. It handles the entire pipeline: automatic alpha estimation, regime diagnosis, graph execution, and validation.
+`misda.analyze()` accepts a two-dimensional NumPy array or pandas DataFrame.
+Values must be finite, real, numeric, and contain at least four observations.
+DataFrame labels are preserved; arrays receive `f1`, `f2`, and so on. Constant
+objectives are retained as explicit isolated vertices rather than silently
+discarded.
 
 ```python
+import pandas as pd
 import misda
 
-# 1. Analyse
-res = misda.analyze(df)
-
-# 2. Inspect (Standard summary)
-print(res.summary())
-
-# or Visualise
-res.plot()
-
-# 3. Export reduced dataset
-reduced_df = df[res.best_mis.labels]
-reduced_df.to_csv("reduced_mop.csv")
+frame = pd.read_csv("objectives.csv")
+result = misda.analyze(frame, seed=123)
 ```
 
-### 2. Deep Validation (Scientific)
+## 2. Static analysis controls
 
 ```python
-# Run analysis and force validation
-res = misda.analyze(df)
-res.validate() # Computes F_real, F_null, SES
-
-# Get full audit report (includes summary details)
-print(res.report())
-
-# Check specific candidates
-all_candidates = res.to_pandas()
-print(all_candidates.head())
+result = misda.analyze(
+    frame,
+    method="static",
+    aggressiveness=0.5,
+    rank_policy="default",
+    max_evaluated_mis=3,
+    seed=123,
+    name="experiment-a",
+)
 ```
 
-The `misda.analyze()` function accepts the following key arguments:
+| Argument | Meaning |
+|---|---|
+| `aggressiveness` | Float in `[0, 1]`. `0` selects the positive-signal onset and `1` the null-calibrated endpoint; larger values generally admit more positive redundancy edges. |
+| `rank_policy` | Candidate ordering policy. The current supported value is `"default"`. |
+| `max_evaluated_mis` | Positive integer or `None`. Limits light evaluation to a ranked prefix but never hides ranked MISs. |
+| `seed` | Seed for reproducible sequential null estimation and derived evaluation seeds. |
+| `name` | Optional display label stored in the result. |
 
-*   **`caution`** (float, 0.0 - 1.0): Controls the conservatism of the significance test.
-    *   `0.0`: Aggressive reduction (uses $\alpha_{max}$).
-    *   `1.0`: Conservative (uses $\alpha_{min}$), retaining more dimensions if in doubt.
-*   **`name`** (str, optional): A label for the analysis case (e.g., "Experiment 1"), used in reports.
-*   **`ensure_coverage`** (bool): If `True` (default), ensures the final set covers all variables locally.
+Manual `alpha` is intentionally unsupported by the static v2 entry point. The
+threshold is derived from the observed positive correlations and a sequential
+permutation null estimate.
 
-### Adaptive Analysis (Strategy Pattern)
+## 3. What the dimensions mean
 
-For complex multi-objective optimization (MOP) problems, you can switch to the adaptive strategy:
+MISDA builds two graphs at the same data-driven threshold:
+
+1. The **structural graph** contains statistically supported positive edges.
+   Its connected-component count is `structural_dimension`; its maximal
+   independent sets are representative subsets of original objectives.
+2. The **dependence graph** contains supported positive and negative edges.
+   Its connected-component count is `latent_dimension`.
+
+These counts and the preferred MIS size answer different questions and may
+differ legitimately:
 
 ```python
-# Adaptive discrete Pareto search with Out-of-Bag (OOB) bootstrap validation
-res = misda.analyze(df, method='adaptive', caution=1.0, b_bootstrap=50, seed=123, name="HighDim_Case")
-
-# Returns an AdaptiveResult object
-print(res.summary())
-print(res.report())
-df_table = res.to_pandas()
+analysis = result.analysis
+print(analysis.original_dimension)
+print(analysis.latent_dimension)
+print(analysis.structural_dimension)
+print(result.best_mis.size)
 ```
 
-Strategies:
-1.  **`'static'`** (Default): Uses `caution` to select a single significance level $\alpha$. Returns a `MISDAResult` object.
-2.  **`'adaptive'`**: Searches discrete critical $\alpha$ levels for the optimal Pareto trade-off between dimensionality reduction rate and Out-of-Bag (OOB) Pareto recall. Validates solutions via paired bootstrap resampling and selects the recommended candidate using the knee point on the validated Pareto frontier. Returns an `AdaptiveResult` object.
+The separation status is explicit. `NULL_SEPARATION` means the positive-signal
+onset precedes the null-calibrated endpoint. `NO_NULL_SEPARATION` means no such
+strict separation was established; it is not rewritten as a successful
+separation.
 
-### Result Objects (`MISDAResult` and `AdaptiveResult`)
+## 4. Result tree
 
-- **`method='static'`** returns a `MISDAResult` object providing rich access to single-run graph topology, connected components, MIS candidates, and regression SES validation metrics.
-- **`method='adaptive'`** returns an `AdaptiveResult` object aggregating:
-  - **`res.static_candidate`**: The baseline `static` candidate.
-  - **`res.candidates`**: Tuple of all unique `AdaptiveCandidate` objects.
-  - **`res.recommended`**: The recommended candidate selected via knee-point chord distance on the validated OOB frontier.
-  - **`res.fitted_frontier`**: Candidates forming the non-dominated reduction vs. sample recall frontier.
-  - **`res.validated_frontier`**: Candidates forming the non-dominated OOB mean reduction vs. OOB mean recall frontier.
-  - **`res.summary()` / `res.report()` / `res.to_pandas()`**: Rich summary, detailed multi-candidate inspection report, and pandas table export.
+`MISDAResult` contains three top-level branches:
 
-#### 1. Core Inputs & Decision Parameters
-*   **`result.Y`**: Original input data.
-*   **`result.name`**: Analysis name.
-*   **`result.caution`**: The user-provided caution level (0.0 - 1.0).
-*   **`result.alpha_min`**: Lower bound of the estimated alpha interval.
-*   **`result.alpha_max`**: Upper bound of the estimated alpha interval.
-*   **`result.alpha`**: The specific alpha value used for execution (alias for `alpha_exec`).
-*   **`result.regime`**: The `AlphaRegime` object (diagnosis of the correlation structure).
-*   **`result.metrics`**: Dictionary of raw diagnosis metrics (e.g., `r_max`, `r_null`).
+- `result.analysis`: global dimensions, graphs, thresholds, rank counts, and
+  evaluation counts;
+- `result.mis`: every ranked `MISCandidate`, in deterministic order;
+- `result.execution`: effective configuration, seed, timings, convergence, and
+  RNG diagnostics.
 
-#### 2. Execution Results (The Answers)
-*   **`result.best_mis_labels`**: The variable names of the best solution.
-*   **`result.best_mis_indices`**: The list of column indices of the best solution.
-*   **`result.best_mis`**: The full `MISCandidate` object for the best solution.
-*   **`result.mis_sets`**: List of all `MISCandidate` solutions found.
-*   **`result.ranked_mis_sets`**: Dictionary mapping rank to list of candidates (access via `ranks_available`).
-*   **`result.reduction_applied`**: Boolean (`True` if dimensionality was actually reduced).
-*   **`result.get_mis_by_rank(k)`**: Method to retrieve all solutions for rank `k`.
+Each candidate exposes stable identity and stored evidence:
 
-#### 3. Quality & Validation
-*   **`result.diagnosis`**: Short diagnostic string summarizing graph topology and surrogate fidelity:
-    *   `"Valid (No Reduction Required)"`: When all objectives are retained ($S = M, T = \emptyset$).
-    *   `"Ideal (Clique)"`: High fidelity ($F_{real} \ge 0.9$), high homogeneity ($h \ge 0.8$), 1 component, strictly verified clique ($\text{min\_compactness} \ge \alpha$).
-    *   `"Ideal (Disjoint Cliques)"`: High fidelity ($F_{real} \ge 0.9$), high homogeneity ($h \ge 0.8$), $>1$ components, strictly verified cliques ($\text{min\_compactness} \ge \alpha$).
-    *   `"Ideal (Multiple Components)"`: High fidelity ($F_{real} \ge 0.9$), high homogeneity ($h \ge 0.8$), $>1$ components, but not all components are complete cliques ($\text{min\_compactness} < \alpha$).
-    *   `"Entangled (Mixed)"`, `"Good (Robust)"`, `"Drift (Chain)"`, `"Fragmented (Bridge)"`.
-*   **`result.homogeneity_ratio`**: Score indicating cluster correlation consistency ($\text{min\_corr}/\text{max\_corr}$).
-*   **`result.min_compactness`**: Lowest internal correlation strength across all components.
-*   **`result.validation_metrics`**: Dictionary storing SES/Pareto results (populated by `validate()`).
-*   **`result.validation_status`**: String indicating validation checks run (e.g., "Linear, Non-Linear, Pareto").
-*   **`result.ses_results`**: Detailed dictionary of linear SES metrics (`F_real`, `F_null`, `ses`, `status`). Returns `status: "NO_REDUCTION"` and `ses: None` (`N/A`) if no reduction occurred.
-*   **`result.ses_nonlinear`**: Scalar Non-Linear SES score (`float` or `None`).
-*   **`result.ses_nonlinear_results`**: Detailed dictionary of non-linear Random Forest SES metrics (`F_real`, `F_null`, `ses`, `status`).
+```python
+candidate = result.mis[0]
 
-#### 4. Visuals & Reports
-*   **`result.summary()`**: Returns formatted text summary.
-*   **`result.report(top_k=5)`**: Returns comprehensive technical audit report, including per-component internal correlation range, homogeneity ratio, and compactness status (`Tight` vs `Loose`).
-*   **`result.plot()`**: Returns network graph figure.
-*   **`result.correlations`**: Returns textual correlation report.
-*   **`result.to_pandas()`**: Returns DataFrame of all candidate solutions.
+candidate.id
+candidate.objectives
+candidate.indices
+candidate.size
+candidate.rank
+candidate.rank_values
+candidate.evaluation
+```
 
-Other user functions
---------------------
+`result.best_mis` is the first ranked candidate. `best_mis_indices` and
+`best_mis_labels` are transitional convenience properties.
 
-For advanced users requiring granular control, the component functions are accessible:
+## 5. Light evaluation
 
-*   **`estimate_alpha_interval(Y)`**:
-    Calculates the lower and upper bounds for the significance level $\alpha$ based on dataset signal-to-noise ratio.
+Light evaluation is performed during `analyze()` for the requested ranked
+prefix. It stores two blocks per evaluated candidate.
 
-*   **`misda_significance(Y, alpha, ...)`**:
-    Core engine. Runs graph construction and Bron-Kerbosch algorithm for a specific manual $\alpha$ value.
+### External linear reconstruction
 
-*   **`calculate_ses_linear(Y, mis, return_details=True)`**:
-    Runs out-of-sample linear OLS reconstruction on eliminated targets $T$. Returns dict with `ses`, `F_real`, `F_null`. Returns `None` (`N/A`) when $T = \emptyset$.
+`linear_reconstruction` predicts only eliminated objectives from the retained
+MIS. It records per-objective out-of-sample R², mean and worst R², delete-one
+jackknife standard errors, and explicit reasons for undefined values. When no
+objective is eliminated, the metric is `None` with reason
+`NO_ELIMINATED_OBJECTIVES`; it is never replaced by an artificial perfect
+score.
 
-*   **`calculate_ses_nonlinear(Y, mis, n_estimators=100, return_details=False)`**:
-    Runs out-of-sample multi-output Random Forest non-linear reconstruction on eliminated targets $T$. Computes null baseline $F_{\text{null}}^{NL}$ via joint row permutation. By default returns scalar `ses` (or `None`). Set `return_details=True` for complete dictionary.
+### Pareto preservation
 
-*   **`calculate_ses(Y, mis)`**:
-    Alias for `calculate_ses_linear`.
+`pareto_preservation` compares nondominated row masks under minimization and
+stores:
 
-*   **`diagnose_alpha_regime(alpha_min, alpha_max)`**:
-    Returns the statistical regime (e.g., `SIGNAL_BELOW_NOISE` or `IMMEDIATE_SEPARATION`) describing how distinguishable the dependencies are from random noise.
+- `pareto_retention`: fraction of the full front retained;
+- `pareto_validity`: fraction of the reduced front that is valid in the full
+  front;
+- `pareto_jaccard`: intersection over union;
+- front sizes and `exact_preservation`.
 
-References
-----------
+Duplicate rows are mapped back to their original observations. Mixed objective
+directions are rejected explicitly rather than silently normalized.
 
-1. *Souza, C. H., Monaco, F. J., Delbem, A. C. B., Kuruvilla, J. A.* . *Maximal Independent Structural Dimensionality Analysis*, (in print), 2026.
-2.  **Bron, C., & Kerbosch, J.** (1973). Algorithm 457: finding all cliques of an undirected graph. *Communications of the ACM*, 16(9), 575-577.
-3.  **Deb, K., & Saxena, D. K.** (2005). On finding pareto-optimal solutions through dimensionality reduction for certain large-dimensional multi-objective optimization problems. *KanGAL Report*, 2005011.
+## 6. On-demand heavy evaluation
+
+Use `misda.heavy()` only for candidates that need nonlinear evidence:
+
+```python
+misda.heavy(
+    result,
+    selection=[0, 2],
+    null_reference=True,
+)
+
+nonlinear = result.mis[0].evaluation["nonlinear_reconstruction"]
+```
+
+`selection` accepts one index, a range, or an explicit index sequence into
+`result.mis`. Existing metrics are preserved and already-computed heavy
+evaluations are not repeated.
+
+The nonlinear protocol uses nested leave-one-out Random Forest evaluation,
+internal discrete model selection, and a tree count determined by uncertainty
+stopping. Setting `null_reference=True` adds a sequential permutation reference
+and above-null metrics. Neither loop has a hidden fixed cap. Both record
+convergence or non-convergence explicitly and accept an application-provided
+`cancel_requested` callback.
+
+## 7. Reports and graphs
+
+```python
+print(result.summary())
+print(result.report())
+figure = result.graph_plot(show=False)
+```
+
+`summary()` is compact. `report()` renders only metrics already stored in the
+result; it never triggers hidden evaluation. `graph_plot()` visualizes the
+positive structural graph. The former `plot()` spelling is deprecated.
+
+## 8. Reproducible benchmark artifacts
+
+Run the canonical and comparative suites from the repository root:
+
+```bash
+python -m examples.benchmarks.run_benchmark --output results/benchmark.json
+python -m examples.benchmarks.run_comparative --output results/comparative.json
+```
+
+Each JSON artifact includes its schema version, method, parameters, software
+versions, input digest, declarations, estimates, graph summaries, evaluation
+metrics, and assessment. `compare_results()` compares a current artifact with a
+frozen external baseline without changing current estimates to fit legacy
+expectations.
+
+The benchmark and comparative notebooks call the same Python functions. The
+PCA curve reports global standardized reconstruction R². MISDA reports
+reconstruction of eliminated objectives from selected original objectives;
+these estimands remain separate.
+
+## 9. Migration from the legacy result API
+
+| Legacy spelling | Static v2 spelling |
+|---|---|
+| `caution=x` | `aggressiveness=x` |
+| `result.alpha_min` | `result.analysis.alpha_onset` |
+| `result.alpha_max` | `result.analysis.alpha_null` |
+| `result.mis_sets` | `result.mis` |
+| `result.ranked_mis_sets` | group `result.mis` by `candidate.rank` |
+| `result.plot()` | `result.graph_plot()` |
+| post-hoc validation method | light metrics in `candidate.evaluation` or explicit `misda.heavy()` |
+
+The unambiguous transitional aliases emit `DeprecationWarning`. Ambiguous legacy
+validation fields are not synthesized on the new result tree.
+
+## 10. Scope and limitations
+
+- The static pipeline is the current supported and acceptance-tested method.
+- The earlier adaptive implementation is suspended and excluded from the
+  scientific baseline.
+- Pairwise structure is correlation-based and does not establish causality.
+- Structural dimension, latent dimension, and MIS size are not interchangeable.
+- Heavy evaluation can be expensive because its stopping rules are
+  data-driven; use candidate selection and cancellation deliberately.
