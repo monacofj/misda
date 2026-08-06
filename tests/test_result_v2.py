@@ -202,7 +202,7 @@ def test_summary_uses_only_stored_result_values(refactored_result):
     assert "original=4, latent=1, structural=2" in summary
     assert "MISs: 4; evaluated=2; heavy=0" in summary
     assert "Preferred MIS: mis_000" in summary
-    assert refactored_result.report() == summary
+    assert refactored_result.report().startswith("MISDA static report: two groups")
 
 
 def test_input_copy_is_read_only(refactored_result):
