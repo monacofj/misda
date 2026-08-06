@@ -1,6 +1,7 @@
 """Smoke tests for executable benchmark front ends."""
 
 import json
+import importlib
 import subprocess
 import sys
 
@@ -93,7 +94,7 @@ def test_benchmark_cli_writes_normalized_static_json(
 
     assert completed.returncode == 0, completed.stderr
     artifact = json.loads(output.read_text(encoding="utf-8"))
-    assert artifact["format_version"] == 1
+    assert artifact["format_version"] == 2
     assert artifact["suite"] == suite
     assert artifact.get("method", artifact.get("methods", [None])[0]) == "static"
     assert artifact["parameters"] == {"n": 64, "seed": 123}
@@ -105,32 +106,43 @@ def test_benchmark_cli_writes_normalized_static_json(
     assert case["n"] == 64
     assert case["m"] == 20
     assert len(case["input_sha256"]) == 64
-    assert case["estimated"]["latent_dimension"] is None
+    assert isinstance(case["estimated"]["latent_dimension"], int)
     assert case["estimated"]["preferred_mis_size"] == len(
         case["preferred_indices"]
     )
     assert sum(case["rank_counts"].values()) == case["n_mis"]
-    assert case["graphs"]["dependence"]["status"] == (
-        "UNAVAILABLE_IN_LEGACY_RESULT"
-    )
+    assert set(case["graphs"]["dependence"]) == {
+        "nodes",
+        "edges",
+        "components",
+    }
     assert case["separation_status"] in {
         "NULL_SEPARATION",
         "NO_NULL_SEPARATION",
     }
     assert set(case["linear_reconstruction"]) == {
         "r2_by_objective",
+        "r2_reason_by_objective",
         "mean_r2",
         "worst_r2",
-        "status",
+        "reason_by_metric",
+        "jackknife",
     }
-    assert set(case["pareto"]) == {
-        "retention",
-        "validity",
-        "jaccard",
+    assert set(case["pareto_preservation"]) == {
+        "pareto_retention",
+        "pareto_validity",
+        "pareto_jaccard",
         "full_front_size",
         "reduced_front_size",
         "intersection_size",
+        "union_size",
         "exact_preservation",
+    }
+    assert case["assessment"]["case_id"] == case_id
+    assert case["assessment"]["status"] in {
+        "PASS",
+        "EXPECTED_CHANGE",
+        "REGRESSION",
     }
     if suite == "comparative":
         assert artifact["methods"] == ["static", "pca"]
@@ -157,3 +169,26 @@ def test_unknown_case_id_is_rejected(tmp_path):
 
     assert completed.returncode != 0
     assert "Unknown case id(s): not_a_case" in completed.stderr
+
+
+def test_cli_never_passes_case_declarations_into_analyze(monkeypatch):
+    module = importlib.import_module("examples.benchmarks.run_benchmark")
+    original = module.misda.analyze
+    observed_kwargs = []
+
+    def capture(data, **kwargs):
+        observed_kwargs.append(dict(kwargs))
+        return original(data, **kwargs)
+
+    monkeypatch.setattr(module.misda, "analyze", capture)
+    artifact = module.run_benchmark(n=32, case_ids={"case_02"})
+
+    assert len(artifact["cases"]) == 1
+    assert observed_kwargs == [
+        {
+            "method": "static",
+            "name": "Case 2 - Total redundancy",
+            "seed": 123,
+            "max_evaluated_mis": 1,
+        }
+    ]
