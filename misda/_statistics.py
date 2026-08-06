@@ -1,13 +1,369 @@
 # SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Legacy statistical threshold calculations used by MISDA."""
+"""Statistical threshold calculations used by MISDA."""
 
+import copy
 import math
-from enum import IntEnum
+from dataclasses import dataclass, replace
+from enum import Enum, IntEnum
+from numbers import Integral
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 import numpy as np
 from scipy import stats
+
+from ._validation import NormalizedInput, validate_aggressiveness
+
+
+class SeparationStatus(str, Enum):
+    """Whether the observed positive onset is separated from the null bound."""
+
+    NULL_SEPARATION = "NULL_SEPARATION"
+    NO_NULL_SEPARATION = "NO_NULL_SEPARATION"
+
+
+@dataclass(frozen=True)
+class CorrelationStatistics:
+    """Signed correlations and one-tailed log probabilities for valid pairs."""
+
+    correlation: np.ndarray
+    log_p: np.ndarray
+    valid_pairs: np.ndarray
+    labels: Tuple[Any, ...]
+    constant_indices: Tuple[int, ...]
+    n_samples: int
+    log_alpha_onset: Optional[float]
+
+    @property
+    def alpha_onset(self) -> Optional[float]:
+        if self.log_alpha_onset is None:
+            return None
+        return float(np.exp(self.log_alpha_onset))
+
+
+@dataclass(frozen=True)
+class NullAlphaEstimate:
+    """Sequential estimate of the expected maximum positive null correlation."""
+
+    r_null: float
+    se_mc: float
+    r_interval: Tuple[float, float]
+    log_alpha_null: float
+    log_alpha_interval: Tuple[float, float]
+    n_permutations: int
+    converged: bool
+    lower_r_signature: Any
+    upper_r_signature: Any
+    samples: Tuple[float, ...]
+    seed: Optional[int] = None
+    rng_state: Optional[dict] = None
+
+    @property
+    def alpha_null(self) -> float:
+        return float(np.exp(self.log_alpha_null))
+
+
+def positive_correlation_log_p(r, n_samples):
+    """Return the one-tailed Fisher-z log probability for positive ``r``.
+
+    The result remains in the logarithmic domain.  Exact perfect correlation
+    therefore maps to ``-inf`` rather than to zero or a machine-dependent floor.
+    """
+
+    if (
+        isinstance(n_samples, (bool, np.bool_))
+        or not isinstance(n_samples, Integral)
+        or int(n_samples) < 4
+    ):
+        raise ValueError("n_samples must be an integer greater than or equal to 4.")
+
+    values = np.asarray(r, dtype=float)
+    if np.any(~np.isfinite(values)) or np.any(values < 0.0) or np.any(values > 1.0):
+        raise ValueError("r must contain finite correlations in [0, 1].")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        z_stat = np.arctanh(values) * np.sqrt(int(n_samples) - 3)
+        result = stats.norm.logsf(z_stat)
+    if values.ndim == 0:
+        return float(result)
+    return np.asarray(result, dtype=float)
+
+
+def compute_correlation_statistics(normalized: NormalizedInput) -> CorrelationStatistics:
+    """Compute signed correlations while marking constant pairs as undefined."""
+
+    if not isinstance(normalized, NormalizedInput):
+        raise TypeError("normalized must be a NormalizedInput instance.")
+
+    data = normalized.data
+    n_samples, n_objectives = data.shape
+    centered = data - np.mean(data, axis=0)
+    sum_squares = np.sum(centered * centered, axis=0)
+    denominator = np.sqrt(np.outer(sum_squares, sum_squares))
+    numerator = centered.T @ centered
+
+    correlation = np.full((n_objectives, n_objectives), np.nan, dtype=float)
+    np.divide(
+        numerator,
+        denominator,
+        out=correlation,
+        where=denominator > 0.0,
+    )
+    finite_correlation = np.isfinite(correlation)
+    correlation[finite_correlation] = np.clip(
+        correlation[finite_correlation], -1.0, 1.0
+    )
+
+    nonconstant = ~normalized.constant_mask
+    diagonal = np.arange(n_objectives)
+    correlation[diagonal[nonconstant], diagonal[nonconstant]] = 1.0
+
+    valid_pairs = np.outer(nonconstant, nonconstant)
+    np.fill_diagonal(valid_pairs, False)
+
+    log_p = np.full_like(correlation, np.nan)
+    if np.any(valid_pairs):
+        log_p[valid_pairs] = positive_correlation_log_p(
+            np.abs(correlation[valid_pairs]),
+            n_samples,
+        )
+
+    upper = np.triu(valid_pairs & (correlation > 0.0), k=1)
+    if np.any(upper):
+        log_alpha_onset = float(np.min(log_p[upper]))
+    else:
+        log_alpha_onset = None
+
+    return CorrelationStatistics(
+        correlation=correlation,
+        log_p=log_p,
+        valid_pairs=valid_pairs,
+        labels=normalized.labels,
+        constant_indices=normalized.constant_indices,
+        n_samples=n_samples,
+        log_alpha_onset=log_alpha_onset,
+    )
+
+
+def correlation_edge_masks(
+    correlation_statistics: CorrelationStatistics,
+    log_alpha: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Return provisional adjacency masks for positive and signed dependence."""
+
+    if not isinstance(correlation_statistics, CorrelationStatistics):
+        raise TypeError(
+            "correlation_statistics must be a CorrelationStatistics instance."
+        )
+    if not isinstance(log_alpha, (int, float, np.floating)) or np.isnan(log_alpha):
+        raise ValueError("log_alpha must be a real number other than NaN.")
+
+    significant = (
+        correlation_statistics.valid_pairs
+        & (correlation_statistics.log_p <= float(log_alpha))
+    )
+    positive = significant & (correlation_statistics.correlation > 0.0)
+    signed = significant.copy()
+    np.fill_diagonal(positive, False)
+    np.fill_diagonal(signed, False)
+    return positive, signed
+
+
+def separation_status(
+    log_alpha_onset: Optional[float],
+    log_alpha_null: float,
+) -> SeparationStatus:
+    """Classify strict separation between observed onset and null reference."""
+
+    if np.isnan(log_alpha_null):
+        raise ValueError("log_alpha_null must not be NaN.")
+    if log_alpha_onset is None:
+        return SeparationStatus.NO_NULL_SEPARATION
+    if np.isnan(log_alpha_onset):
+        raise ValueError("log_alpha_onset must not be NaN.")
+    if log_alpha_onset < log_alpha_null:
+        return SeparationStatus.NULL_SEPARATION
+    return SeparationStatus.NO_NULL_SEPARATION
+
+
+def interpolate_log_alpha(
+    log_alpha_onset: Optional[float],
+    log_alpha_null: float,
+    aggressiveness,
+) -> float:
+    """Interpolate alpha arithmetically while remaining in the log domain."""
+
+    normalized_aggressiveness = validate_aggressiveness(aggressiveness)
+    if log_alpha_onset is None:
+        raise ValueError("Cannot interpolate alpha without a positive onset.")
+    if np.isnan(log_alpha_onset) or np.isnan(log_alpha_null):
+        raise ValueError("log-alpha bounds must not be NaN.")
+    if normalized_aggressiveness == 0.0:
+        return float(log_alpha_onset)
+    if normalized_aggressiveness == 1.0:
+        return float(log_alpha_null)
+    return float(
+        np.logaddexp(
+            np.log1p(-normalized_aggressiveness) + log_alpha_onset,
+            np.log(normalized_aggressiveness) + log_alpha_null,
+        )
+    )
+
+
+def _null_estimate_snapshot(
+    samples,
+    n_samples,
+    signature: Callable[[float], Any],
+    converged,
+) -> NullAlphaEstimate:
+    values = np.asarray(samples, dtype=float)
+    count = len(values)
+    mean = float(np.mean(values)) if count else math.nan
+    if count >= 2:
+        se_mc = float(np.std(values, ddof=1) / np.sqrt(count))
+    else:
+        se_mc = math.inf
+
+    if count:
+        lower_r = max(0.0, mean - se_mc)
+        upper_r = min(1.0, mean + se_mc)
+        log_alpha_null = positive_correlation_log_p(mean, n_samples)
+        log_at_lower_r = positive_correlation_log_p(lower_r, n_samples)
+        log_at_upper_r = positive_correlation_log_p(upper_r, n_samples)
+        lower_r_signature = signature(log_at_lower_r)
+        upper_r_signature = signature(log_at_upper_r)
+        log_interval = (log_at_upper_r, log_at_lower_r)
+    else:
+        lower_r = math.nan
+        upper_r = math.nan
+        log_alpha_null = math.nan
+        log_interval = (math.nan, math.nan)
+        lower_r_signature = None
+        upper_r_signature = None
+
+    return NullAlphaEstimate(
+        r_null=mean,
+        se_mc=se_mc,
+        r_interval=(lower_r, upper_r),
+        log_alpha_null=log_alpha_null,
+        log_alpha_interval=log_interval,
+        n_permutations=count,
+        converged=converged,
+        lower_r_signature=lower_r_signature,
+        upper_r_signature=upper_r_signature,
+        samples=tuple(float(value) for value in values),
+    )
+
+
+def estimate_null_from_maxima(
+    maxima: Iterable[float],
+    *,
+    n_samples: int,
+    signature: Callable[[float], Any],
+    cancel_requested: Optional[Callable[[int], bool]] = None,
+) -> NullAlphaEstimate:
+    """Run the sequential stopping rule on controlled null maxima."""
+
+    if (
+        isinstance(n_samples, (bool, np.bool_))
+        or not isinstance(n_samples, Integral)
+        or int(n_samples) < 4
+    ):
+        raise ValueError("n_samples must be an integer greater than or equal to 4.")
+    if not callable(signature):
+        raise TypeError("signature must be callable.")
+    if cancel_requested is not None and not callable(cancel_requested):
+        raise TypeError("cancel_requested must be callable or None.")
+
+    samples = []
+    for maximum in maxima:
+        value = float(maximum)
+        if not np.isfinite(value) or not 0.0 <= value <= 1.0:
+            raise ValueError("null maxima must be finite values in [0, 1].")
+        samples.append(value)
+
+        if len(samples) < int(n_samples):
+            continue
+        snapshot = _null_estimate_snapshot(
+            samples,
+            int(n_samples),
+            signature,
+            converged=False,
+        )
+        if snapshot.lower_r_signature == snapshot.upper_r_signature:
+            return replace(snapshot, converged=True)
+        if cancel_requested is not None and cancel_requested(len(samples)):
+            return snapshot
+
+    return _null_estimate_snapshot(
+        samples,
+        int(n_samples),
+        signature,
+        converged=False,
+    )
+
+
+def _maximum_positive_correlation(data: np.ndarray, constant_indices) -> float:
+    n_objectives = data.shape[1]
+    if n_objectives < 2:
+        return 0.0
+    centered = data - np.mean(data, axis=0)
+    sum_squares = np.sum(centered * centered, axis=0)
+    denominator = np.sqrt(np.outer(sum_squares, sum_squares))
+    correlation = np.zeros((n_objectives, n_objectives), dtype=float)
+    np.divide(
+        centered.T @ centered,
+        denominator,
+        out=correlation,
+        where=denominator > 0.0,
+    )
+    np.clip(correlation, -1.0, 1.0, out=correlation)
+    if constant_indices:
+        correlation[list(constant_indices), :] = 0.0
+        correlation[:, list(constant_indices)] = 0.0
+    values = correlation[np.triu_indices(n_objectives, k=1)]
+    return float(max(0.0, np.max(values, initial=0.0)))
+
+
+def estimate_null_positive_correlation(
+    normalized: NormalizedInput,
+    *,
+    signature: Callable[[float], Any],
+    seed: int = 0,
+    cancel_requested: Optional[Callable[[int], bool]] = None,
+) -> NullAlphaEstimate:
+    """Estimate the expected maximum positive correlation under permutation."""
+
+    if not isinstance(normalized, NormalizedInput):
+        raise TypeError("normalized must be a NormalizedInput instance.")
+    if isinstance(seed, (bool, np.bool_)) or not isinstance(seed, Integral):
+        raise TypeError("seed must be an integer.")
+
+    seed = int(seed)
+    rng = np.random.default_rng(seed)
+
+    def maxima():
+        while True:
+            permuted = np.empty_like(normalized.data)
+            for column in range(normalized.n_objectives):
+                permuted[:, column] = rng.permutation(normalized.data[:, column])
+            yield _maximum_positive_correlation(
+                permuted,
+                normalized.constant_indices,
+            )
+
+    result = estimate_null_from_maxima(
+        maxima(),
+        n_samples=normalized.n_samples,
+        signature=signature,
+        cancel_requested=cancel_requested,
+    )
+    return replace(
+        result,
+        seed=seed,
+        rng_state=copy.deepcopy(rng.bit_generator.state),
+    )
 
 
 # Internal Correlation Mode Configuration
