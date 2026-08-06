@@ -30,3 +30,8 @@ Homepage = "https://github.com/monacofj/misda"
 
 [tool.setuptools]
 packages = ["misda"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: exercises the complete data-driven heavy evaluation protocol",
+]

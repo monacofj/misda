@@ -77,6 +77,7 @@ def test_signed_edges_join_latent_but_not_structural_components():
     assert structure.latent_dimension == 1
     assert structure.dependence_graph.edges[1, 2]["sign"] == -1
     assert structure.structural_graph.nodes[0]["name"] == "cost-a"
+    assert structure.structural_graph.nodes[0]["label"] == "cost-a"
     assert structure.structural_graph.edges[0, 1]["correlation"] == 0.8
     assert structure.structural_graph.edges[0, 1]["log_p"] == -10.0
 
