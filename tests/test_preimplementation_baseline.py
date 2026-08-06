@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from examples.benchmarks._baseline import serialize_static_case
 from examples.benchmarks.run_benchmark import run_benchmark
 from examples.benchmarks.run_comparative import run_comparative
 
@@ -20,17 +21,7 @@ def _scientific_payload(artifact: dict) -> dict:
     return payload
 
 
-def test_preimplementation_manifest_reproduces_exact_scientific_results(monkeypatch):
-    def legacy_analyze(Y, method="static", name=None, **kwargs):
-        assert method == "static"
-        return __import__("misda")._analyze_static(
-            Y,
-            caution=1.0,
-            name=name,
-            ensure_coverage=True,
-        )
-
-    monkeypatch.setattr(__import__("misda"), "analyze", legacy_analyze)
+def test_preimplementation_manifest_reproduces_exact_scientific_results():
     manifest = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
 
     assert manifest["baseline_format_version"] == 1
@@ -42,8 +33,16 @@ def test_preimplementation_manifest_reproduces_exact_scientific_results(monkeypa
 
     expected = manifest["artifacts"]
     observed = {
-        "benchmark": run_benchmark(n=1000, seed=123),
-        "comparative": run_comparative(n=500, seed=123),
+        "benchmark": run_benchmark(
+            n=1000,
+            seed=123,
+            serializer=serialize_static_case,
+        ),
+        "comparative": run_comparative(
+            n=500,
+            seed=123,
+            serializer=serialize_static_case,
+        ),
     }
 
     for suite in ("benchmark", "comparative"):

@@ -75,7 +75,13 @@ from .api import (
     _analyze_static,
     _analyze_static_v2,
 )
-from .benchmark import compile_benchmark_summary
+from .benchmark import (
+    BenchmarkCase,
+    BenchmarkSuite,
+    compare_results,
+    compile_benchmark_summary,
+    serialize_benchmark_result,
+)
 
 # Constants
 AGGRESSIVE = 0

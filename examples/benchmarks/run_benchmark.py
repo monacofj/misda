@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from examples.benchmarks._baseline import (
+import misda
+from misda.benchmark import (
+    BenchmarkCase,
     DEFAULT_SEED,
     FORMAT_VERSION,
     METHOD,
-    serialize_static_case,
+    serialize_benchmark_result,
     software_versions,
     write_json,
 )
@@ -44,15 +46,35 @@ def run_benchmark(
     n: int = 1000,
     seed: int = DEFAULT_SEED,
     case_ids: set[str] | None = None,
+    serializer=None,
 ) -> dict:
     cases = []
     for case_id, generator in BENCHMARK_CASES:
         if case_ids is not None and case_id not in case_ids:
             continue
         frame, truth = generator(N=n, seed=seed)
-        cases.append(
-            serialize_static_case(case_id, frame, truth, seed=seed)
-        )
+        if serializer is not None:
+            case = serializer(case_id, frame, truth, seed=seed)
+        else:
+            declaration = BenchmarkCase.from_truth(
+                case_id,
+                truth,
+                adversarial=case_id == "case_05",
+            )
+            result = misda.analyze(
+                frame,
+                method=METHOD,
+                name=truth["name"],
+                seed=seed,
+                max_evaluated_mis=1,
+            )
+            case = serialize_benchmark_result(
+                declaration,
+                result,
+                frame,
+                seed=seed,
+            )
+        cases.append(case)
     if case_ids is not None:
         found = {case["case_id"] for case in cases}
         unknown = sorted(case_ids - found)
@@ -60,7 +82,7 @@ def run_benchmark(
             raise ValueError(f"Unknown case id(s): {', '.join(unknown)}")
 
     return {
-        "format_version": FORMAT_VERSION,
+        "format_version": 1 if serializer is not None else FORMAT_VERSION,
         "suite": "benchmark",
         "method": METHOD,
         "parameters": {"n": int(n), "seed": int(seed)},
