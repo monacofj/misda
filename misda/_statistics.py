@@ -316,3 +316,46 @@ def describe_alpha_regime(metrics: dict) -> str:
         f"  S_norm = {_fmt(S_norm)}  -> {S_norm_meaning}\n"
     )
     return report
+
+
+def calculate_spectral_entropy(Y):
+    """
+    Calculates the normalized spectral entropy of the correlation matrix of Y.
+    High entropy (~1.0) indicates complex, spherical, or random structure.
+    Low entropy (~0.0) indicates high redundancy/dimensionality reduction potential.
+    """
+    if hasattr(Y, "values"):
+        data = np.asarray(Y.values, dtype=float)
+    else:
+        data = np.asarray(Y, dtype=float)
+
+    n, m = data.shape
+    if m < 2:
+        return 0.0
+
+    # Correlation matrix
+    corr = np.corrcoef(data, rowvar=False)
+    # Eigenvalues (Hermitian/Symmetric)
+    eigvals = np.linalg.eigvalsh(corr)
+
+    # Normalize eigenvalues to probability distribution
+    # Filter small negative/zeros due to precision
+    eigvals = eigvals[eigvals > 1e-9]
+    if len(eigvals) == 0:
+        return 0.0
+
+    p = eigvals / np.sum(eigvals)
+
+    # Entropy
+    se = -np.sum(p * np.log(p))
+
+    # Normalize by log(M)
+    # Note: Max entropy for M variables is log(M) when all eigenvalues = 1
+    # However, number of non-zero eigenvalues could be < M if N < M.
+    # Usually we norm by log(min(N, M)) or log(len(eigvals)).
+    # Using log(len(eigvals)) is safer.
+    denom = np.log(len(eigvals))
+    if denom == 0:
+        return 0.0
+
+    return se / denom
