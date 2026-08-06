@@ -10,13 +10,25 @@ Each generator produces a synthetic dataset (N samples x M objectives) with
 known ground truth regarding intrinsic dimensionality and redundancy structure.
 """
 
-def _mop_truth(name, latent_expected, structural_expected, blocks_expected, notes=""):
+def _mop_truth(
+    name,
+    latent_expected,
+    structural_expected,
+    blocks_expected,
+    notes="",
+    feature="",
+    intuition="",
+    graph_expected="",
+):
     return {
         "name": name,
         "latent_expected": int(latent_expected),
         "structural_expected": int(structural_expected),
         "blocks_expected": blocks_expected,  # list of lists of names "f1","f2",...
         "notes": notes,
+        "feature": feature,
+        "intuition": intuition,
+        "graph_expected": graph_expected,
     }
 
 def _mop_df(Y):
@@ -77,7 +89,10 @@ def mopA_monotonic_redundancy(N=1000, seed=123, noise=0.0):
         latent_expected=1,
         structural_expected=1,
         blocks_expected=[_mk_block_names(1, 20)],
-        notes="20 objectives as monotonic (and redundant) transformations of the same latent x."
+        notes="20 objectives as monotonic (and redundant) transformations of the same latent x.",
+        feature="20 non-linear monotonic transformations driven by a single 1D decision variable x.",
+        intuition="20 different formulas (squares, roots, logs) calculated from a single input x. Since all move in sync, MISDA should collapse all 20 to 1.",
+        graph_expected="1 fully connected graph (K_20, 190 edges, 1 connected component)",
     )
     return _mop_df(Y), truth
 
@@ -146,7 +161,10 @@ def mopB_tradeoff_with_redundancies(N=1000, seed=123, noise=0.02):
         latent_expected=2,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1, 7), _mk_block_names(8, 7), _mk_block_names(15, 6)],
-        notes="Three families (cost/consumption/performance) with internal redundancies; effective tends to ~2."
+        notes="Three families (cost/consumption/performance) with internal redundancies; effective tends to ~2.",
+        feature="Three functional engineering families (7 cost, 7 consumption, 6 performance) driven by 2 decision variables.",
+        intuition="An engineering problem with 3 main goals: Cost, Energy, and Performance, each measured in multiple redundant ways. MISDA should shrink 20 to ~2-3 core trade-offs.",
+        graph_expected="1 connected graph with 3 dense functional clusters (1 connected component, effective dim ~2)",
     )
     return _mop_df(Y), truth
 
@@ -182,7 +200,10 @@ def mopC_latent_blocks_4x5(N=1000, seed=123, noise=0.02):
         latent_expected=4,
         structural_expected=4,
         blocks_expected=[_mk_block_names(1,5), _mk_block_names(6,5), _mk_block_names(11,5), _mk_block_names(16,5)],
-        notes="Four independent factors; each block (5 objectives) is internally redundant."
+        notes="Four independent factors; each block (5 objectives) is internally redundant.",
+        feature="4 independent decision factors; each factor generates a block of 5 non-linearly transformed objectives.",
+        intuition="4 control dials, where turning each dial affects 5 non-linear indicators. MISDA should extract 4 independent representatives (1 per dial).",
+        graph_expected="4 disjoint dense subgraphs of 5 nodes each (4 x K_5, 4 connected components)",
     )
     return _mop_df(Y), truth
 
@@ -239,7 +260,10 @@ def mopD_pure_conflict_groups(N=1000, seed=123, noise=0.0):
         latent_expected=1,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,10)],
-        notes="Two internally redundant groups (+x and 1-x), but antagonistic to each other: conflict must be preserved."
+        notes="Two internally redundant groups (+x and 1-x), but antagonistic to each other: conflict must be preserved.",
+        feature="Two antagonistic non-linear objective families (+x vs 1-x) with internal redundancy and trade-off conflict.",
+        intuition="10 indicators measuring Benefit (+x) vs 10 measuring Risk (1-x). Benefit and Risk directly conflict. MISDA must preserve 1 Benefit and 1 Risk indicator.",
+        graph_expected="2 disjoint complete subgraphs of 10 nodes each (2 x K_10, 90 total edges, 2 connected components)",
     )
     return _mop_df(Y), truth
 
@@ -304,7 +328,10 @@ def mopE_partial_redundancy_noisy(N=1000, seed=123, noise=0.05):
         latent_expected=2,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,4), _mk_block_names(15,6)],
-        notes="Trio/quartet of 'a' extended to 10 redundants; 'b' (4); and 6 compounds around s=a+b."
+        notes="Trio/quartet of 'a' extended to 10 redundants; 'b' (4); and 6 compounds around s=a+b.",
+        feature="Partial redundancy across 2 latent drivers (a,b): 10 objectives on a, 4 on b, and 6 compounds on s=a+b.",
+        intuition="Overlapping signals: some indicators monitor Engine A, some monitor Engine B, and some monitor both combined (A+B). Tests if MISDA untangles blended signals.",
+        graph_expected="1 connected graph with 3 dense overlapping clusters (Subfamily A: 10, B: 4, C: 6)",
     )
     return _mop_df(Y), truth
 
@@ -366,7 +393,10 @@ def mopF_regime_switching(N=1000, seed=123, sharpness=20.0, noise=0.0):
         latent_expected=2,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,10)],
-        notes="10 objectives redundant around L (mixture by regime) + 10 redundant around b; global correlation can be misleading."
+        notes="10 objectives redundant around L (mixture by regime) + 10 redundant around b; global correlation can be misleading.",
+        feature="Non-linear regime-switching mixture: 10 objectives on regime-dependent mixture L(a,b) and 10 on b.",
+        intuition="System switching: indicators change behavior depending on whether the system operates in High-Power or Low-Power mode. Tests MISDA under shifting states.",
+        graph_expected="1 connected graph with 2 dense interconnected clusters (10 on mixture L, 10 on b)",
     )
     return _mop_df(Y), truth
 
