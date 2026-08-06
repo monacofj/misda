@@ -3,9 +3,187 @@
 
 """Legacy graph and maximal-independent-set operations used by MISDA."""
 
+from dataclasses import dataclass
+from typing import Tuple
+
+import networkx as nx
 import numpy as np
 
-from ._statistics import _correlation_strength
+from ._ranking import DEFAULT_RANK_FIELDS, rank_mis_candidates
+from ._statistics import (
+    CorrelationStatistics,
+    _correlation_strength,
+    correlation_edge_masks,
+)
+
+
+@dataclass(frozen=True)
+class GraphStructure:
+    """Positive structural and signed dependence projections of one analysis."""
+
+    structural_graph: nx.Graph
+    dependence_graph: nx.Graph
+    structural_components: Tuple[Tuple[int, ...], ...]
+    latent_components: Tuple[Tuple[int, ...], ...]
+
+    @property
+    def structural_dimension(self) -> int:
+        return len(self.structural_components)
+
+    @property
+    def latent_dimension(self) -> int:
+        return len(self.latent_components)
+
+
+@dataclass(frozen=True)
+class StructuralSignature:
+    """Output features whose stability terminates null estimation."""
+
+    structural_dimension: int
+    ranked_mis: Tuple[tuple, ...]
+
+
+def _ordered_components(graph):
+    components = [tuple(sorted(component)) for component in nx.connected_components(graph)]
+    return tuple(sorted(components, key=lambda component: component[0]))
+
+
+def build_dependency_graphs(
+    correlation_statistics: CorrelationStatistics,
+    log_alpha: float,
+) -> GraphStructure:
+    """Build positive ``G+`` and signed ``G±`` from one statistical threshold."""
+
+    positive_mask, signed_mask = correlation_edge_masks(
+        correlation_statistics,
+        log_alpha,
+    )
+    structural_graph = nx.Graph()
+    dependence_graph = nx.Graph()
+
+    for index, label in enumerate(correlation_statistics.labels):
+        attributes = {
+            "index": index,
+            "name": label,
+            "constant": index in correlation_statistics.constant_indices,
+        }
+        structural_graph.add_node(index, **attributes)
+        dependence_graph.add_node(index, **attributes)
+
+    n_objectives = len(correlation_statistics.labels)
+    for left in range(n_objectives):
+        for right in range(left + 1, n_objectives):
+            if not signed_mask[left, right]:
+                continue
+            correlation = float(
+                correlation_statistics.correlation[left, right]
+            )
+            attributes = {
+                "correlation": correlation,
+                "log_p": float(correlation_statistics.log_p[left, right]),
+                "sign": 1 if correlation > 0.0 else -1,
+            }
+            dependence_graph.add_edge(left, right, **attributes)
+            if positive_mask[left, right]:
+                structural_graph.add_edge(left, right, **attributes)
+
+    return GraphStructure(
+        structural_graph=structural_graph,
+        dependence_graph=dependence_graph,
+        structural_components=_ordered_components(structural_graph),
+        latent_components=_ordered_components(dependence_graph),
+    )
+
+
+def enumerate_structural_mis(structure: GraphStructure):
+    """Enumerate every maximal independent set of ``G+`` without repair."""
+
+    if not isinstance(structure, GraphStructure):
+        raise TypeError("structure must be a GraphStructure instance.")
+    n_objectives = structure.structural_graph.number_of_nodes()
+    adjacency = nx.to_numpy_array(
+        structure.structural_graph,
+        nodelist=range(n_objectives),
+        dtype=int,
+        weight=None,
+    )
+    observed = find_maximal_independent_sets(adjacency)
+    unique = {tuple(sorted(candidate)) for candidate in observed}
+    return [list(candidate) for candidate in sorted(unique)]
+
+
+def rank_structural_mis(
+    structure: GraphStructure,
+    labels,
+    rank_policy="default",
+):
+    """Enumerate and rank the unmodified MISs of ``G+``."""
+
+    if not isinstance(structure, GraphStructure):
+        raise TypeError("structure must be a GraphStructure instance.")
+    n_objectives = structure.structural_graph.number_of_nodes()
+    if len(labels) != n_objectives:
+        raise ValueError("labels must contain one value per graph vertex.")
+    adjacency = nx.to_numpy_array(
+        structure.structural_graph,
+        nodelist=range(n_objectives),
+        dtype=int,
+        weight=None,
+    )
+    return rank_mis_candidates(
+        enumerate_structural_mis(structure),
+        adjacency,
+        labels,
+        rank_policy=rank_policy,
+    )
+
+
+def structural_signature(
+    correlation_statistics: CorrelationStatistics,
+    log_alpha: float,
+    rank_policy="default",
+) -> StructuralSignature:
+    """Return the complete structural signature used by sequential estimation."""
+
+    structure = build_dependency_graphs(correlation_statistics, log_alpha)
+    ranked = rank_structural_mis(
+        structure,
+        correlation_statistics.labels,
+        rank_policy=rank_policy,
+    )
+    signature_items = []
+    for candidate in ranked:
+        rank_values = tuple(
+            candidate["rank_values"][field]
+            for field in DEFAULT_RANK_FIELDS
+        )
+        signature_items.append(
+            (
+                tuple(candidate["mis_indices"]),
+                candidate["rank"],
+                rank_values,
+            )
+        )
+    return StructuralSignature(
+        structural_dimension=structure.structural_dimension,
+        ranked_mis=tuple(signature_items),
+    )
+
+
+def make_structural_signature(
+    correlation_statistics: CorrelationStatistics,
+    rank_policy="default",
+):
+    """Bind observed correlations into the callback required by null estimation."""
+
+    def signature(log_alpha):
+        return structural_signature(
+            correlation_statistics,
+            log_alpha,
+            rank_policy=rank_policy,
+        )
+
+    return signature
 
 
 def find_maximal_independent_sets(adjacency):
