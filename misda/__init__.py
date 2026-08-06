@@ -55,13 +55,21 @@ from ._plotting import (
     plot_custom_misda_graph,
 )
 from ._reporting import explain_ses
-from .result import MISCandidate, MISDAResult
+from .result import (
+    AnalysisResult,
+    ExecutionResult,
+    LegacyMISCandidate,
+    LegacyMISDAResult,
+    MISCandidate,
+    MISDAResult,
+)
 from .api import (
     report_significant_correlations,
     misda_significance_from_corr,
     misda_significance,
     _analyze_static_fast,
     _analyze_static,
+    _analyze_static_v2,
 )
 from .benchmark import compile_benchmark_summary
 

@@ -14,6 +14,7 @@ PUBLIC_STATIC_API = (
     "misda_significance",
     "_analyze_static_fast",
     "_analyze_static",
+    "_analyze_static_v2",
 )
 
 PUBLIC_RESULT_TYPES = (
@@ -58,8 +59,8 @@ def static_result():
 
 
 def test_static_pipeline_returns_extracted_result_type(static_result):
-    assert type(static_result) is result.MISDAResult
-    assert isinstance(static_result.best_mis, result.MISCandidate)
+    assert type(static_result) is result.LegacyMISDAResult
+    assert isinstance(static_result.best_mis, result.LegacyMISCandidate)
     assert static_result.name == "characterization"
     assert static_result.best_mis_indices == [0, 2]
     assert static_result.best_mis_labels == ["f1", "f3"]
@@ -83,7 +84,7 @@ def test_result_plot_keeps_working_after_extraction(static_result):
 
 
 def test_candidate_characterization_is_unchanged():
-    candidate = misda.MISCandidate(
+    candidate = misda.LegacyMISCandidate(
         {
             "mis_indices": [0, 2],
             "mis_labels": ["f1", "f3"],

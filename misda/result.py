@@ -1,9 +1,12 @@
 # SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Legacy result objects returned by the MISDA static pipeline."""
+"""Legacy and refactored result objects for the MISDA static pipelines."""
 
 import math
+import warnings
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional, Tuple
 
 from ._metadata import __version__
 from ._pareto import evaluate_pareto_consistency
@@ -12,7 +15,7 @@ from ._reconstruction import calculate_ses, calculate_ses_nonlinear
 from ._reporting import explain_ses
 from ._statistics import calculate_spectral_entropy, describe_alpha_regime
 
-class MISCandidate:
+class LegacyMISCandidate:
     """
     Represents a single Maximum Independent Set (MIS) solution found by the algorithm.
     Wrapper around the internal dictionary to provide object-oriented access.
@@ -54,7 +57,7 @@ class MISCandidate:
         return f"<MISCandidate: {self.labels} (Size={self.size}, Rank={self.rank})>"
 
 
-class MISDAResult:
+class LegacyMISDAResult:
     """
     Encapsulates the complete result of an MISDA analysis.
     Stores input parameters, diagnostic regimes, execution results (MIS),
@@ -134,13 +137,13 @@ class MISDAResult:
         Returns a list of all MISCandidate objects found, sorted by rank.
         """
         raw_sets = self.isda_results.get('mis_ranked', [])
-        return [MISCandidate(d) for d in raw_sets]
+        return [LegacyMISCandidate(d) for d in raw_sets]
 
     @property
     def best_mis(self):
         """Returns the top-ranked MISCandidate or None."""
         if self.isda_results.get('mis_ranked'):
-            return MISCandidate(self.isda_results['mis_ranked'][0])
+            return LegacyMISCandidate(self.isda_results['mis_ranked'][0])
         return None
 
     @property
@@ -161,7 +164,7 @@ class MISDAResult:
         Returns a dictionary mapping rank (int) -> list of MISCandidate objects.
         """
         raw_groups = self.isda_results.get('rank_groups', {})
-        return {r: [MISCandidate(d) for d in l] for r, l in raw_groups.items()}
+        return {r: [LegacyMISCandidate(d) for d in l] for r, l in raw_groups.items()}
 
     def get_mis_by_rank(self, rank):
         """
@@ -496,3 +499,178 @@ class MISDAResult:
             plt.show()
 
         return fig
+
+
+@dataclass(frozen=True)
+class MISCandidate:
+    """One ranked maximal independent set in the new static result model."""
+
+    id: str
+    objectives: Tuple[Any, ...]
+    indices: Tuple[int, ...]
+    size: int
+    rank: int
+    rank_values: Dict[str, Any]
+    evaluation: Dict[str, Any] = field(default_factory=dict, compare=False)
+
+    def __post_init__(self):
+        if self.size != len(self.indices) or self.size != len(self.objectives):
+            raise ValueError("size must match objectives and indices.")
+
+    @property
+    def labels(self):
+        """Transitional spelling for the selected objective names."""
+
+        return list(self.objectives)
+
+    def __repr__(self):
+        return (
+            f"<MISCandidate {self.id}: {list(self.objectives)} "
+            f"(Size={self.size}, Rank={self.rank})>"
+        )
+
+
+@dataclass
+class AnalysisResult:
+    """Global properties shared by every MIS in one static analysis."""
+
+    original_dimension: int
+    latent_dimension: int
+    structural_dimension: int
+    alpha_onset: Optional[float]
+    log_alpha_onset: Optional[float]
+    alpha_null: float
+    log_alpha_null: float
+    alpha: float
+    log_alpha: float
+    aggressiveness: float
+    separation_status: Any
+    structural_graph: Any
+    dependence_graph: Any
+    structural_components: Tuple[Tuple[int, ...], ...]
+    latent_components: Tuple[Tuple[int, ...], ...]
+    graph_summaries: Dict[str, Dict[str, int]]
+    rank_policy: str
+    rank_counts: Dict[int, int]
+    n_mis: int
+    n_evaluated_mis: int
+    n_heavy_mis: int
+
+
+@dataclass(frozen=True)
+class ExecutionResult:
+    """Effective configuration, reproducibility, timing, and convergence data."""
+
+    configuration: Dict[str, Any]
+    seed: int
+    timings: Dict[str, float]
+    convergence: Dict[str, Any]
+
+
+@dataclass
+class MISDAResult:
+    """Result produced by the refactored static MISDA pipeline."""
+
+    analysis: AnalysisResult
+    mis: Tuple[MISCandidate, ...]
+    execution: ExecutionResult
+    name: Optional[str] = None
+    _data: Any = field(default=None, repr=False, compare=False)
+
+    @property
+    def best_mis(self):
+        return self.mis[0] if self.mis else None
+
+    @property
+    def best_mis_indices(self):
+        return list(self.best_mis.indices) if self.best_mis else []
+
+    @property
+    def best_mis_labels(self):
+        return list(self.best_mis.objectives) if self.best_mis else []
+
+    @property
+    def alpha(self):
+        return self.analysis.alpha
+
+    @property
+    def alpha_min(self):
+        warnings.warn(
+            "alpha_min is deprecated; use analysis.alpha_onset.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.analysis.alpha_onset
+
+    @property
+    def alpha_max(self):
+        warnings.warn(
+            "alpha_max is deprecated; use analysis.alpha_null.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.analysis.alpha_null
+
+    @property
+    def caution(self):
+        warnings.warn(
+            "caution is deprecated; use analysis.aggressiveness.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.analysis.aggressiveness
+
+    @property
+    def mis_sets(self):
+        warnings.warn(
+            "mis_sets is deprecated; use mis.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return list(self.mis)
+
+    @property
+    def ranked_mis_sets(self):
+        warnings.warn(
+            "ranked_mis_sets is deprecated; group result.mis by rank.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        groups = {}
+        for candidate in self.mis:
+            groups.setdefault(candidate.rank, []).append(candidate)
+        return groups
+
+    @property
+    def reduction_applied(self):
+        return bool(
+            self.best_mis
+            and self.best_mis.size < self.analysis.original_dimension
+        )
+
+    def summary(self):
+        preferred = self.best_mis
+        lines = [f"MISDA Analysis Summary: {self.name or 'Untitled'}"]
+        lines.append(
+            "Dimensions: "
+            f"original={self.analysis.original_dimension}, "
+            f"latent={self.analysis.latent_dimension}, "
+            f"structural={self.analysis.structural_dimension}"
+        )
+        lines.append(f"Separation: {self.analysis.separation_status.value}")
+        lines.append(
+            f"MISs: {self.analysis.n_mis}; "
+            f"evaluated={self.analysis.n_evaluated_mis}; "
+            f"heavy={self.analysis.n_heavy_mis}"
+        )
+        if preferred is not None:
+            lines.append(
+                f"Preferred MIS: {preferred.id} "
+                f"{list(preferred.objectives)} (size={preferred.size})"
+            )
+        return "\n".join(lines)
+
+    def report(self):
+        """Return the stored-result summary until reporting is expanded in stage 8."""
+
+        return self.summary()
