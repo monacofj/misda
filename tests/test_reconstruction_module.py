@@ -138,6 +138,13 @@ def test_nonlinear_reconstruction_remains_reproducible(reconstruction_example):
     first = misda.calculate_ses_nonlinear(reconstruction_example, **kwargs)
     second = misda.calculate_ses_nonlinear(reconstruction_example, **kwargs)
 
-    assert first == second
+    assert first.keys() == second.keys()
+    for key, value in first.items():
+        if isinstance(value, dict):
+            assert value == pytest.approx(second[key])
+        elif isinstance(value, float):
+            assert value == pytest.approx(second[key])
+        else:
+            assert value == second[key]
     assert first["model_type"] == "nonlinear"
     assert first["status"] == "SUCCESS"

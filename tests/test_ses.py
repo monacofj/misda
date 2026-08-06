@@ -101,7 +101,7 @@ def test_result_ses_properties():
     f2 = 2.0 * f1 + rng.normal(scale=0.1, size=200)
     Y = pd.DataFrame({"f1": f1, "f2": f2})
 
-    res = misda.analyze(Y, caution=1.0)
+    res = misda._analyze_static(Y, caution=1.0)
     res.validate(check_linear=True, check_nonlinear=True)
 
     # ses_nonlinear property should be scalar float or None
@@ -115,7 +115,7 @@ def test_diagnosis_presentation():
     """Verify diagnosis text for no reduction and disjoint cliques."""
     # Case 1: Total independence -> No reduction -> Valid (No Reduction Required)
     Y_indep = np.random.randn(100, 3)
-    res1 = misda.analyze(Y_indep, caution=1.0)
+    res1 = misda._analyze_static(Y_indep, caution=1.0)
     res1.validate()
     assert res1.diagnosis == "Valid (No Reduction Required)"
 
@@ -125,7 +125,7 @@ def test_diagnosis_presentation():
     pos = np.column_stack([x + 0.01 * rng.normal(size=200) for _ in range(5)])
     neg = np.column_stack([(-x) + 0.01 * rng.normal(size=200) for _ in range(5)])
     Y_c7 = np.column_stack([pos, neg])
-    res7 = misda.analyze(Y_c7, caution=1.0)
+    res7 = misda._analyze_static(Y_c7, caution=1.0)
     res7.validate()
     assert res7.diagnosis == "Ideal (Disjoint Cliques)"
 
@@ -137,7 +137,7 @@ def test_component_report_homogeneity_details():
     pos = np.column_stack([x + 0.01 * rng.normal(size=200) for _ in range(5)])
     neg = np.column_stack([(-x) + 0.01 * rng.normal(size=200) for _ in range(5)])
     Y_c7 = np.column_stack([pos, neg])
-    res7 = misda.analyze(Y_c7, caution=1.0)
+    res7 = misda._analyze_static(Y_c7, caution=1.0)
     report_text = res7.report()
 
     assert "Internal Correlation: [N/A ... N/A]" not in report_text

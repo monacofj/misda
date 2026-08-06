@@ -40,9 +40,12 @@ from ._reconstruction import (
     calculate_ses_linear,
     calculate_ses,
     calculate_ses_nonlinear,
+    evaluate_linear_reconstruction,
 )
 from ._pareto import (
+    evaluate_pareto_preservation,
     get_nondominated_mask,
+    get_nondominated_mask_minimize,
     evaluate_pareto_consistency,
     evaluate_pareto_raw,
 )
@@ -248,26 +251,62 @@ class AdaptiveResult:
 def analyze(
     Y,
     method='static',
-    caution=1.0,
+    caution=None,
     name=None,
-    ensure_coverage=True,
+    ensure_coverage=None,
     alpha=None,
     target_fidelity=None,
     max_iter=None,
     b_bootstrap=50,
-    seed=123
+    seed=123,
+    aggressiveness=1.0,
+    rank_policy="default",
+    max_evaluated_mis=None,
 ):
     """
     Executes the MISDA pipeline on dataset Y.
     
     Strategies:
-    - 'static' (Default): Uses `caution` to pick a single `alpha`. Fast, standard.
+    - 'static' (Default): Uses the positive, data-driven structural pipeline.
     - 'adaptive': Searches discrete critical alpha levels for optimal Pareto reduction-recall trade-off with OOB bootstrap.
     """
     if method == 'static':
-        return _analyze_static(Y, caution=caution, name=name, ensure_coverage=ensure_coverage, alpha=alpha)
+        if caution is not None:
+            import warnings
+            warnings.warn(
+                "caution is deprecated; use aggressiveness.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if aggressiveness != 1.0 and aggressiveness != caution:
+                raise ValueError(
+                    "caution and aggressiveness specify conflicting values."
+                )
+            aggressiveness = caution
+        if ensure_coverage is not None:
+            import warnings
+            warnings.warn(
+                "ensure_coverage is deprecated and no longer alters MISs.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if alpha is not None:
+            raise ValueError(
+                "alpha is not supported by the refactored static method; "
+                "use aggressiveness."
+            )
+        return _analyze_static_v2(
+            Y,
+            aggressiveness=aggressiveness,
+            rank_policy=rank_policy,
+            max_evaluated_mis=max_evaluated_mis,
+            seed=seed,
+            name=name,
+        )
     elif method == 'adaptive':
-        return _analyze_adaptive(Y, caution=caution, b_bootstrap=b_bootstrap, seed=seed, name=name, ensure_coverage=ensure_coverage)
+        legacy_caution = 1.0 if caution is None else caution
+        legacy_coverage = True if ensure_coverage is None else ensure_coverage
+        return _analyze_adaptive(Y, caution=legacy_caution, b_bootstrap=b_bootstrap, seed=seed, name=name, ensure_coverage=legacy_coverage)
     else:
         raise ValueError(f"Unknown method '{method}'. Valid options: 'static', 'adaptive'")
 

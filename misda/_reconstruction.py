@@ -6,6 +6,150 @@
 import numpy as np
 
 
+def _explicit_loo_predictions(data, selected, eliminated):
+    n_samples = data.shape[0]
+    predictions = np.empty((n_samples, len(eliminated)), dtype=float)
+    for held_out in range(n_samples):
+        training = np.arange(n_samples) != held_out
+        design_train = np.column_stack(
+            (np.ones(np.sum(training)), data[training][:, selected])
+        )
+        design_test = np.concatenate(
+            ([1.0], data[held_out, selected])
+        )
+        coefficients = np.linalg.pinv(design_train) @ data[training][:, eliminated]
+        predictions[held_out] = design_test @ coefficients
+    return predictions
+
+
+def _press_predictions(data, selected, eliminated):
+    design = np.column_stack((np.ones(data.shape[0]), data[:, selected]))
+    design_pinv = np.linalg.pinv(design)
+    targets = data[:, eliminated]
+    fitted = design @ (design_pinv @ targets)
+    residuals = targets - fitted
+    leverage = np.einsum("ij,ji->i", design, design_pinv)
+    denominator = 1.0 - leverage
+    tolerance = np.finfo(float).eps * max(10.0, float(design.shape[1]))
+    if np.any(np.abs(denominator) <= tolerance):
+        return _explicit_loo_predictions(data, selected, eliminated)
+    return targets - residuals / denominator[:, np.newaxis]
+
+
+def _r2_metrics(data, selected, eliminated, labels):
+    predictions = _press_predictions(data, selected, eliminated)
+    values = {}
+    reasons = {}
+    defined = []
+    for position, objective in enumerate(eliminated):
+        label = labels[objective]
+        observed = data[:, objective]
+        total = float(np.sum((observed - np.mean(observed)) ** 2))
+        if total <= np.finfo(float).eps:
+            values[label] = None
+            reasons[label] = "CONSTANT_TARGET"
+            continue
+        residual = float(np.sum((observed - predictions[:, position]) ** 2))
+        value = float(1.0 - residual / total)
+        values[label] = value
+        defined.append(value)
+    return {
+        "r2_by_objective": values,
+        "r2_reason_by_objective": reasons,
+        "mean_r2": float(np.mean(defined)) if defined else None,
+        "worst_r2": float(np.min(defined)) if defined else None,
+    }
+
+
+def _jackknife_standard_error(values):
+    if not values or any(value is None for value in values):
+        return None
+    array = np.asarray(values, dtype=float)
+    center = float(np.mean(array))
+    return float(
+        np.sqrt((len(array) - 1) / len(array) * np.sum((array - center) ** 2))
+    )
+
+
+def evaluate_linear_reconstruction(data, selected_indices, labels):
+    """Evaluate eliminated objectives by external PRESS/LOO and jackknife."""
+
+    matrix = np.asarray(data, dtype=float)
+    if matrix.ndim != 2:
+        raise ValueError("data must be a two-dimensional matrix.")
+    n_samples, n_objectives = matrix.shape
+    selected = tuple(sorted(set(int(index) for index in selected_indices)))
+    if not selected:
+        raise ValueError("selected_indices must not be empty.")
+    if any(index < 0 or index >= n_objectives for index in selected):
+        raise IndexError("selected_indices contains an out-of-range objective.")
+    if len(labels) != n_objectives:
+        raise ValueError("labels must contain one value per objective.")
+
+    eliminated = tuple(
+        index for index in range(n_objectives) if index not in selected
+    )
+    if not eliminated:
+        return {
+            "r2_by_objective": None,
+            "r2_reason_by_objective": {},
+            "mean_r2": None,
+            "worst_r2": None,
+            "reason_by_metric": {
+                "r2_by_objective": "NO_ELIMINATED_OBJECTIVES",
+                "mean_r2": "NO_ELIMINATED_OBJECTIVES",
+                "worst_r2": "NO_ELIMINATED_OBJECTIVES",
+            },
+            "jackknife": {
+                "r2_se_by_objective": None,
+                "mean_r2_se": None,
+                "worst_r2_se": None,
+                "n_replicates": 0,
+                "reason": "NO_ELIMINATED_OBJECTIVES",
+            },
+        }
+
+    full = _r2_metrics(matrix, selected, eliminated, labels)
+    replicates = [
+        _r2_metrics(
+            np.delete(matrix, omitted, axis=0),
+            selected,
+            eliminated,
+            labels,
+        )
+        for omitted in range(n_samples)
+    ]
+    r2_se = {
+        labels[objective]: _jackknife_standard_error(
+            [
+                replicate["r2_by_objective"][labels[objective]]
+                for replicate in replicates
+            ]
+        )
+        for objective in eliminated
+    }
+    reason_by_metric = {}
+    if full["mean_r2"] is None:
+        reason_by_metric["mean_r2"] = "NO_DEFINED_TARGETS"
+    if full["worst_r2"] is None:
+        reason_by_metric["worst_r2"] = "NO_DEFINED_TARGETS"
+    return {
+        **full,
+        "reason_by_metric": reason_by_metric,
+        "jackknife": {
+            "r2_se_by_objective": r2_se,
+            "mean_r2_se": _jackknife_standard_error(
+                [replicate["mean_r2"] for replicate in replicates]
+            ),
+            "worst_r2_se": _jackknife_standard_error(
+                [replicate["worst_r2"] for replicate in replicates]
+            ),
+            "n_replicates": n_samples,
+            "reason": None,
+        },
+    }
+
+
 def _calculate_ses_core(
     Y,
     mis,

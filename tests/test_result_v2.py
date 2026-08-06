@@ -75,7 +75,14 @@ def test_all_ranked_mis_are_stored_with_explicit_identity(refactored_result):
     ]
     assert all(candidate.size == 2 for candidate in observed.mis)
     assert all(candidate.rank == 1 for candidate in observed.mis)
-    assert all(candidate.evaluation == {} for candidate in observed.mis)
+    assert all(
+        set(candidate.evaluation) == {
+            "linear_reconstruction",
+            "pareto_preservation",
+        }
+        for candidate in observed.mis[:2]
+    )
+    assert all(candidate.evaluation == {} for candidate in observed.mis[2:])
     assert all(
         len(set(candidate.indices) & {0, 1}) == 1
         and len(set(candidate.indices) & {2, 3}) == 1
@@ -86,12 +93,12 @@ def test_all_ranked_mis_are_stored_with_explicit_identity(refactored_result):
     assert observed.best_mis_labels == list(observed.mis[0].objectives)
 
 
-def test_stage_five_records_zero_evaluations_but_keeps_future_limit(
+def test_light_evaluation_records_the_requested_prefix(
     refactored_result,
 ):
     observed = refactored_result
 
-    assert observed.analysis.n_evaluated_mis == 0
+    assert observed.analysis.n_evaluated_mis == 2
     assert observed.analysis.n_heavy_mis == 0
     assert observed.execution.configuration == {
         "aggressiveness": 1.0,
@@ -193,7 +200,7 @@ def test_summary_uses_only_stored_result_values(refactored_result):
 
     assert "MISDA Analysis Summary: two groups" in summary
     assert "original=4, latent=1, structural=2" in summary
-    assert "MISs: 4; evaluated=0; heavy=0" in summary
+    assert "MISs: 4; evaluated=2; heavy=0" in summary
     assert "Preferred MIS: mis_000" in summary
     assert refactored_result.report() == summary
 

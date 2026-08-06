@@ -137,9 +137,8 @@ def serialize_static_case(
     seed: int = DEFAULT_SEED,
 ) -> dict:
     """Run legacy static MISDA and serialize its scientific baseline fields."""
-    result = misda.analyze(
+    result = misda._analyze_static(
         frame,
-        method=METHOD,
         name=truth["name"],
     )
     internal = result.isda_results
