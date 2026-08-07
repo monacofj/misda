@@ -59,6 +59,6 @@ def test_changelog_records_static_refactor_and_suspended_scope():
     text = Path("CHANGELOG.md").read_text(encoding="utf-8")
 
     unreleased = text.split("## [0.4.1]", 1)[0]
-    assert "## [Unreleased]" in unreleased
+    assert "## [0.4.2]" in unreleased
     assert "misda.heavy()" in unreleased
     assert "adaptive implementation is suspended" in unreleased

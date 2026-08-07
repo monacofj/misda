@@ -72,7 +72,7 @@ def test_result_text_methods_keep_working_after_extraction(static_result):
 
     assert "MISDA Analysis Summary: characterization" in summary
     assert "Best MIS Labels: ['f1', 'f3']" in summary
-    assert "MISDA Version: 0.4.1" in report
+    assert "MISDA Version: 0.4.2" in report
     assert "DETAILED INSPECTION REPORT" in report
 
 

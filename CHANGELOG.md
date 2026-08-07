@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Adaptive Search Refactoring**: Replaced continuous alpha search in `misda.analyze(Y, method='adaptive')` with discrete critical level extraction and OOB validated frontier optimization.
 - **Static v2 Pipeline Routing**: `misda.analyze()` now routes the default static method through the v2 pipeline using `aggressiveness`, `rank_policy`, and `max_evaluated_mis`.
 - **Notebook & Reporting Facade**: Reports render stored evidence; benchmark and comparative notebooks act as thin front ends over CLI modules.
+- The adaptive implementation is suspended and excluded from the current scientific acceptance gate.
 
 ### Fixed
 - **Floating-Point Reproducibility**: Used `np.isclose` in `test_ses.py` to account for `float64` non-associativity across parallel reduction implementations.
