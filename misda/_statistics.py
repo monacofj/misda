@@ -343,15 +343,35 @@ def estimate_null_positive_correlation(
     seed = int(seed)
     rng = np.random.default_rng(seed)
 
-    def maxima():
-        while True:
-            permuted = np.empty_like(normalized.data)
-            for column in range(normalized.n_objectives):
-                permuted[:, column] = rng.permutation(normalized.data[:, column])
-            yield _maximum_positive_correlation(
-                permuted,
-                normalized.constant_indices,
-            )
+    data = normalized.data
+    n_samples, n_objectives = data.shape
+
+    if n_objectives < 2:
+        def maxima():
+            while True:
+                yield 0.0
+    else:
+        centered = data - np.mean(data, axis=0)
+        sum_squares = np.sum(centered * centered, axis=0)
+        stds = np.sqrt(sum_squares)
+        valid = stds > 0.0
+        Z = np.zeros_like(data)
+        Z[:, valid] = centered[:, valid] / stds[valid]
+        triu_idx = np.triu_indices(n_objectives, k=1)
+        constant_list = list(normalized.constant_indices)
+
+        def maxima():
+            permuted = np.empty_like(Z)
+            while True:
+                for col in range(n_objectives):
+                    permuted[:, col] = rng.permutation(Z[:, col])
+                corr = permuted.T @ permuted
+                np.clip(corr, -1.0, 1.0, out=corr)
+                if constant_list:
+                    corr[constant_list, :] = 0.0
+                    corr[:, constant_list] = 0.0
+                values = corr[triu_idx]
+                yield float(max(0.0, np.max(values, initial=0.0)))
 
     result = estimate_null_from_maxima(
         maxima(),

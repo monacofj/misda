@@ -27,16 +27,21 @@ def _explicit_loo_predictions(data, selected, eliminated):
 
 def _press_predictions(data, selected, eliminated):
     design = np.column_stack((np.ones(data.shape[0]), data[:, selected]))
-    design_pinv = np.linalg.pinv(design)
-    targets = data[:, eliminated]
-    fitted = design @ (design_pinv @ targets)
-    residuals = targets - fitted
-    leverage = np.einsum("ij,ji->i", design, design_pinv)
-    denominator = 1.0 - leverage
-    tolerance = np.finfo(float).eps * max(10.0, float(design.shape[1]))
-    if np.any(np.abs(denominator) <= tolerance):
+    try:
+        Q, _ = np.linalg.qr(design, mode="reduced")
+        if Q.shape[1] < design.shape[1]:
+            return _explicit_loo_predictions(data, selected, eliminated)
+        targets = data[:, eliminated]
+        fitted = Q @ (Q.T @ targets)
+        residuals = targets - fitted
+        leverage = np.sum(Q * Q, axis=1)
+        denominator = 1.0 - leverage
+        tolerance = np.finfo(float).eps * max(10.0, float(design.shape[1]))
+        if np.any(np.abs(denominator) <= tolerance):
+            return _explicit_loo_predictions(data, selected, eliminated)
+        return targets - residuals / denominator[:, np.newaxis]
+    except np.linalg.LinAlgError:
         return _explicit_loo_predictions(data, selected, eliminated)
-    return targets - residuals / denominator[:, np.newaxis]
 
 
 def _r2_metrics(data, selected, eliminated, labels):

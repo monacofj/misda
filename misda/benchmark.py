@@ -843,9 +843,12 @@ def compare_results(baseline, candidate, *, expected_changes=None):
                 after = metric_value(candidate, block, metric)
                 if before is None or after is None:
                     continue
-                status = "PASS" if after == before else (
-                    "IMPROVED" if after > before else "REGRESSION"
-                )
+                if np.isclose(after, before, rtol=1e-10, atol=1e-12):
+                    status = "PASS"
+                elif after > before:
+                    status = "IMPROVED"
+                else:
+                    status = "REGRESSION"
                 record(
                     f"{block}.{metric}",
                     before,
