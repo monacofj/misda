@@ -386,12 +386,12 @@ def _analyze_static_v2(
         "structural": {
             "nodes": structure.structural_graph.number_of_nodes(),
             "edges": structure.structural_graph.number_of_edges(),
-            "components": structure.structural_dimension,
+            "components": structure.structural_component_count,
         },
         "dependence": {
             "nodes": structure.dependence_graph.number_of_nodes(),
             "edges": structure.dependence_graph.number_of_edges(),
-            "components": structure.latent_dimension,
+            "components": structure.latent_component_count,
         },
     }
     analysis = AnalysisResult(
