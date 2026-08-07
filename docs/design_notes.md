@@ -20,10 +20,15 @@ reduction:
   redundancy edge.
 
 MISDA therefore constructs two graph projections. The positive structural
-graph drives maximal independent set enumeration and structural components.
-The signed dependence graph includes both signs and describes latent
-connectivity. This is why latent dimension, structural dimension, and MIS size
-are stored as separate fields.
+graph `G+` contains only supported positive relations and drives the reduction
+MISs. The signed dependence graph `G±` contains supported relations of either
+sign. Dimensional estimates are graph independence numbers: `structural_dimension`
+is the maximum cardinality of an independent set in `G+`, while
+`latent_dimension` is the maximum cardinality of an independent set in `G±`.
+The sign of an edge therefore affects structural redundancy, while both signs
+express latent dependence. Connected-component counts remain topology
+diagnostics and are stored separately from both dimensions. MIS ranking chooses
+among candidate reductions and does not define either dimensional estimate.
 
 Constant objectives cannot support a valid pairwise Fisher-z test. They remain
 isolated nodes with explicit metadata so the pipeline never loses an input
