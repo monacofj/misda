@@ -68,6 +68,7 @@ The result tree separates global analysis, candidates, and reproducibility:
 ```python
 result.analysis.structural_dimension
 result.analysis.latent_dimension
+result.selected_dimension
 result.analysis.separation_status
 result.mis
 result.execution.configuration
@@ -96,6 +97,12 @@ print(bench.report())
 
 Analysis values remain in `bench.result`; only comparisons requiring the
 external declaration are stored directly in `bench`.
+
+`structural_dimension` and `latent_dimension` on `result.analysis` are graph
+component counts. The selected dimension is `result.selected_dimension`, the
+size of the preferred MIS. `benchmark()` compares this selected dimension with
+`structural_expected`; it does not present dependence connectivity as an
+estimate of latent generative dimension.
 
 ## On-demand heavy evaluation
 

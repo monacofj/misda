@@ -26,6 +26,15 @@ def _two_group_result():
     )
 
 
+def _connected_two_representative_result():
+    data, result = _two_group_result()
+    result.analysis.structural_graph.add_edge(1, 3)
+    result.analysis.structural_components = ((0, 1, 2, 3),)
+    result.analysis.structural_dimension = 1
+    result.analysis.graph_summaries["structural"]["components"] = 1
+    return data, result
+
+
 def _case7(adversarial=False):
     return benchmark.BenchmarkCase(
         case_id="case_07",
@@ -80,7 +89,7 @@ def test_public_benchmark_returns_wrapper_and_preserves_truth():
     )
 
 
-def test_public_benchmark_computes_dimension_and_partition_metrics():
+def test_public_benchmark_uses_selected_dimension_for_structural_accuracy():
     _data, result = _two_group_result()
     observed = misda.benchmark(
         result,
@@ -91,9 +100,13 @@ def test_public_benchmark_computes_dimension_and_partition_metrics():
         },
     )
 
-    assert observed.latent_error == 0
-    assert observed.latent_relative_error == 0.0
-    assert observed.latent_exact
+    assert observed.selected_dimension == 2
+    assert observed.latent_error is None
+    assert observed.latent_relative_error is None
+    assert observed.latent_exact is None
+    assert observed.unavailable_reasons["latent_dimension"] == (
+        "the current method does not estimate latent dimension"
+    )
     assert observed.structural_error == 0
     assert observed.structural_relative_error == 0.0
     assert observed.structural_dimension_exact
@@ -102,6 +115,27 @@ def test_public_benchmark_computes_dimension_and_partition_metrics():
     assert observed.structural_recall == 1.0
     assert observed.structural_f1 == 1.0
     assert observed.structural_partition_exact
+
+
+def test_report_separates_graph_components_from_selected_dimension():
+    _data, result = _connected_two_representative_result()
+    observed = misda.benchmark(
+        result,
+        {
+            "latent_expected": 1,
+            "structural_expected": 2,
+        },
+    )
+
+    report = observed.report()
+
+    assert "Original dim.  : 4" in report
+    assert "Positive comps.: 1" in report
+    assert "Depend. comps. : 1" in report
+    assert "Selected dim.  : 2" in report
+    assert "Latent         : expected=1, estimated=N/A" in report
+    assert "Structural     : expected=2, selected=2, error=0" in report
+    assert observed.structural_dimension_exact
 
 
 def test_structural_metrics_penalize_fusion_and_use_one_to_one_matching():

@@ -199,7 +199,10 @@ def test_summary_uses_only_stored_result_values(refactored_result):
     summary = refactored_result.summary()
 
     assert "MISDA Analysis Summary: two groups" in summary
-    assert "original=4, latent=1, structural=2" in summary
+    assert "original dimension=4" in summary
+    assert "dependence components=1" in summary
+    assert "positive components=2" in summary
+    assert "selected dimension=2" in summary
     assert "MISs: 4; evaluated=2; heavy=0" in summary
     assert "Preferred MIS: mis_000" in summary
     assert refactored_result.report().startswith("MISDA static report: two groups")
