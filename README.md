@@ -98,11 +98,12 @@ print(bench.report())
 Analysis values remain in `bench.result`; only comparisons requiring the
 external declaration are stored directly in `bench`.
 
-`structural_dimension` and `latent_dimension` on `result.analysis` are graph
-component counts. The selected dimension is `result.selected_dimension`, the
-size of the preferred MIS. `benchmark()` compares this selected dimension with
-`structural_expected`; it does not present dependence connectivity as an
-estimate of latent generative dimension.
+The current method estimates `structural_dimension` from the connected
+components of the positive graph and `latent_dimension` from the connected
+components of the signed dependence graph. The selected dimension is stored
+separately as `result.selected_dimension`, the size of the preferred MIS.
+`benchmark()` compares each declared dimension with its corresponding estimate;
+it never substitutes the selected dimension for either estimate.
 
 ## On-demand heavy evaluation
 

@@ -658,12 +658,14 @@ class MISDAResult:
         preferred = self.best_mis
         lines = [f"MISDA Analysis Summary: {self.name or 'Untitled'}"]
         lines.append(
-            "Structure: "
-            f"original dimension={self.analysis.original_dimension}, "
-            f"dependence components={self.analysis.latent_dimension}, "
-            f"positive components={self.analysis.structural_dimension}, "
-            "selected dimension="
-            f"{preferred.size if preferred is not None else 'N/A'}"
+            "Dimensions: "
+            f"original={self.analysis.original_dimension}, "
+            f"latent={self.analysis.latent_dimension}, "
+            f"structural={self.analysis.structural_dimension}"
+        )
+        lines.append(
+            "Selected dimension: "
+            f"{self.selected_dimension if self.selected_dimension is not None else 'N/A'}"
         )
         lines.append(f"Separation: {self.analysis.separation_status.value}")
         lines.append(
