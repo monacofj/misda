@@ -590,6 +590,12 @@ class MISDAResult:
         return list(self.best_mis.objectives) if self.best_mis else []
 
     @property
+    def selected_dimension(self):
+        """Number of objectives retained by the preferred MIS."""
+
+        return self.best_mis.size if self.best_mis is not None else None
+
+    @property
     def alpha(self):
         return self.analysis.alpha
 
@@ -652,10 +658,12 @@ class MISDAResult:
         preferred = self.best_mis
         lines = [f"MISDA Analysis Summary: {self.name or 'Untitled'}"]
         lines.append(
-            "Dimensions: "
-            f"original={self.analysis.original_dimension}, "
-            f"latent={self.analysis.latent_dimension}, "
-            f"structural={self.analysis.structural_dimension}"
+            "Structure: "
+            f"original dimension={self.analysis.original_dimension}, "
+            f"dependence components={self.analysis.latent_dimension}, "
+            f"positive components={self.analysis.structural_dimension}, "
+            "selected dimension="
+            f"{preferred.size if preferred is not None else 'N/A'}"
         )
         lines.append(f"Separation: {self.analysis.separation_status.value}")
         lines.append(

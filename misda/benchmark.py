@@ -257,6 +257,7 @@ class BenchmarkResult:
     blocks_expected: Optional[tuple]
     pareto_expected: Optional[tuple]
     found_blocks: tuple
+    selected_dimension: Optional[int]
 
     latent_error: Optional[int]
     latent_relative_error: Optional[float]
@@ -296,10 +297,17 @@ class BenchmarkResult:
 
         lines.append("Observed analysis")
         lines.append(
-            "  Dimensions     : "
-            f"original={analysis.original_dimension}, "
-            f"latent={analysis.latent_dimension}, "
-            f"structural={analysis.structural_dimension}"
+            f"  Original dim.  : {analysis.original_dimension}"
+        )
+        lines.append(
+            f"  Positive comps.: {analysis.structural_dimension}"
+        )
+        lines.append(
+            f"  Depend. comps. : {analysis.latent_dimension}"
+        )
+        lines.append(
+            "  Selected dim.  : "
+            f"{_format_metric(self.selected_dimension)}"
         )
         lines.append(
             "  Preferred MIS  : "
@@ -315,13 +323,13 @@ class BenchmarkResult:
         lines.append(
             "  Latent         : "
             f"expected={_format_metric(self.latent_expected)}, "
-            f"error={_format_metric(self.latent_error)}, "
-            f"relative_error={_format_metric(self.latent_relative_error)}, "
-            f"exact={_format_metric(self.latent_exact)}"
+            "estimated=N/A — "
+            + self.unavailable_reasons["latent_dimension"]
         )
         lines.append(
             "  Structural     : "
             f"expected={_format_metric(self.structural_expected)}, "
+            f"selected={_format_metric(self.selected_dimension)}, "
             f"error={_format_metric(self.structural_error)}, "
             f"relative_error={_format_metric(self.structural_relative_error)}, "
             f"exact={_format_metric(self.structural_dimension_exact)}"
@@ -382,15 +390,16 @@ def benchmark(result, truth):
     blocks_expected = _truth_blocks(truth)
     pareto_expected = _truth_pareto_indices(truth)
     found_blocks = _found_structural_blocks(result)
+    selected_dimension = result.selected_dimension
 
-    latent = _dimension_metrics(
-        result.analysis.latent_dimension,
-        latent_expected,
-    )
+    # The current static method does not estimate latent generative degrees of
+    # freedom.  A connected dependence graph is only a topological diagnostic;
+    # treating its component count as a latent-dimension estimate is invalid.
+    latent = (None, None, None)
     structural_dimension = _dimension_metrics(
-        result.analysis.structural_dimension,
+        selected_dimension,
         structural_expected,
-    )
+    ) if selected_dimension is not None else (None, None, None)
     unavailable = {}
 
     if blocks_expected is None:
@@ -439,9 +448,17 @@ def benchmark(result, truth):
 
     if latent_expected is None:
         unavailable["latent_dimension"] = "latent_expected was not declared"
+    else:
+        unavailable["latent_dimension"] = (
+            "the current method does not estimate latent dimension"
+        )
     if structural_expected is None:
         unavailable["structural_dimension"] = (
             "structural_expected was not declared"
+        )
+    elif selected_dimension is None:
+        unavailable["structural_dimension"] = (
+            "no preferred MIS was available"
         )
 
     return BenchmarkResult(
@@ -457,6 +474,7 @@ def benchmark(result, truth):
         blocks_expected=blocks_expected,
         pareto_expected=pareto_expected,
         found_blocks=found_blocks,
+        selected_dimension=selected_dimension,
         latent_error=latent[0],
         latent_relative_error=latent[1],
         latent_exact=latent[2],
