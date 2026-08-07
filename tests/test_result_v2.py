@@ -40,7 +40,7 @@ def test_refactored_core_returns_public_result_tree(refactored_result):
     assert observed.name == "two groups"
 
 
-def test_dimensions_graphs_and_components_come_from_signed_projections(
+def test_dimensions_and_components_are_distinct_graph_properties(
     refactored_result,
 ):
     analysis = refactored_result.analysis
@@ -50,11 +50,11 @@ def test_dimensions_graphs_and_components_come_from_signed_projections(
     assert analysis.latent_dimension == 1
     assert analysis.structural_components == ((0, 1), (2, 3))
     assert analysis.latent_components == ((0, 1, 2, 3),)
-    assert analysis.structural_dimension == nx.number_connected_components(
-        analysis.structural_graph
+    assert analysis.structural_dimension == nx.algorithms.clique.graph_clique_number(
+        nx.complement(analysis.structural_graph)
     )
-    assert analysis.latent_dimension == nx.number_connected_components(
-        analysis.dependence_graph
+    assert analysis.latent_dimension == nx.algorithms.clique.graph_clique_number(
+        nx.complement(analysis.dependence_graph)
     )
     assert analysis.graph_summaries == {
         "structural": {"nodes": 4, "edges": 2, "components": 2},
