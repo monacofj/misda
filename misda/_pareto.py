@@ -67,6 +67,9 @@ def evaluate_pareto_preservation(
         "intersection_size": n_intersection,
         "union_size": n_union,
         "exact_preservation": bool(np.array_equal(full, reduced)),
+        "reduced_front_indices": tuple(
+            int(index) for index in np.flatnonzero(reduced)
+        ),
     }
 
 

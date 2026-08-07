@@ -77,7 +77,9 @@ from .api import (
 )
 from .benchmark import (
     BenchmarkCase,
+    BenchmarkResult,
     BenchmarkSuite,
+    benchmark,
     compare_results,
     compile_benchmark_summary,
     serialize_benchmark_result,

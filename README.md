@@ -75,6 +75,28 @@ result.execution.timings
 result.execution.convergence
 ```
 
+For synthetic or empirical cases with an external declaration, compare the
+completed analysis without passing that declaration into `analyze()`:
+
+```python
+truth = {
+    "name": "Demo benchmark",
+    "latent_expected": 2,
+    "structural_expected": 3,
+    "blocks_expected": [["f1", "f2"], ["f3"], ["f4", "f5"]],
+    "pareto_expected": [0, 4, 9],
+    "feature": "Known synthetic structure.",
+    "intuition": "One representative per structural block.",
+    "graph_expected": "Three disjoint positive components.",
+}
+
+bench = misda.benchmark(result, truth)
+print(bench.report())
+```
+
+Analysis values remain in `bench.result`; only comparisons requiring the
+external declaration are stored directly in `bench`.
+
 ## On-demand heavy evaluation
 
 Nonlinear reconstruction is intentionally opt-in. Select candidates by their

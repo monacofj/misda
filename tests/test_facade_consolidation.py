@@ -1,11 +1,16 @@
 """Characterization tests for the consolidated legacy static facade."""
 
+import importlib
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import misda
-from misda import _metadata, _plotting, _reporting, _statistics, benchmark
+from misda import _metadata, _plotting, _reporting, _statistics
+
+
+benchmark_module = importlib.import_module("misda.benchmark")
 
 
 @pytest.mark.parametrize(
@@ -17,7 +22,7 @@ from misda import _metadata, _plotting, _reporting, _statistics, benchmark
         ("_extract_mis_nodes_1based", _plotting),
         ("plot_custom_misda_graph", _plotting),
         ("explain_ses", _reporting),
-        ("compile_benchmark_summary", benchmark),
+        ("compile_benchmark_summary", benchmark_module),
     ],
 )
 def test_consolidated_operations_are_reexported_from_package(name, module):

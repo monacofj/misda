@@ -94,7 +94,7 @@ def test_benchmark_cli_writes_normalized_static_json(
 
     assert completed.returncode == 0, completed.stderr
     artifact = json.loads(output.read_text(encoding="utf-8"))
-    assert artifact["format_version"] == 2
+    assert artifact["format_version"] == 3
     assert artifact["suite"] == suite
     assert artifact.get("method", artifact.get("methods", [None])[0]) == "static"
     assert artifact["parameters"] == {"n": 64, "seed": 123}
@@ -137,6 +137,7 @@ def test_benchmark_cli_writes_normalized_static_json(
         "intersection_size",
         "union_size",
         "exact_preservation",
+        "reduced_front_indices",
     }
     assert case["assessment"]["case_id"] == case_id
     assert case["assessment"]["status"] in {

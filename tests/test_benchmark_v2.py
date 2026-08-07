@@ -1,6 +1,7 @@
 """Tests for benchmark declarations kept outside the MISDA result."""
 
 import copy
+import importlib
 import json
 from pathlib import Path
 
@@ -8,8 +9,10 @@ import numpy as np
 import pytest
 
 import misda
-from misda import benchmark
 from examples.benchmarks.run_benchmark import run_benchmark
+
+
+benchmark = importlib.import_module("misda.benchmark")
 
 
 def _two_group_result():
@@ -39,10 +42,133 @@ def _case7(adversarial=False):
 
 
 def test_benchmark_api_is_reexported_from_the_package():
+    assert misda.benchmark is benchmark.benchmark
+    assert misda.BenchmarkResult is benchmark.BenchmarkResult
     assert misda.BenchmarkCase is benchmark.BenchmarkCase
     assert misda.BenchmarkSuite is benchmark.BenchmarkSuite
     assert misda.compare_results is benchmark.compare_results
     assert misda.serialize_benchmark_result is benchmark.serialize_benchmark_result
+
+
+def test_public_benchmark_returns_wrapper_and_preserves_truth():
+    _data, result = _two_group_result()
+    truth = {
+        "name": "two groups",
+        "latent_expected": 1,
+        "structural_expected": 2,
+        "blocks_expected": [["f3", "f4"], ["f1", "f2"]],
+        "pareto_expected": [0, 1, 2, 3],
+        "feature": "two antagonistic families",
+        "intuition": "one representative per family",
+        "graph_expected": "two positive components",
+        "notes": "external declaration",
+    }
+
+    observed = misda.benchmark(result, truth)
+
+    assert isinstance(observed, benchmark.BenchmarkResult)
+    assert observed.result is result
+    assert observed.truth is truth
+    assert observed.name == truth["name"]
+    assert observed.feature == truth["feature"]
+    assert observed.intuition == truth["intuition"]
+    assert observed.graph_expected == truth["graph_expected"]
+    assert observed.notes == truth["notes"]
+    assert observed.blocks_expected == (
+        ("f3", "f4"),
+        ("f1", "f2"),
+    )
+
+
+def test_public_benchmark_computes_dimension_and_partition_metrics():
+    _data, result = _two_group_result()
+    observed = misda.benchmark(
+        result,
+        {
+            "latent_expected": 1,
+            "structural_expected": 2,
+            "blocks_expected": [["f3", "f4"], ["f1", "f2"]],
+        },
+    )
+
+    assert observed.latent_error == 0
+    assert observed.latent_relative_error == 0.0
+    assert observed.latent_exact
+    assert observed.structural_error == 0
+    assert observed.structural_relative_error == 0.0
+    assert observed.structural_dimension_exact
+    assert observed.structural_jaccard == 1.0
+    assert observed.structural_precision == 1.0
+    assert observed.structural_recall == 1.0
+    assert observed.structural_f1 == 1.0
+    assert observed.structural_partition_exact
+
+
+def test_structural_metrics_penalize_fusion_and_use_one_to_one_matching():
+    _data, result = _two_group_result()
+    observed = misda.benchmark(
+        result,
+        {"blocks_expected": [["f1", "f2", "f3", "f4"]]},
+    )
+
+    assert observed.structural_jaccard == pytest.approx(0.25)
+    assert observed.structural_precision == 1.0
+    assert observed.structural_recall == pytest.approx(1 / 3)
+    assert observed.structural_f1 == pytest.approx(0.5)
+    assert not observed.structural_partition_exact
+
+
+def test_pareto_metrics_compare_same_row_indices_without_original_data():
+    _data, result = _two_group_result()
+    assert result.best_mis.evaluation["pareto_preservation"][
+        "reduced_front_indices"
+    ] == (0, 1, 2, 3, 4, 5)
+
+    observed = misda.benchmark(
+        result,
+        {"pareto_expected": [0, 1, 2, 3]},
+    )
+
+    assert observed.pareto_precision == pytest.approx(4 / 6)
+    assert observed.pareto_recall == 1.0
+    assert observed.pareto_f1 == pytest.approx(0.8)
+    assert observed.pareto_jaccard == pytest.approx(4 / 6)
+    assert observed.pareto_lost == 0
+    assert observed.pareto_spurious == 2
+
+
+def test_missing_references_produce_none_and_reported_na():
+    _data, result = _two_group_result()
+    observed = misda.benchmark(result, {"name": "undeclared"})
+
+    assert observed.latent_error is None
+    assert observed.structural_error is None
+    assert observed.structural_jaccard is None
+    assert observed.pareto_recall is None
+    assert observed.unavailable_reasons == {
+        "structural": "blocks_expected was not declared",
+        "pareto": "pareto_expected was not declared",
+        "latent_dimension": "latent_expected was not declared",
+        "structural_dimension": "structural_expected was not declared",
+    }
+    report = observed.report()
+    assert report.startswith("MISDA benchmark report: undeclared")
+    assert "Observed analysis" in report
+    assert "Structural reconstruction" in report
+    assert "Pareto-front preservation" in report
+    assert "N/A — blocks_expected was not declared" in report
+    assert "N/A — pareto_expected was not declared" in report
+
+
+def test_truth_reference_validation_is_explicit():
+    _data, result = _two_group_result()
+
+    with pytest.raises(TypeError, match="truth must be a mapping"):
+        misda.benchmark(result, object())
+    with pytest.raises(TypeError, match="latent_expected"):
+        misda.benchmark(result, {"latent_expected": 1.5})
+    with pytest.raises(ValueError, match="duplicate"):
+        misda.benchmark(result, {"pareto_expected": [0, 0]})
 
 
 def test_case7_external_declarations_pass_without_entering_result():

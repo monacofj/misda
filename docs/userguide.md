@@ -127,7 +127,7 @@ stores:
 - `pareto_validity`: fraction of the reduced front that is valid in the full
   front;
 - `pareto_jaccard`: intersection over union;
-- front sizes and `exact_preservation`.
+- front sizes, `exact_preservation`, and `reduced_front_indices`.
 
 Duplicate rows are mapped back to their original observations. Mixed objective
 directions are rejected explicitly rather than silently normalized.
@@ -170,6 +170,44 @@ result; it never triggers hidden evaluation. `graph_plot()` visualizes the
 positive structural graph. The former `plot()` spelling is deprecated.
 
 ## 8. Reproducible benchmark artifacts
+
+An individual result can be evaluated against external ground truth without
+contaminating `analyze()`:
+
+```python
+truth = {
+    "name": "Synthetic case",
+    "latent_expected": 2,
+    "structural_expected": 2,
+    "blocks_expected": [["f1", "f2"], ["f3", "f4"]],
+    "pareto_expected": [0, 2, 5],
+    "feature": "Two known structural families.",
+    "intuition": "MISDA should retain one objective per family.",
+    "graph_expected": "Two disjoint positive components.",
+    "notes": "Optional free-form note.",
+}
+
+bench = misda.benchmark(result, truth)
+print(bench.result.analysis.structural_dimension)
+print(bench.structural_jaccard)
+print(bench.pareto_recall)
+print(bench.report())
+```
+
+`truth` is a plain mapping. Dimension fields, `blocks_expected`, and
+`pareto_expected` are optional; an absent reference makes only its metric
+family `None`. `blocks_expected` uses objective labels. `pareto_expected` uses
+zero-based row indices from the same observations analyzed in `result`.
+`feature`, `intuition`, `graph_expected`, and `notes` are preserved for the
+report and are never interpreted by the method.
+
+Dimensional errors compare the estimated and declared counts. Structural
+reconstruction uses optimal one-to-one block matching by Jaccard plus pairwise
+precision, recall, and F1. Pareto metrics compare the stored reduced-front row
+indices with `pareto_expected`; `benchmark()` does not need the original
+objective matrix.
+
+The repository-level suites remain available for reproducible artifacts.
 
 Run the canonical and comparative suites from the repository root:
 

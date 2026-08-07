@@ -13,12 +13,18 @@ def _mop_truth(
     feature="",
     intuition="",
     graph_expected="",
+    pareto_expected=None,
 ):
     return {
         "name": name,
         "latent_expected": int(latent_expected),
         "structural_expected": int(structural_expected),
         "blocks_expected": blocks_expected,
+        "pareto_expected": (
+            None
+            if pareto_expected is None
+            else [int(index) for index in pareto_expected]
+        ),
         "notes": notes,
         "feature": feature,
         "intuition": intuition,
