@@ -1,54 +1,37 @@
 {
   "artifacts": {
     "benchmark": {
+      "format_version": 1,
+      "suite": "benchmark",
+      "method": "static",
+      "parameters": {
+        "n": 1000,
+        "seed": 123
+      },
+      "software": {
+        "python": "3.12.3",
+        "misda": "0.4.2",
+        "numpy": "2.4.1",
+        "pandas": "3.0.0",
+        "scipy": "1.17.0",
+        "scikit-learn": "1.9.0"
+      },
       "cases": [
         {
           "case_id": "case_01",
+          "name": "Case 1 - Total independence",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "c748ec226df5b37d7ade443741f432599c344e005c5cecdf3d797b55aa905343",
           "declared": {
             "latent_dimension": 20,
             "structural_dimension": 20
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 20,
-            "structural_dimension": 20
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 20,
-              "edges": 0
-            }
-          },
-          "input_sha256": "c748ec226df5b37d7ade443741f432599c344e005c5cecdf3d797b55aa905343",
-          "legacy_alpha": {
-            "maximum": 1.3812525898644022e-05,
-            "minimum": 0.01610790963681784,
-            "regime": "SIGNAL_BELOW_NOISE",
-            "selected": 1.3812525898644022e-05
-          },
-          "linear_reconstruction": {
-            "mean_r2": null,
-            "r2_by_objective": {},
-            "status": "NO_REDUCTION",
-            "worst_r2": null
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 1,
-          "name": "Case 1 - Total independence",
-          "pareto": {
-            "exact_preservation": true,
-            "full_front_size": 999,
-            "intersection_size": 999,
-            "jaccard": 1.0,
-            "reduced_front_size": 999,
-            "retention": 1.0,
-            "validity": 1.0
+            "structural_dimension": 20,
+            "preferred_mis_size": 20
           },
           "preferred_indices": [
             0,
@@ -96,51 +79,107 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 0.0,
-            "avg_internal_degree": 0.0,
+            "size": 20,
             "neighborhood": 0,
             "neighborhood_ratio": 0.0,
-            "size": 20,
-            "span": 0
+            "span": 0,
+            "avg_external_degree": 0.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 1,
           "rank_counts": {
             "1": 1
           },
-          "seed": 123,
-          "separation_status": "NO_NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 0,
+              "components": 20
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {},
+            "mean_r2": null,
+            "worst_r2": null,
+            "status": "NO_REDUCTION"
+          },
+          "pareto": {
+            "retention": 1.0,
+            "validity": 1.0,
+            "jaccard": 1.0,
+            "full_front_size": 999,
+            "reduced_front_size": 999,
+            "intersection_size": 999,
+            "exact_preservation": true
+          },
+          "separation_status": "NO_NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 0.01610790963681776,
+            "maximum": 1.3812525898643976e-05,
+            "selected": 1.3812525898643976e-05,
+            "regime": "SIGNAL_BELOW_NOISE"
+          }
         },
         {
           "case_id": "case_02",
+          "name": "Case 2 - Total redundancy",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "060f075873f09507abdd6648093e8db7b02a8d133976b1c0aab5eb6c5763fe04",
           "declared": {
             "latent_dimension": 1,
             "structural_dimension": 1
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 1,
-            "structural_dimension": 1
+            "structural_dimension": 1,
+            "preferred_mis_size": 1
+          },
+          "preferred_indices": [
+            0
+          ],
+          "preferred_labels": [
+            "f1"
+          ],
+          "preferred_rank": 1,
+          "preferred_rank_values": {
+            "size": 1,
+            "neighborhood": 19,
+            "neighborhood_ratio": 1.0,
+            "span": 19,
+            "avg_external_degree": 19.0,
+            "avg_internal_degree": 0.0
+          },
+          "n_mis": 20,
+          "rank_counts": {
+            "1": 20
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 1,
-              "edges": 190
+              "edges": 190,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "060f075873f09507abdd6648093e8db7b02a8d133976b1c0aab5eb6c5763fe04",
-          "legacy_alpha": {
-            "maximum": 1.9198414346458953e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.9198414346458953e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9951037901024182,
             "r2_by_objective": {
+              "f2": 0.9950294718011115,
+              "f3": 0.9947194024945709,
+              "f4": 0.9949560102225832,
+              "f5": 0.9951374429521794,
+              "f6": 0.9950907963683824,
+              "f7": 0.9952047948721816,
+              "f8": 0.9951257634168694,
+              "f9": 0.9951732489338927,
               "f10": 0.9950900383324475,
               "f11": 0.9951055369847981,
               "f12": 0.9954234158762281,
@@ -151,117 +190,44 @@
               "f17": 0.995146514180287,
               "f18": 0.9951479204561687,
               "f19": 0.9951633866517281,
-              "f2": 0.9950294718011115,
-              "f20": 0.9948910182539062,
-              "f3": 0.9947194024945709,
-              "f4": 0.9949560102225832,
-              "f5": 0.9951374429521794,
-              "f6": 0.9950907963683824,
-              "f7": 0.9952047948721816,
-              "f8": 0.9951257634168694,
-              "f9": 0.9951732489338927
+              "f20": 0.9948910182539062
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.9947194024945709
+            "mean_r2": 0.9951037901024182,
+            "worst_r2": 0.9947194024945709,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 20,
-          "name": "Case 2 - Total redundancy",
           "pareto": {
-            "exact_preservation": true,
-            "full_front_size": 1,
-            "intersection_size": 1,
-            "jaccard": 1.0,
-            "reduced_front_size": 1,
             "retention": 1.0,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 1.0,
+            "full_front_size": 1,
+            "reduced_front_size": 1,
+            "intersection_size": 1,
+            "exact_preservation": true
           },
-          "preferred_indices": [
-            0
-          ],
-          "preferred_labels": [
-            "f1"
-          ],
-          "preferred_rank": 1,
-          "preferred_rank_values": {
-            "avg_external_degree": 19.0,
-            "avg_internal_degree": 0.0,
-            "neighborhood": 19,
-            "neighborhood_ratio": 1.0,
-            "size": 1,
-            "span": 19
-          },
-          "rank_counts": {
-            "1": 20
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.9198414346458736e-05,
+            "selected": 1.9198414346458736e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "case_03",
+          "name": "Case 3 - Blocks (4 x 5)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "a0f3ce0c2920e2d4a331d8b20a3d29b3d57b5dfdb1cde602ee785da6de6d3b5f",
           "declared": {
             "latent_dimension": 4,
             "structural_dimension": 4
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 4,
-            "structural_dimension": 4
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 4,
-              "edges": 40
-            }
-          },
-          "input_sha256": "a0f3ce0c2920e2d4a331d8b20a3d29b3d57b5dfdb1cde602ee785da6de6d3b5f",
-          "legacy_alpha": {
-            "maximum": 7.193096193466083e-06,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 7.193096193466083e-06
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.925812591313972,
-            "r2_by_objective": {
-              "f12": 0.9253566088775601,
-              "f13": 0.9244819620932162,
-              "f14": 0.9248577867507992,
-              "f15": 0.9238369308236672,
-              "f17": 0.9203403696729553,
-              "f18": 0.9267262579467742,
-              "f19": 0.9250349913484246,
-              "f2": 0.9266187787527951,
-              "f20": 0.9233059020315144,
-              "f3": 0.9244364815040258,
-              "f4": 0.9281502479070368,
-              "f5": 0.9278955087424635,
-              "f6": 0.9283084934400112,
-              "f7": 0.9299104063368318,
-              "f8": 0.92603066635467,
-              "f9": 0.927710068440806
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.9203403696729553
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 625,
-          "name": "Case 3 - Blocks (4 x 5)",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 206,
-            "intersection_size": 90,
-            "jaccard": 0.4368932038834951,
-            "reduced_front_size": 90,
-            "retention": 0.4368932038834951,
-            "validity": 1.0
+            "structural_dimension": 4,
+            "preferred_mis_size": 4
           },
           "preferred_indices": [
             0,
@@ -277,85 +243,83 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 4.0,
-            "avg_internal_degree": 0.0,
+            "size": 4,
             "neighborhood": 16,
             "neighborhood_ratio": 1.0,
-            "size": 4,
-            "span": 16
+            "span": 16,
+            "avg_external_degree": 4.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 625,
           "rank_counts": {
             "1": 625
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 40,
+              "components": 4
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f2": 0.9266187787527951,
+              "f3": 0.9244364815040258,
+              "f4": 0.9281502479070368,
+              "f5": 0.9278955087424635,
+              "f6": 0.9283084934400112,
+              "f7": 0.9299104063368318,
+              "f8": 0.92603066635467,
+              "f9": 0.927710068440806,
+              "f12": 0.9253566088775602,
+              "f13": 0.9244819620932162,
+              "f14": 0.9248577867507992,
+              "f15": 0.9238369308236672,
+              "f17": 0.9203403696729553,
+              "f18": 0.9267262579467742,
+              "f19": 0.9250349913484246,
+              "f20": 0.9233059020315144
+            },
+            "mean_r2": 0.925812591313972,
+            "worst_r2": 0.9203403696729553,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.4368932038834951,
+            "validity": 1.0,
+            "jaccard": 0.4368932038834951,
+            "full_front_size": 206,
+            "reduced_front_size": 90,
+            "intersection_size": 90,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 7.193096193465961e-06,
+            "selected": 7.193096193465961e-06,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "case_04",
+          "name": "Case 4 - Blocks (2 x 10)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "26787fa6276b66d52ad0a3794df5719d878ad6096fe122e1851074d3a22595f7",
           "declared": {
             "latent_dimension": 2,
             "structural_dimension": 2
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 2,
-            "structural_dimension": 2
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 2,
-              "edges": 90
-            }
-          },
-          "input_sha256": "26787fa6276b66d52ad0a3794df5719d878ad6096fe122e1851074d3a22595f7",
-          "legacy_alpha": {
-            "maximum": 7.407779774302414e-06,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 7.407779774302414e-06
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.9272278372301346,
-            "r2_by_objective": {
-              "f10": 0.9244992097219615,
-              "f12": 0.9278604007592577,
-              "f13": 0.9294989001778564,
-              "f14": 0.9267060561439471,
-              "f15": 0.9260222919923827,
-              "f16": 0.9253477150141789,
-              "f17": 0.9266997209255666,
-              "f18": 0.929327158230212,
-              "f19": 0.9251861308435201,
-              "f2": 0.9257877087487532,
-              "f20": 0.9221147275418348,
-              "f3": 0.9293672340504177,
-              "f4": 0.9289960234717368,
-              "f5": 0.9326066908646238,
-              "f6": 0.9262952545117061,
-              "f7": 0.9344994096922143,
-              "f8": 0.9303113017194502,
-              "f9": 0.9189751357327999
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.9189751357327999
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 100,
-          "name": "Case 4 - Blocks (2 x 10)",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 23,
-            "intersection_size": 3,
-            "jaccard": 0.13043478260869565,
-            "reduced_front_size": 3,
-            "retention": 0.13043478260869565,
-            "validity": 1.0
+            "structural_dimension": 2,
+            "preferred_mis_size": 2
           },
           "preferred_indices": [
             0,
@@ -367,86 +331,85 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 9.0,
-            "avg_internal_degree": 0.0,
+            "size": 2,
             "neighborhood": 18,
             "neighborhood_ratio": 1.0,
-            "size": 2,
-            "span": 18
+            "span": 18,
+            "avg_external_degree": 9.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 100,
           "rank_counts": {
             "1": 100
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 90,
+              "components": 2
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f2": 0.9257877087487532,
+              "f3": 0.9293672340504177,
+              "f4": 0.9289960234717368,
+              "f5": 0.9326066908646238,
+              "f6": 0.9262952545117061,
+              "f7": 0.9344994096922143,
+              "f8": 0.9303113017194502,
+              "f9": 0.9189751357327999,
+              "f10": 0.9244992097219615,
+              "f12": 0.9278604007592577,
+              "f13": 0.9294989001778564,
+              "f14": 0.9267060561439471,
+              "f15": 0.9260222919923827,
+              "f16": 0.9253477150141789,
+              "f17": 0.9266997209255666,
+              "f18": 0.929327158230212,
+              "f19": 0.9251861308435202,
+              "f20": 0.9221147275418348
+            },
+            "mean_r2": 0.9272278372301346,
+            "worst_r2": 0.9189751357327999,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.13043478260869565,
+            "validity": 1.0,
+            "jaccard": 0.13043478260869565,
+            "full_front_size": 23,
+            "reduced_front_size": 3,
+            "intersection_size": 3,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 7.4077797743023596e-06,
+            "selected": 7.4077797743023596e-06,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "case_05",
+          "name": "Case 5 - Chain",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "2fcde82b61cd49f5e46c6e9ab1eacbc6e6a2c329dcd00cc041d2ef9c6411e887",
           "declared": {
             "latent_dimension": 20,
             "structural_dimension": 20
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 1,
-            "structural_dimension": 1
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 1,
-              "edges": 190
-            }
-          },
-          "input_sha256": "2fcde82b61cd49f5e46c6e9ab1eacbc6e6a2c329dcd00cc041d2ef9c6411e887",
-          "legacy_alpha": {
-            "maximum": 5.1428017491325706e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 5.1428017491325706e-05
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.7328937798143434,
-            "r2_by_objective": {
-              "f10": 0.7371927499319091,
-              "f11": 0.724013873975611,
-              "f12": 0.6984267919034021,
-              "f13": 0.6827771024182796,
-              "f14": 0.6638860479173838,
-              "f15": 0.6426794285612142,
-              "f16": 0.6180584291541696,
-              "f17": 0.600675577677722,
-              "f18": 0.5855181580477062,
-              "f19": 0.5686565118064812,
-              "f2": 0.959793876596483,
-              "f20": 0.5519720849223559,
-              "f3": 0.9279735956326101,
-              "f4": 0.8966348191295432,
-              "f5": 0.8686474169953385,
-              "f6": 0.8441011166655865,
-              "f7": 0.8113009377961692,
-              "f8": 0.788982158594091,
-              "f9": 0.7536911387464693
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.5519720849223559
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 20,
-          "name": "Case 5 - Chain",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 10,
-            "intersection_size": 1,
-            "jaccard": 0.1,
-            "reduced_front_size": 1,
-            "retention": 0.1,
-            "validity": 1.0
+            "structural_dimension": 1,
+            "preferred_mis_size": 1
           },
           "preferred_indices": [
             0
@@ -456,75 +419,86 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 19.0,
-            "avg_internal_degree": 0.0,
+            "size": 1,
             "neighborhood": 19,
             "neighborhood_ratio": 1.0,
-            "size": 1,
-            "span": 19
+            "span": 19,
+            "avg_external_degree": 19.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 20,
           "rank_counts": {
             "1": 20
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 190,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f2": 0.959793876596483,
+              "f3": 0.9279735956326101,
+              "f4": 0.8966348191295432,
+              "f5": 0.8686474169953385,
+              "f6": 0.8441011166655865,
+              "f7": 0.8113009377961692,
+              "f8": 0.7889821585940912,
+              "f9": 0.7536911387464693,
+              "f10": 0.7371927499319091,
+              "f11": 0.724013873975611,
+              "f12": 0.6984267919034021,
+              "f13": 0.6827771024182796,
+              "f14": 0.6638860479173838,
+              "f15": 0.6426794285612142,
+              "f16": 0.6180584291541695,
+              "f17": 0.600675577677722,
+              "f18": 0.5855181580477062,
+              "f19": 0.5686565118064812,
+              "f20": 0.5519720849223559
+            },
+            "mean_r2": 0.7328937798143434,
+            "worst_r2": 0.5519720849223559,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.1,
+            "validity": 1.0,
+            "jaccard": 0.1,
+            "full_front_size": 10,
+            "reduced_front_size": 1,
+            "intersection_size": 1,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 5.1428017491325706e-05,
+            "selected": 5.1428017491325706e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "case_06",
+          "name": "Case 6 - Mixed (indep + latents)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "f0c2bccd73e12642aa118393859a591b7cbbee26f8b66120c94c464a97ac7689",
           "declared": {
             "latent_dimension": 12,
             "structural_dimension": 12
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 12,
-            "structural_dimension": 12
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 12,
-              "edges": 20
-            }
-          },
-          "input_sha256": "f0c2bccd73e12642aa118393859a591b7cbbee26f8b66120c94c464a97ac7689",
-          "legacy_alpha": {
-            "maximum": 3.53920968104688e-07,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 3.53920968104688e-07
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.9251695083596145,
-            "r2_by_objective": {
-              "f12": 0.9270971256456682,
-              "f13": 0.9291297130597921,
-              "f14": 0.9259329907773101,
-              "f15": 0.9250028250247606,
-              "f17": 0.9215665567358703,
-              "f18": 0.9230958743769402,
-              "f19": 0.9274402466161323,
-              "f20": 0.9220907346404434
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.9215665567358703
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 25,
-          "name": "Case 6 - Mixed (indep + latents)",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 940,
-            "intersection_size": 924,
-            "jaccard": 0.9829787234042553,
-            "reduced_front_size": 924,
-            "retention": 0.9829787234042553,
-            "validity": 1.0
+            "structural_dimension": 12,
+            "preferred_mis_size": 12
           },
           "preferred_indices": [
             0,
@@ -556,85 +530,75 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 0.6666666666666666,
-            "avg_internal_degree": 0.0,
+            "size": 12,
             "neighborhood": 8,
             "neighborhood_ratio": 1.0,
-            "size": 12,
-            "span": 8
+            "span": 8,
+            "avg_external_degree": 0.6666666666666666,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 25,
           "rank_counts": {
             "1": 25
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 20,
+              "components": 12
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f12": 0.9270971256456682,
+              "f13": 0.9291297130597921,
+              "f14": 0.9259329907773101,
+              "f15": 0.9250028250247606,
+              "f17": 0.9215665567358703,
+              "f18": 0.9230958743769402,
+              "f19": 0.9274402466161323,
+              "f20": 0.9220907346404434
+            },
+            "mean_r2": 0.9251695083596145,
+            "worst_r2": 0.9215665567358703,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.9829787234042553,
+            "validity": 1.0,
+            "jaccard": 0.9829787234042553,
+            "full_front_size": 940,
+            "reduced_front_size": 924,
+            "intersection_size": 924,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 3.53920968104688e-07,
+            "selected": 3.53920968104688e-07,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "case_07",
+          "name": "Case 7 - Structural conflict (anti-corr) 2-groups",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "3fdbb9e5159701a932d2ff3e4ba6ff3d16f101ac630d850554efb5239cbfc534",
           "declared": {
             "latent_dimension": 1,
             "structural_dimension": 2
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 2,
-            "structural_dimension": 2
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 2,
-              "edges": 90
-            }
-          },
-          "input_sha256": "3fdbb9e5159701a932d2ff3e4ba6ff3d16f101ac630d850554efb5239cbfc534",
-          "legacy_alpha": {
-            "maximum": 7.309275098608299e-06,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 7.309275098608299e-06
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.9962388072732689,
-            "r2_by_objective": {
-              "f10": 0.9959886901905468,
-              "f12": 0.9961460121633382,
-              "f13": 0.9963149573862103,
-              "f14": 0.9965193704068197,
-              "f15": 0.9962344748981026,
-              "f16": 0.9963446208225871,
-              "f17": 0.9964099499231978,
-              "f18": 0.996193228783963,
-              "f19": 0.9962232990614667,
-              "f2": 0.996304694667134,
-              "f20": 0.9962037174204661,
-              "f3": 0.9960794452473011,
-              "f4": 0.9962693974783566,
-              "f5": 0.996100243092789,
-              "f6": 0.9960323272842073,
-              "f7": 0.9963307641980943,
-              "f8": 0.9963003513117554,
-              "f9": 0.9963029865825029
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.9959886901905468
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 100,
-          "name": "Case 7 - Structural conflict (anti-corr) 2-groups",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 999,
-            "intersection_size": 128,
-            "jaccard": 0.12812812812812813,
-            "reduced_front_size": 128,
-            "retention": 0.12812812812812813,
-            "validity": 1.0
+            "structural_dimension": 2,
+            "preferred_mis_size": 2
           },
           "preferred_indices": [
             0,
@@ -646,51 +610,126 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 9.0,
-            "avg_internal_degree": 0.0,
+            "size": 2,
             "neighborhood": 18,
             "neighborhood_ratio": 1.0,
-            "size": 2,
-            "span": 18
+            "span": 18,
+            "avg_external_degree": 9.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 100,
           "rank_counts": {
             "1": 100
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 90,
+              "components": 2
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f2": 0.996304694667134,
+              "f3": 0.9960794452473011,
+              "f4": 0.9962693974783566,
+              "f5": 0.996100243092789,
+              "f6": 0.9960323272842073,
+              "f7": 0.9963307641980943,
+              "f8": 0.9963003513117554,
+              "f9": 0.9963029865825029,
+              "f10": 0.9959886901905468,
+              "f12": 0.9961460121633382,
+              "f13": 0.9963149573862103,
+              "f14": 0.9965193704068197,
+              "f15": 0.9962344748981026,
+              "f16": 0.9963446208225871,
+              "f17": 0.9964099499231978,
+              "f18": 0.996193228783963,
+              "f19": 0.9962232990614667,
+              "f20": 0.9962037174204661
+            },
+            "mean_r2": 0.9962388072732689,
+            "worst_r2": 0.9959886901905468,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.12812812812812813,
+            "validity": 1.0,
+            "jaccard": 0.12812812812812813,
+            "full_front_size": 999,
+            "reduced_front_size": 128,
+            "intersection_size": 128,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 7.3092750986082575e-06,
+            "selected": 7.3092750986082575e-06,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "mop_a",
+          "name": "MOP-A — Monotonic redundancy (1D, M=20)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "1d8c547a97d13fc1fd57532910f9160000e8f3e6479049dccc634a52dd3622c4",
           "declared": {
             "latent_dimension": 1,
             "structural_dimension": 1
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 1,
-            "structural_dimension": 1
+            "structural_dimension": 1,
+            "preferred_mis_size": 1
+          },
+          "preferred_indices": [
+            0
+          ],
+          "preferred_labels": [
+            "f1"
+          ],
+          "preferred_rank": 1,
+          "preferred_rank_values": {
+            "size": 1,
+            "neighborhood": 19,
+            "neighborhood_ratio": 1.0,
+            "span": 19,
+            "avg_external_degree": 19.0,
+            "avg_internal_degree": 0.0
+          },
+          "n_mis": 20,
+          "rank_counts": {
+            "1": 20
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 1,
-              "edges": 190
+              "edges": 190,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "dda84ee9767330d2325a09f9e20fb825ce206da3fc37fc35fade383fa99132ac",
-          "legacy_alpha": {
-            "maximum": 1.3107744181249755e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.3107744181249755e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9477521745155147,
             "r2_by_objective": {
+              "f2": 1.0,
+              "f3": 0.9254951589963526,
+              "f4": 0.9369289024319384,
+              "f5": 0.9588009414505747,
+              "f6": 0.8392067279609802,
+              "f7": 0.9957449617622884,
+              "f8": 0.9469393498930202,
+              "f9": 0.9666107438881509,
               "f10": 0.9693978153973326,
               "f11": 0.9020173635071103,
               "f12": 0.9980691808031473,
@@ -701,119 +740,44 @@
               "f17": 0.8719805679759187,
               "f18": 0.9819900071137531,
               "f19": 0.9833317384793482,
-              "f2": 1.0,
-              "f20": 0.9741893761804534,
-              "f3": 0.9254951589963526,
-              "f4": 0.9369289024319384,
-              "f5": 0.9588009414505747,
-              "f6": 0.8392067279609802,
-              "f7": 0.9957449617622884,
-              "f8": 0.9469393498930202,
-              "f9": 0.9666107438881509
+              "f20": 0.9741893761804534
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.8392067279609802
+            "mean_r2": 0.9477521745155147,
+            "worst_r2": 0.8392067279609802,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 20,
-          "name": "MOP-A — Monotonic redundancy (1D, M=20)",
           "pareto": {
-            "exact_preservation": true,
-            "full_front_size": 1,
-            "intersection_size": 1,
-            "jaccard": 1.0,
-            "reduced_front_size": 1,
             "retention": 1.0,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 1.0,
+            "full_front_size": 1,
+            "reduced_front_size": 1,
+            "intersection_size": 1,
+            "exact_preservation": true
           },
-          "preferred_indices": [
-            0
-          ],
-          "preferred_labels": [
-            "f1"
-          ],
-          "preferred_rank": 1,
-          "preferred_rank_values": {
-            "avg_external_degree": 19.0,
-            "avg_internal_degree": 0.0,
-            "neighborhood": 19,
-            "neighborhood_ratio": 1.0,
-            "size": 1,
-            "span": 19
-          },
-          "rank_counts": {
-            "1": 20
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.3107744181249682e-05,
+            "selected": 1.3107744181249682e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "mop_b",
+          "name": "MOP-B — Trade-off + redundancies (~2D, M=20)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "cbf1127348eb48cd2a6c6024bbefe76d788e83a16d3acf4c9ed34143d78e29a8",
           "declared": {
             "latent_dimension": 2,
             "structural_dimension": 2
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 2,
-            "structural_dimension": 1
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 1,
-              "edges": 148
-            }
-          },
-          "input_sha256": "a713585c2a7933c8d5a9b3c2418fa0c43ed8de6615b7e61a6064fb57a241383c",
-          "legacy_alpha": {
-            "maximum": 1.587697155318631e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.587697155318631e-05
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.952426479648019,
-            "r2_by_objective": {
-              "f10": 0.9543088910496941,
-              "f11": 0.9399372427008896,
-              "f12": 0.8449305973071296,
-              "f13": 0.9434731404777542,
-              "f14": 0.9274827627372365,
-              "f16": 0.9945206831421723,
-              "f17": 0.9411543154476658,
-              "f18": 0.9412214182420698,
-              "f19": 0.9141047449371401,
-              "f2": 0.9949918464898806,
-              "f20": 0.9976072709350049,
-              "f3": 1.0,
-              "f4": 0.9438097358912898,
-              "f5": 0.979188098443851,
-              "f6": 0.9529009531088264,
-              "f7": 0.9896712538603857,
-              "f8": 0.9434731404777543,
-              "f9": 0.9409005384155941
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.8449305973071296
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 49,
-          "name": "MOP-B — Trade-off + redundancies (~2D, M=20)",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 48,
-            "intersection_size": 32,
-            "jaccard": 0.6666666666666666,
-            "reduced_front_size": 32,
-            "retention": 0.6666666666666666,
-            "validity": 1.0
+            "structural_dimension": 1,
+            "preferred_mis_size": 2
           },
           "preferred_indices": [
             0,
@@ -825,84 +789,86 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 12.5,
-            "avg_internal_degree": 0.0,
+            "size": 2,
             "neighborhood": 18,
             "neighborhood_ratio": 1.0,
-            "size": 2,
-            "span": 25
+            "span": 25,
+            "avg_external_degree": 12.5,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 49,
           "rank_counts": {
             "1": 42,
             "2": 7
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 148,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f2": 0.9949918464898806,
+              "f3": 1.0,
+              "f4": 0.9438097358912899,
+              "f5": 0.979188098443851,
+              "f6": 0.9529009531088264,
+              "f7": 0.9896712538603857,
+              "f8": 0.9434731404777543,
+              "f9": 0.9409005384155942,
+              "f10": 0.9543088910496941,
+              "f11": 0.9399372427008896,
+              "f12": 0.8449305973071296,
+              "f13": 0.9434731404777543,
+              "f14": 0.9274827627372365,
+              "f16": 0.9945206831421723,
+              "f17": 0.9411543154476658,
+              "f18": 0.9412214182420698,
+              "f19": 0.9141047449371401,
+              "f20": 0.9976072709350049
+            },
+            "mean_r2": 0.952426479648019,
+            "worst_r2": 0.8449305973071296,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.6666666666666666,
+            "validity": 1.0,
+            "jaccard": 0.6666666666666666,
+            "full_front_size": 48,
+            "reduced_front_size": 32,
+            "intersection_size": 32,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.587697155318631e-05,
+            "selected": 1.587697155318631e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "mop_c",
+          "name": "MOP-C — Latent blocks (4×5, M=20)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "41cbc1f98cef896b805d0462e1d1a3e721a518204815018b7ff789d1d829f237",
           "declared": {
             "latent_dimension": 4,
             "structural_dimension": 4
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 4,
-            "structural_dimension": 4
-          },
-          "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
-            "structural": {
-              "components": 4,
-              "edges": 40
-            }
-          },
-          "input_sha256": "26bdbbf1d2228e37fd8f92342899b0255518c4a9fe9cd1b9df37f636b76120e4",
-          "legacy_alpha": {
-            "maximum": 1.7715493396524608e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.7715493396524608e-05
-          },
-          "linear_reconstruction": {
-            "mean_r2": 0.9521287195784376,
-            "r2_by_objective": {
-              "f12": 0.9952754196697744,
-              "f13": 0.9593139197683678,
-              "f14": 0.9273513288112301,
-              "f15": 0.9541643313916717,
-              "f17": 0.9923986242006795,
-              "f18": 0.9832655973491995,
-              "f19": 0.9269210001951255,
-              "f2": 1.0,
-              "f20": 0.9593225321975403,
-              "f3": 0.9366616396761605,
-              "f4": 0.9586315097048613,
-              "f5": 0.9252142364556568,
-              "f6": 0.9567680330120697,
-              "f7": 0.9567680330120697,
-              "f8": 0.9941475627372741,
-              "f9": 0.8078557450733214
-            },
-            "status": "SUCCESS",
-            "worst_r2": 0.8078557450733214
-          },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 625,
-          "name": "MOP-C — Latent blocks (4×5, M=20)",
-          "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 83,
-            "intersection_size": 70,
-            "jaccard": 0.8433734939759037,
-            "reduced_front_size": 70,
-            "retention": 0.8433734939759037,
-            "validity": 1.0
+            "structural_dimension": 4,
+            "preferred_mis_size": 4
           },
           "preferred_indices": [
             0,
@@ -918,51 +884,126 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 4.0,
-            "avg_internal_degree": 0.0,
+            "size": 4,
             "neighborhood": 16,
             "neighborhood_ratio": 1.0,
-            "size": 4,
-            "span": 16
+            "span": 16,
+            "avg_external_degree": 4.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 625,
           "rank_counts": {
             "1": 625
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "graphs": {
+            "structural": {
+              "edges": 40,
+              "components": 4
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
+            }
+          },
+          "linear_reconstruction": {
+            "r2_by_objective": {
+              "f2": 1.0,
+              "f3": 0.9366616396761605,
+              "f4": 0.9586315097048613,
+              "f5": 0.9252142364556568,
+              "f6": 0.9567680330120697,
+              "f7": 0.9567680330120697,
+              "f8": 0.9941475627372741,
+              "f9": 0.8078557450733214,
+              "f12": 0.9952754196697744,
+              "f13": 0.9593139197683678,
+              "f14": 0.9273513288112301,
+              "f15": 0.9541643313916717,
+              "f17": 0.9923986242006795,
+              "f18": 0.9832655973491995,
+              "f19": 0.9269210001951255,
+              "f20": 0.9593225321975403
+            },
+            "mean_r2": 0.9521287195784376,
+            "worst_r2": 0.8078557450733214,
+            "status": "SUCCESS"
+          },
+          "pareto": {
+            "retention": 0.8433734939759037,
+            "validity": 1.0,
+            "jaccard": 0.8433734939759037,
+            "full_front_size": 83,
+            "reduced_front_size": 70,
+            "intersection_size": 70,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.7715493396524414e-05,
+            "selected": 1.7715493396524414e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "mop_d",
+          "name": "MOP-D — Structural conflict (anti-corr) 2-groups (M=20)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "6dfa6b76589ccd51c593061fff4aac2b0f796c3cb3ef7173b72b550112757fde",
           "declared": {
             "latent_dimension": 1,
             "structural_dimension": 2
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 2,
-            "structural_dimension": 2
+            "structural_dimension": 2,
+            "preferred_mis_size": 2
+          },
+          "preferred_indices": [
+            0,
+            10
+          ],
+          "preferred_labels": [
+            "f1",
+            "f11"
+          ],
+          "preferred_rank": 1,
+          "preferred_rank_values": {
+            "size": 2,
+            "neighborhood": 18,
+            "neighborhood_ratio": 1.0,
+            "span": 18,
+            "avg_external_degree": 9.0,
+            "avg_internal_degree": 0.0
+          },
+          "n_mis": 100,
+          "rank_counts": {
+            "1": 100
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 2,
-              "edges": 90
+              "edges": 90,
+              "components": 2
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "38c402a80898fd585b29ea953af15c6aeeacf33a4a33e1bbc52ea883bd639422",
-          "legacy_alpha": {
-            "maximum": 2.1261994379401186e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 2.1261994379401186e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9437888786456861,
             "r2_by_objective": {
+              "f2": 1.0,
+              "f3": 0.9254951589963526,
+              "f4": 0.9369289024319384,
+              "f5": 0.9588009414505747,
+              "f6": 0.8392067279609802,
+              "f7": 0.9020173635071103,
+              "f8": 0.9693978153973326,
+              "f9": 0.9666107438881509,
               "f10": 0.9980691808031473,
               "f12": 1.0,
               "f13": 0.9265466892511529,
@@ -972,31 +1013,44 @@
               "f17": 0.9055709265059375,
               "f18": 0.9695833288089398,
               "f19": 0.965636546808722,
-              "f2": 1.0,
-              "f20": 0.9980499060396648,
-              "f3": 0.9254951589963526,
-              "f4": 0.9369289024319384,
-              "f5": 0.9588009414505747,
-              "f6": 0.8392067279609802,
-              "f7": 0.9020173635071103,
-              "f8": 0.9693978153973325,
-              "f9": 0.9666107438881509
+              "f20": 0.9980499060396648
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.8319643923792226
+            "mean_r2": 0.9437888786456861,
+            "worst_r2": 0.8319643923792226,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 100,
-          "name": "MOP-D — Structural conflict (anti-corr) 2-groups (M=20)",
           "pareto": {
-            "exact_preservation": true,
-            "full_front_size": 1000,
-            "intersection_size": 1000,
-            "jaccard": 1.0,
-            "reduced_front_size": 1000,
             "retention": 1.0,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 1.0,
+            "full_front_size": 1000,
+            "reduced_front_size": 1000,
+            "intersection_size": 1000,
+            "exact_preservation": true
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 2.126199437940126e-05,
+            "selected": 2.126199437940126e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
+        },
+        {
+          "case_id": "mop_e",
+          "name": "MOP-E — Partial redundancy + noise (M=20)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "0cfcd11707738503ba1adeb65c8430118b7ff818aaa19aaf618a652de9c1d4ea",
+          "declared": {
+            "latent_dimension": 2,
+            "structural_dimension": 2
+          },
+          "estimated": {
+            "latent_dimension": null,
+            "structural_dimension": 1,
+            "preferred_mis_size": 2
           },
           "preferred_indices": [
             0,
@@ -1008,51 +1062,39 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 9.0,
-            "avg_internal_degree": 0.0,
+            "size": 2,
             "neighborhood": 18,
             "neighborhood_ratio": 1.0,
-            "size": 2,
-            "span": 18
+            "span": 24,
+            "avg_external_degree": 12.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 46,
           "rank_counts": {
-            "1": 100
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
-        },
-        {
-          "case_id": "mop_e",
-          "declared": {
-            "latent_dimension": 2,
-            "structural_dimension": 2
-          },
-          "estimated": {
-            "latent_dimension": null,
-            "preferred_mis_size": 2,
-            "structural_dimension": 1
+            "1": 40,
+            "2": 6
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 1,
-              "edges": 150
+              "edges": 150,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "c24b0fb79a446a43284f8bfb7b43339b84e59bb13d5d3b7ec8d5ceed12b36e1e",
-          "legacy_alpha": {
-            "maximum": 2.1612097604035547e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 2.1612097604035547e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9570770942136251,
             "r2_by_objective": {
+              "f2": 0.970703386509993,
+              "f3": 0.9704561502245443,
+              "f4": 1.0,
+              "f5": 0.936805098375217,
+              "f6": 0.9587271243474146,
+              "f7": 0.9253619324393075,
+              "f8": 0.9665452031647935,
+              "f9": 0.901833566253425,
               "f10": 0.9996863140723301,
               "f12": 1.0,
               "f13": 0.9569840627479911,
@@ -1062,88 +1104,85 @@
               "f17": 0.9774876632853672,
               "f18": 0.9296371847381859,
               "f19": 0.9878722211628194,
-              "f2": 0.9707033865099929,
-              "f20": 0.8715973057466091,
-              "f3": 0.9704561502245443,
-              "f4": 1.0,
-              "f5": 0.936805098375217,
-              "f6": 0.9587271243474146,
-              "f7": 0.9253619324393075,
-              "f8": 0.9665452031647935,
-              "f9": 0.901833566253425
+              "f20": 0.8715973057466091
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.8715973057466091
+            "mean_r2": 0.9570770942136251,
+            "worst_r2": 0.8715973057466091,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 46,
-          "name": "MOP-E — Partial redundancy + noise (M=20)",
           "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 33,
-            "intersection_size": 12,
-            "jaccard": 0.36363636363636365,
-            "reduced_front_size": 12,
             "retention": 0.36363636363636365,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 0.36363636363636365,
+            "full_front_size": 33,
+            "reduced_front_size": 12,
+            "intersection_size": 12,
+            "exact_preservation": false
           },
-          "preferred_indices": [
-            0,
-            10
-          ],
-          "preferred_labels": [
-            "f1",
-            "f11"
-          ],
-          "preferred_rank": 1,
-          "preferred_rank_values": {
-            "avg_external_degree": 12.0,
-            "avg_internal_degree": 0.0,
-            "neighborhood": 18,
-            "neighborhood_ratio": 1.0,
-            "size": 2,
-            "span": 24
-          },
-          "rank_counts": {
-            "1": 40,
-            "2": 6
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 2.1612097604035676e-05,
+            "selected": 2.1612097604035676e-05,
+            "regime": "LIMINAL_SEPARATION"
+          }
         },
         {
           "case_id": "mop_f",
+          "name": "MOP-F — Regimes (mixture, M=20)",
+          "seed": 123,
+          "n": 1000,
+          "m": 20,
+          "input_sha256": "ae687dbdb76cb3034e96b946c23d8272412412eaf791c7aaaa9802e961835e62",
           "declared": {
             "latent_dimension": 2,
             "structural_dimension": 2
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 1,
-            "structural_dimension": 1
+            "structural_dimension": 1,
+            "preferred_mis_size": 1
+          },
+          "preferred_indices": [
+            0
+          ],
+          "preferred_labels": [
+            "f1"
+          ],
+          "preferred_rank": 1,
+          "preferred_rank_values": {
+            "size": 1,
+            "neighborhood": 19,
+            "neighborhood_ratio": 1.0,
+            "span": 19,
+            "avg_external_degree": 19.0,
+            "avg_internal_degree": 0.0
+          },
+          "n_mis": 20,
+          "rank_counts": {
+            "1": 20
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 1,
-              "edges": 190
+              "edges": 190,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "61627a388528ab0d3edd0f0ee555caec570b02026eb560cdd803416eff0d73d9",
-          "legacy_alpha": {
-            "maximum": 9.96189990567644e-06,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 9.96189990567644e-06
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.6082477553166693,
             "r2_by_objective": {
+              "f2": 0.9156134095077115,
+              "f3": 0.9126557765609972,
+              "f4": 0.9469553286416388,
+              "f5": 0.9828680606182506,
+              "f6": 0.9070877646594345,
+              "f7": 0.9952208618246428,
+              "f8": 0.9574900226345302,
+              "f9": 0.9646656059938093,
               "f10": 0.993341853830133,
               "f11": 0.3097945879547509,
               "f12": 0.29289784235613925,
@@ -1154,31 +1193,66 @@
               "f17": 0.3099533824413546,
               "f18": 0.30326086862086976,
               "f19": 0.29686861887784566,
-              "f2": 0.9156134095077115,
-              "f20": 0.3090023906134778,
-              "f3": 0.9126557765609972,
-              "f4": 0.9469553286416388,
-              "f5": 0.9828680606182506,
-              "f6": 0.9070877646594345,
-              "f7": 0.9952208618246428,
-              "f8": 0.9574900226345302,
-              "f9": 0.9646656059938093
+              "f20": 0.3090023906134777
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.2743901827613263
+            "mean_r2": 0.6082477553166693,
+            "worst_r2": 0.2743901827613263,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 1000,
-          "n_mis": 20,
-          "name": "MOP-F — Regimes (mixture, M=20)",
           "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 13,
-            "intersection_size": 1,
-            "jaccard": 0.07692307692307693,
-            "reduced_front_size": 1,
             "retention": 0.07692307692307693,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 0.07692307692307693,
+            "full_front_size": 13,
+            "reduced_front_size": 1,
+            "intersection_size": 1,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 9.96189990567653e-06,
+            "selected": 9.96189990567653e-06,
+            "regime": "LIMINAL_SEPARATION"
+          }
+        }
+      ]
+    },
+    "comparative": {
+      "format_version": 1,
+      "suite": "comparative",
+      "methods": [
+        "static",
+        "pca"
+      ],
+      "parameters": {
+        "n": 500,
+        "seed": 123
+      },
+      "software": {
+        "python": "3.12.3",
+        "misda": "0.4.2",
+        "numpy": "2.4.1",
+        "pandas": "3.0.0",
+        "scipy": "1.17.0",
+        "scikit-learn": "1.9.0"
+      },
+      "cases": [
+        {
+          "case_id": "exp_01",
+          "name": "MOP-A — Monotonic redundancy (1D, M=20)",
+          "seed": 123,
+          "n": 500,
+          "m": 20,
+          "input_sha256": "0435675d4410082a5fb5cf4223772f5fbd7407deacf6a38509e94a4f770f02ab",
+          "declared": {
+            "latent_dimension": 1,
+            "structural_dimension": 1
+          },
+          "estimated": {
+            "latent_dimension": null,
+            "structural_dimension": 1,
+            "preferred_mis_size": 1
           },
           "preferred_indices": [
             0
@@ -1188,70 +1262,38 @@
           ],
           "preferred_rank": 1,
           "preferred_rank_values": {
-            "avg_external_degree": 19.0,
-            "avg_internal_degree": 0.0,
+            "size": 1,
             "neighborhood": 19,
             "neighborhood_ratio": 1.0,
-            "size": 1,
-            "span": 19
+            "span": 19,
+            "avg_external_degree": 19.0,
+            "avg_internal_degree": 0.0
           },
+          "n_mis": 20,
           "rank_counts": {
             "1": 20
           },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
-        }
-      ],
-      "format_version": 1,
-      "method": "static",
-      "parameters": {
-        "n": 1000,
-        "seed": 123
-      },
-      "software": {
-        "misda": "0.4.1",
-        "numpy": "2.5.1",
-        "pandas": "3.0.5",
-        "python": "3.12.13",
-        "scikit-learn": "1.9.0",
-        "scipy": "1.18.0"
-      },
-      "suite": "benchmark"
-    },
-    "comparative": {
-      "cases": [
-        {
-          "case_id": "exp_01",
-          "declared": {
-            "latent_dimension": 1,
-            "structural_dimension": 1
-          },
-          "estimated": {
-            "latent_dimension": null,
-            "preferred_mis_size": 1,
-            "structural_dimension": 1
-          },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 1,
-              "edges": 190
+              "edges": 190,
+              "components": 1
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "1cd7c042250501b93c8d8edf6942de962e63f05e8a719de7ccedb0883e833054",
-          "legacy_alpha": {
-            "maximum": 1.6804023551637474e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.6804023551637474e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9490381693472698,
             "r2_by_objective": {
+              "f2": 1.0,
+              "f3": 0.9258558210757416,
+              "f4": 0.9402376948214181,
+              "f5": 0.9581070040130298,
+              "f6": 0.8490552686411779,
+              "f7": 0.995977841773765,
+              "f8": 0.9491441751644162,
+              "f9": 0.9683591163695897,
               "f10": 0.970038385091829,
               "f11": 0.9046653222278807,
               "f12": 0.9981614914452369,
@@ -1262,33 +1304,30 @@
               "f17": 0.8797903266993836,
               "f18": 0.9823189751277379,
               "f19": 0.9843151393683139,
-              "f2": 1.0,
-              "f20": 0.9755370716746564,
-              "f3": 0.9258558210757416,
-              "f4": 0.9402376948214181,
-              "f5": 0.9581070040130298,
-              "f6": 0.8490552686411779,
-              "f7": 0.995977841773765,
-              "f8": 0.9491441751644162,
-              "f9": 0.9683591163695897
+              "f20": 0.9755370716746564
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.8490552686411779
+            "mean_r2": 0.9490381693472698,
+            "worst_r2": 0.8490552686411779,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 500,
-          "n_mis": 20,
-          "name": "MOP-A — Monotonic redundancy (1D, M=20)",
           "pareto": {
-            "exact_preservation": true,
-            "full_front_size": 1,
-            "intersection_size": 1,
-            "jaccard": 1.0,
-            "reduced_front_size": 1,
             "retention": 1.0,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 1.0,
+            "full_front_size": 1,
+            "reduced_front_size": 1,
+            "intersection_size": 1,
+            "exact_preservation": true
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.6804023551637288e-05,
+            "selected": 1.6804023551637288e-05,
+            "regime": "LIMINAL_SEPARATION"
           },
           "pca": {
+            "metric": "global_standardized_r2",
             "curve": [
               {
                 "dimension": 1,
@@ -1330,62 +1369,71 @@
                 "dimension": 10,
                 "global_standardized_r2": 0.9999999990576475
               }
-            ],
-            "metric": "global_standardized_r2"
-          },
-          "preferred_indices": [
-            0
-          ],
-          "preferred_labels": [
-            "f1"
-          ],
-          "preferred_rank": 1,
-          "preferred_rank_values": {
-            "avg_external_degree": 19.0,
-            "avg_internal_degree": 0.0,
-            "neighborhood": 19,
-            "neighborhood_ratio": 1.0,
-            "size": 1,
-            "span": 19
-          },
-          "rank_counts": {
-            "1": 20
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+            ]
+          }
         },
         {
           "case_id": "exp_02",
+          "name": "MOP-C — Latent blocks (4×5, M=20)",
+          "seed": 123,
+          "n": 500,
+          "m": 20,
+          "input_sha256": "a8967b6e480cab9eef582c8cbaac5681815872b8f11a38420ba73930ab776b64",
           "declared": {
             "latent_dimension": 4,
             "structural_dimension": 4
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 4,
-            "structural_dimension": 4
+            "structural_dimension": 4,
+            "preferred_mis_size": 4
+          },
+          "preferred_indices": [
+            0,
+            9,
+            10,
+            15
+          ],
+          "preferred_labels": [
+            "f1",
+            "f10",
+            "f11",
+            "f16"
+          ],
+          "preferred_rank": 1,
+          "preferred_rank_values": {
+            "size": 4,
+            "neighborhood": 16,
+            "neighborhood_ratio": 1.0,
+            "span": 16,
+            "avg_external_degree": 4.0,
+            "avg_internal_degree": 0.0
+          },
+          "n_mis": 625,
+          "rank_counts": {
+            "1": 625
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 4,
-              "edges": 40
+              "edges": 40,
+              "components": 4
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "1b294b7d0761b74a80a70856ae9acc2bd015322b23e7cea06d95bb5bd3dfb7c4",
-          "legacy_alpha": {
-            "maximum": 1.0211212312506695e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.0211212312506695e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9515738491193074,
             "r2_by_objective": {
+              "f2": 1.0,
+              "f3": 0.9397232668754755,
+              "f4": 0.9577194126117013,
+              "f5": 0.9251891879785349,
+              "f6": 0.9585332474440436,
+              "f7": 0.9585332474440437,
+              "f8": 0.9936695524711493,
+              "f9": 0.8046492514659149,
               "f12": 0.9950373370458045,
               "f13": 0.9581493522209741,
               "f14": 0.9239630565575839,
@@ -1393,33 +1441,30 @@
               "f17": 0.9924579694851179,
               "f18": 0.9833721704913103,
               "f19": 0.9240250689537115,
-              "f2": 1.0,
-              "f20": 0.9556050908747528,
-              "f3": 0.9397232668754755,
-              "f4": 0.9577194126117013,
-              "f5": 0.9251891879785349,
-              "f6": 0.9585332474440437,
-              "f7": 0.9585332474440437,
-              "f8": 0.9936695524711493,
-              "f9": 0.8046492514659149
+              "f20": 0.9556050908747528
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.8046492514659149
+            "mean_r2": 0.9515738491193074,
+            "worst_r2": 0.8046492514659149,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 500,
-          "n_mis": 625,
-          "name": "MOP-C — Latent blocks (4×5, M=20)",
           "pareto": {
-            "exact_preservation": false,
-            "full_front_size": 57,
-            "intersection_size": 52,
-            "jaccard": 0.9122807017543859,
-            "reduced_front_size": 52,
             "retention": 0.9122807017543859,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 0.9122807017543859,
+            "full_front_size": 57,
+            "reduced_front_size": 52,
+            "intersection_size": 52,
+            "exact_preservation": false
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.0211212312506752e-05,
+            "selected": 1.0211212312506752e-05,
+            "regime": "LIMINAL_SEPARATION"
           },
           "pca": {
+            "metric": "global_standardized_r2",
             "curve": [
               {
                 "dimension": 1,
@@ -1427,7 +1472,7 @@
               },
               {
                 "dimension": 2,
-                "global_standardized_r2": 0.5095760325318899
+                "global_standardized_r2": 0.5095760325318897
               },
               {
                 "dimension": 3,
@@ -1459,70 +1504,69 @@
               },
               {
                 "dimension": 10,
-                "global_standardized_r2": 0.9997052045068073
+                "global_standardized_r2": 0.9997052045068076
               }
-            ],
-            "metric": "global_standardized_r2"
-          },
-          "preferred_indices": [
-            0,
-            9,
-            10,
-            15
-          ],
-          "preferred_labels": [
-            "f1",
-            "f10",
-            "f11",
-            "f16"
-          ],
-          "preferred_rank": 1,
-          "preferred_rank_values": {
-            "avg_external_degree": 4.0,
-            "avg_internal_degree": 0.0,
-            "neighborhood": 16,
-            "neighborhood_ratio": 1.0,
-            "size": 4,
-            "span": 16
-          },
-          "rank_counts": {
-            "1": 625
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+            ]
+          }
         },
         {
           "case_id": "exp_03",
+          "name": "MOP-D — Structural conflict (anti-corr) 2-groups (M=20)",
+          "seed": 123,
+          "n": 500,
+          "m": 20,
+          "input_sha256": "95c9ee17019ae1cb6b90a4a1fbffe358b6d1abd5e2d2baf0d06ddef3b8fd2e6e",
           "declared": {
             "latent_dimension": 1,
             "structural_dimension": 2
           },
           "estimated": {
             "latent_dimension": null,
-            "preferred_mis_size": 2,
-            "structural_dimension": 2
+            "structural_dimension": 2,
+            "preferred_mis_size": 2
+          },
+          "preferred_indices": [
+            0,
+            10
+          ],
+          "preferred_labels": [
+            "f1",
+            "f11"
+          ],
+          "preferred_rank": 1,
+          "preferred_rank_values": {
+            "size": 2,
+            "neighborhood": 18,
+            "neighborhood_ratio": 1.0,
+            "span": 18,
+            "avg_external_degree": 9.0,
+            "avg_internal_degree": 0.0
+          },
+          "n_mis": 100,
+          "rank_counts": {
+            "1": 100
           },
           "graphs": {
-            "dependence": {
-              "components": null,
-              "edges": null,
-              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
-            },
             "structural": {
-              "components": 2,
-              "edges": 90
+              "edges": 90,
+              "components": 2
+            },
+            "dependence": {
+              "edges": null,
+              "components": null,
+              "status": "UNAVAILABLE_IN_LEGACY_RESULT"
             }
           },
-          "input_sha256": "f23305c8a72765dc648200866f5f4123ae37aa4890c4fc81dd0cb5e96eda3fdc",
-          "legacy_alpha": {
-            "maximum": 1.3328304117532808e-05,
-            "minimum": 2.2250738585072014e-308,
-            "regime": "LIMINAL_SEPARATION",
-            "selected": 1.3328304117532808e-05
-          },
           "linear_reconstruction": {
-            "mean_r2": 0.9461175227774076,
             "r2_by_objective": {
+              "f2": 1.0,
+              "f3": 0.9258558210757416,
+              "f4": 0.9402376948214181,
+              "f5": 0.9581070040130298,
+              "f6": 0.8490552686411779,
+              "f7": 0.9046653222278807,
+              "f8": 0.970038385091829,
+              "f9": 0.9683591163695897,
               "f10": 0.9981614914452369,
               "f12": 1.0,
               "f13": 0.9319759189122484,
@@ -1532,33 +1576,30 @@
               "f17": 0.9113444496508626,
               "f18": 0.9716712259752068,
               "f19": 0.9671164708077041,
-              "f2": 1.0,
-              "f20": 0.9981493053344968,
-              "f3": 0.9258558210757416,
-              "f4": 0.9402376948214181,
-              "f5": 0.9581070040130298,
-              "f6": 0.8490552686411779,
-              "f7": 0.9046653222278807,
-              "f8": 0.970038385091829,
-              "f9": 0.9683591163695897
+              "f20": 0.9981493053344968
             },
-            "status": "SUCCESS",
-            "worst_r2": 0.8345508063076132
+            "mean_r2": 0.9461175227774076,
+            "worst_r2": 0.8345508063076132,
+            "status": "SUCCESS"
           },
-          "m": 20,
-          "n": 500,
-          "n_mis": 100,
-          "name": "MOP-D — Structural conflict (anti-corr) 2-groups (M=20)",
           "pareto": {
-            "exact_preservation": true,
-            "full_front_size": 500,
-            "intersection_size": 500,
-            "jaccard": 1.0,
-            "reduced_front_size": 500,
             "retention": 1.0,
-            "validity": 1.0
+            "validity": 1.0,
+            "jaccard": 1.0,
+            "full_front_size": 500,
+            "reduced_front_size": 500,
+            "intersection_size": 500,
+            "exact_preservation": true
+          },
+          "separation_status": "NULL_SEPARATION",
+          "legacy_alpha": {
+            "minimum": 2.2250738585072014e-308,
+            "maximum": 1.3328304117532808e-05,
+            "selected": 1.3328304117532808e-05,
+            "regime": "LIMINAL_SEPARATION"
           },
           "pca": {
+            "metric": "global_standardized_r2",
             "curve": [
               {
                 "dimension": 1,
@@ -1600,51 +1641,10 @@
                 "dimension": 10,
                 "global_standardized_r2": 0.9999999999735104
               }
-            ],
-            "metric": "global_standardized_r2"
-          },
-          "preferred_indices": [
-            0,
-            10
-          ],
-          "preferred_labels": [
-            "f1",
-            "f11"
-          ],
-          "preferred_rank": 1,
-          "preferred_rank_values": {
-            "avg_external_degree": 9.0,
-            "avg_internal_degree": 0.0,
-            "neighborhood": 18,
-            "neighborhood_ratio": 1.0,
-            "size": 2,
-            "span": 18
-          },
-          "rank_counts": {
-            "1": 100
-          },
-          "seed": 123,
-          "separation_status": "NULL_SEPARATION"
+            ]
+          }
         }
-      ],
-      "format_version": 1,
-      "methods": [
-        "static",
-        "pca"
-      ],
-      "parameters": {
-        "n": 500,
-        "seed": 123
-      },
-      "software": {
-        "misda": "0.4.1",
-        "numpy": "2.5.1",
-        "pandas": "3.0.5",
-        "python": "3.12.13",
-        "scikit-learn": "1.9.0",
-        "scipy": "1.18.0"
-      },
-      "suite": "comparative"
+      ]
     }
   },
   "baseline_format_version": 1,

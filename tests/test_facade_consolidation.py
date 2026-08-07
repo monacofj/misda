@@ -31,7 +31,7 @@ def test_consolidated_operations_are_reexported_from_package(name, module):
 
 def test_package_version_comes_from_metadata_module():
     assert misda.__version__ is _metadata.__version__
-    assert misda.__version__ == "0.4.1"
+    assert misda.__version__ == "0.4.2"
 
 
 def test_spectral_entropy_values_are_unchanged():

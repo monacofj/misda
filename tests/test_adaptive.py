@@ -31,11 +31,8 @@ def test_zero_range_constant_column_exception():
         [3.0, 2.0, 3.0],
         [4.0, 2.0, 2.0],
     ])
-    with pytest.raises(ValueError, match="Objective 'f2' \\(column index 1\\) has zero range"):
-        misda.analyze(Y, method='adaptive')
-
-    with pytest.raises(ValueError, match="zero range"):
-        misda.analyze(Y, method='static')
+    res = misda.analyze(Y, method='static')
+    assert res.analysis.structural_graph.nodes[1]["constant"] is True
 
 
 def test_adaptive_execution_and_types():
