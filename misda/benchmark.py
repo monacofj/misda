@@ -297,13 +297,10 @@ class BenchmarkResult:
 
         lines.append("Observed analysis")
         lines.append(
-            f"  Original dim.  : {analysis.original_dimension}"
-        )
-        lines.append(
-            f"  Positive comps.: {analysis.structural_dimension}"
-        )
-        lines.append(
-            f"  Depend. comps. : {analysis.latent_dimension}"
+            "  Dimensions     : "
+            f"original={analysis.original_dimension}, "
+            f"latent={analysis.latent_dimension}, "
+            f"structural={analysis.structural_dimension}"
         )
         lines.append(
             "  Selected dim.  : "
@@ -323,13 +320,15 @@ class BenchmarkResult:
         lines.append(
             "  Latent         : "
             f"expected={_format_metric(self.latent_expected)}, "
-            "estimated=N/A — "
-            + self.unavailable_reasons["latent_dimension"]
+            f"estimated={_format_metric(analysis.latent_dimension)}, "
+            f"error={_format_metric(self.latent_error)}, "
+            f"relative_error={_format_metric(self.latent_relative_error)}, "
+            f"exact={_format_metric(self.latent_exact)}"
         )
         lines.append(
             "  Structural     : "
             f"expected={_format_metric(self.structural_expected)}, "
-            f"selected={_format_metric(self.selected_dimension)}, "
+            f"estimated={_format_metric(analysis.structural_dimension)}, "
             f"error={_format_metric(self.structural_error)}, "
             f"relative_error={_format_metric(self.structural_relative_error)}, "
             f"exact={_format_metric(self.structural_dimension_exact)}"
@@ -392,14 +391,14 @@ def benchmark(result, truth):
     found_blocks = _found_structural_blocks(result)
     selected_dimension = result.selected_dimension
 
-    # The current static method does not estimate latent generative degrees of
-    # freedom.  A connected dependence graph is only a topological diagnostic;
-    # treating its component count as a latent-dimension estimate is invalid.
-    latent = (None, None, None)
+    latent = _dimension_metrics(
+        result.analysis.latent_dimension,
+        latent_expected,
+    )
     structural_dimension = _dimension_metrics(
-        selected_dimension,
+        result.analysis.structural_dimension,
         structural_expected,
-    ) if selected_dimension is not None else (None, None, None)
+    )
     unavailable = {}
 
     if blocks_expected is None:
@@ -448,17 +447,9 @@ def benchmark(result, truth):
 
     if latent_expected is None:
         unavailable["latent_dimension"] = "latent_expected was not declared"
-    else:
-        unavailable["latent_dimension"] = (
-            "the current method does not estimate latent dimension"
-        )
     if structural_expected is None:
         unavailable["structural_dimension"] = (
             "structural_expected was not declared"
-        )
-    elif selected_dimension is None:
-        unavailable["structural_dimension"] = (
-            "no preferred MIS was available"
         )
 
     return BenchmarkResult(

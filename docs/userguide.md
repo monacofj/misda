@@ -72,11 +72,10 @@ print(analysis.structural_dimension)
 print(result.best_mis.size)
 ```
 
-The graph-component counts describe topology; they are not interchangeable
-with selected dimensionality. In particular, a connected graph may require a
-preferred MIS with two or more non-redundant representatives. The current
-static method does not estimate latent generative degrees of freedom from the
-dependence-component count.
+These graph-component counts are the method's current estimates of structural
+and latent dimension. They are not interchangeable with selected
+dimensionality: a connected graph may require a preferred MIS with two or more
+non-redundant representatives.
 
 The separation status is explicit. `NULL_SEPARATION` means the positive-signal
 onset precedes the null-calibrated endpoint. `NO_NULL_SEPARATION` means no such
@@ -207,14 +206,13 @@ zero-based row indices from the same observations analyzed in `result`.
 `feature`, `intuition`, `graph_expected`, and `notes` are preserved for the
 report and are never interpreted by the method.
 
-Structural-dimensional error compares the preferred MIS size (the selected
-dimension) with `structural_expected`. `latent_expected` is preserved and
-reported, but its error is `None` because the current static method has no
-latent-dimension estimator. Graph-component counts remain separate topology
-diagnostics. Structural reconstruction uses optimal one-to-one block matching
-by Jaccard plus pairwise precision, recall, and F1. Pareto metrics compare the
-stored reduced-front row indices with `pareto_expected`; `benchmark()` does not
-need the original objective matrix.
+Dimensional errors compare `latent_expected` and `structural_expected` with the
+corresponding estimates in `result.analysis`. The preferred MIS size is
+reported separately as the selected dimension and is not substituted for
+either estimate. Structural reconstruction uses optimal one-to-one block
+matching by Jaccard plus pairwise precision, recall, and F1. Pareto metrics
+compare the stored reduced-front row indices with `pareto_expected`;
+`benchmark()` does not need the original objective matrix.
 
 The repository-level suites remain available for reproducible artifacts.
 
