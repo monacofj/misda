@@ -244,9 +244,14 @@ def render_result_report(result):
     lines.append(
         "Dimensions: "
         f"original={analysis.original_dimension}; "
-        f"latent components={analysis.latent_dimension}; "
-        f"structural components={analysis.structural_dimension}; "
+        f"latent={analysis.latent_dimension}; "
+        f"structural={analysis.structural_dimension}; "
         f"preferred MIS size={result.best_mis.size if result.best_mis else 'N/A'}"
+    )
+    lines.append(
+        "Graph topology: "
+        f"G± components={analysis.graph_summaries['dependence']['components']}; "
+        f"G+ components={analysis.graph_summaries['structural']['components']}"
     )
     lines.append(
         f"Separation: {analysis.separation_status.value}; "
