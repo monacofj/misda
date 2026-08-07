@@ -54,10 +54,12 @@ def test_complete_positive_graph_has_singleton_maximal_sets():
 
     assert structure.structural_dimension == 1
     assert structure.latent_dimension == 1
+    assert structure.structural_component_count == 1
+    assert structure.latent_component_count == 1
     assert _graph.enumerate_structural_mis(structure) == [[0], [1], [2], [3]]
 
 
-def test_signed_edges_join_latent_but_not_structural_components():
+def test_signed_edges_join_latent_but_not_structural_independence():
     statistics = _statistics_from_relations(
         [(0, 1, 1), (2, 3, 1), (1, 2, -1)],
         4,
@@ -74,7 +76,9 @@ def test_signed_edges_join_latent_but_not_structural_components():
     assert structure.structural_components == ((0, 1), (2, 3))
     assert structure.latent_components == ((0, 1, 2, 3),)
     assert structure.structural_dimension == 2
-    assert structure.latent_dimension == 1
+    assert structure.latent_dimension == 2
+    assert structure.structural_component_count == 2
+    assert structure.latent_component_count == 1
     assert structure.dependence_graph.edges[1, 2]["sign"] == -1
     assert structure.structural_graph.nodes[0]["name"] == "cost-a"
     assert structure.structural_graph.nodes[0]["label"] == "cost-a"
@@ -82,13 +86,30 @@ def test_signed_edges_join_latent_but_not_structural_components():
     assert structure.structural_graph.edges[0, 1]["log_p"] == -10.0
 
 
-def test_case_5_path_has_one_component_and_maximum_mis_size_ten():
+def test_positive_and_negative_perfect_pair_distinguish_structural_dimension():
+    positive = _graph.build_dependency_graphs(
+        _statistics_from_relations([(0, 1, 1)], 2),
+        log_alpha=-5.0,
+    )
+    negative = _graph.build_dependency_graphs(
+        _statistics_from_relations([(0, 1, -1)], 2),
+        log_alpha=-5.0,
+    )
+
+    assert positive.latent_dimension == 1
+    assert positive.structural_dimension == 1
+    assert negative.latent_dimension == 1
+    assert negative.structural_dimension == 2
+
+
+def test_case_5_path_keeps_known_adversarial_gap_without_component_aliasing():
     relations = [(index, index + 1, 1) for index in range(19)]
     statistics = _statistics_from_relations(relations, 20)
     structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
     ranked = _graph.rank_structural_mis(structure, statistics.labels)
 
-    assert structure.structural_dimension == 1
+    assert structure.structural_component_count == 1
+    assert structure.structural_dimension == 10
     assert max(len(candidate) for candidate in _graph.enumerate_structural_mis(structure)) == 10
     assert len(ranked[0]["mis_indices"]) == 10
     assert ranked[0]["mis_indices"] != list(range(20))
@@ -112,6 +133,8 @@ def test_case_7_two_anticorrelated_groups_has_dimensions_two_and_one():
 
     assert structure.structural_dimension == 2
     assert structure.latent_dimension == 1
+    assert structure.structural_component_count == 2
+    assert structure.latent_component_count == 1
     assert len(ranked) == 100
     assert all(candidate["size"] == 2 for candidate in ranked)
     assert all(
@@ -143,6 +166,8 @@ def test_constant_objectives_remain_isolated_vertices():
 
     assert structure.structural_components == ((0, 1), (2,))
     assert structure.latent_components == ((0, 1), (2,))
+    assert structure.structural_dimension == 2
+    assert structure.latent_dimension == 2
     assert structure.structural_graph.nodes[2]["constant"]
     assert structure.structural_graph.degree[2] == 0
     assert structure.dependence_graph.degree[2] == 0
@@ -238,7 +263,7 @@ def test_structural_signature_contains_dimension_order_ranks_and_values():
     )
     observed = _graph.structural_signature(statistics, log_alpha=-5.0)
 
-    assert observed.structural_dimension == 1
+    assert observed.structural_dimension == 2
     assert observed.ranked_mis
     assert all(len(item) == 3 for item in observed.ranked_mis)
     assert observed == _graph.make_structural_signature(statistics)(-5.0)
