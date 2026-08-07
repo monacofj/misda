@@ -100,6 +100,7 @@ def test_pareto_retention_one_third_example():
         "intersection_size": 1,
         "union_size": 3,
         "exact_preservation": False,
+        "reduced_front_indices": (0,),
     }
 
 
@@ -117,6 +118,7 @@ def test_pareto_duplicates_are_deduplicated_and_mapped_to_original_rows():
     np.testing.assert_array_equal(full, [True, True, True, True])
     assert observed["full_front_size"] == 4
     assert observed["reduced_front_size"] == 4
+    assert observed["reduced_front_indices"] == (0, 1, 2, 3)
     assert observed["exact_preservation"]
     assert observed["pareto_retention"] == 1.0
     assert observed["pareto_validity"] == 1.0

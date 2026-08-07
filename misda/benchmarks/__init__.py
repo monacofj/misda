@@ -28,7 +28,9 @@ from .mop import (
 )
 from ..benchmark import (
     BenchmarkCase,
+    BenchmarkResult,
     BenchmarkSuite,
+    benchmark,
     compare_results,
     compile_benchmark_summary,
     serialize_benchmark_result,
@@ -53,7 +55,9 @@ __all__ = [
     "generate_dtlz2",
     "generate_dtlz5",
     "BenchmarkCase",
+    "BenchmarkResult",
     "BenchmarkSuite",
+    "benchmark",
     "compare_results",
     "compile_benchmark_summary",
     "serialize_benchmark_result",

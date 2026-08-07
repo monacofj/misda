@@ -12,6 +12,8 @@ def _truth(
     feature="",
     intuition="",
     graph_expected="",
+    pareto_expected=None,
+    notes="",
 ):
     return {
         "name": name,
@@ -26,9 +28,15 @@ def _truth(
             else None
         ),
         "blocks_expected": blocks_expected,
+        "pareto_expected": (
+            None
+            if pareto_expected is None
+            else [int(index) for index in pareto_expected]
+        ),
         "feature": feature,
         "intuition": intuition,
         "graph_expected": graph_expected,
+        "notes": notes,
     }
 
 

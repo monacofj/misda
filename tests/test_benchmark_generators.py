@@ -93,7 +93,7 @@ CANONICAL_CASES = [
 MOP_CASES = [
     (
         mopA_monotonic_redundancy,
-        "1d8c547a97d13fc1fd57532910f9160000e8f3e6479049dccc634a52dd3622c4",
+        "dda84ee9767330d2325a09f9e20fb825ce206da3fc37fc35fade383fa99132ac",
         "MOP-A — Monotonic redundancy (1D, M=20)",
         1,
         1,
@@ -101,7 +101,7 @@ MOP_CASES = [
     ),
     (
         mopB_tradeoff_with_redundancies,
-        "cbf1127348eb48cd2a6c6024bbefe76d788e83a16d3acf4c9ed34143d78e29a8",
+        "a713585c2a7933c8d5a9b3c2418fa0c43ed8de6615b7e61a6064fb57a241383c",
         "MOP-B — Trade-off + redundancies (~2D, M=20)",
         2,
         2,
@@ -109,7 +109,7 @@ MOP_CASES = [
     ),
     (
         mopC_latent_blocks_4x5,
-        "41cbc1f98cef896b805d0462e1d1a3e721a518204815018b7ff789d1d829f237",
+        "26bdbbf1d2228e37fd8f92342899b0255518c4a9fe9cd1b9df37f636b76120e4",
         "MOP-C — Latent blocks (4×5, M=20)",
         4,
         4,
@@ -117,7 +117,7 @@ MOP_CASES = [
     ),
     (
         mopD_pure_conflict_groups,
-        "6dfa6b76589ccd51c593061fff4aac2b0f796c3cb3ef7173b72b550112757fde",
+        "38c402a80898fd585b29ea953af15c6aeeacf33a4a33e1bbc52ea883bd639422",
         "MOP-D — Structural conflict (anti-corr) 2-groups (M=20)",
         1,
         2,
@@ -125,7 +125,7 @@ MOP_CASES = [
     ),
     (
         mopE_partial_redundancy_noisy,
-        "0cfcd11707738503ba1adeb65c8430118b7ff818aaa19aaf618a652de9c1d4ea",
+        "c24b0fb79a446a43284f8bfb7b43339b84e59bb13d5d3b7ec8d5ceed12b36e1e",
         "MOP-E — Partial redundancy + noise (M=20)",
         2,
         2,
@@ -133,7 +133,7 @@ MOP_CASES = [
     ),
     (
         mopF_regime_switching,
-        "ae687dbdb76cb3034e96b946c23d8272412412eaf791c7aaaa9802e961835e62",
+        "61627a388528ab0d3edd0f0ee555caec570b02026eb560cdd803416eff0d73d9",
         "MOP-F — Regimes (mixture, M=20)",
         2,
         2,
@@ -160,6 +160,7 @@ def test_canonical_case_matches_notebook_baseline(
     assert truth["feature"]
     assert truth["intuition"]
     assert truth["graph_expected"]
+    assert truth["pareto_expected"] is None
 
 
 @pytest.mark.parametrize(
@@ -181,6 +182,7 @@ def test_mop_matches_notebook_baseline(
     assert truth["feature"]
     assert truth["intuition"]
     assert truth["graph_expected"]
+    assert truth["pareto_expected"] is None
 
 
 @pytest.mark.parametrize(

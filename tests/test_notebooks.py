@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from misda.benchmark import BenchmarkResult
 from misda.result import MISDAResult
 
 
@@ -34,7 +35,8 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
     assert all(term not in source for term in BANNED_SOURCE)
     assert "git+https://github.com/monacofj/misda.git@refactor#egg=misda[benchmarks]" in source
     assert 'method="static"' in source
-    assert "print(result.report())" in source
+    assert "misda.benchmark(result, truth)" in source
+    assert "print(benchmark_result.report())" in source
     assert "result.graph_plot()" in source
     assert "CANONICAL_CASES" in source
     assert "MOP_CASES" in source
@@ -59,6 +61,14 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
         + list(namespace["mop_results"].values())
     )
     assert all(isinstance(item["result_obj"], MISDAResult) for item in results)
+    assert all(
+        isinstance(item["benchmark_obj"], BenchmarkResult)
+        for item in results
+    )
+    assert all(
+        item["benchmark_obj"].result is item["result_obj"]
+        for item in results
+    )
 
 
 def test_comparative_notebook_is_thin_static_front_end():
