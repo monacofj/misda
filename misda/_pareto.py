@@ -76,24 +76,28 @@ def evaluate_pareto_preservation(
 def get_nondominated_mask(Y):
     """
     Returns boolean mask of non-dominated solutions (Minimization) for a dataset Y.
-    Complexity: O(N^2)
     Args:
         Y (np.ndarray): shape (N, M)
     Returns:
         np.array(bool): shape (N,), True if non-dominated.
     """
-    # Ensure numpy
-    Y = np.asarray(Y)
+    Y = np.asarray(Y, dtype=float)
     N, M = Y.shape
+    if N <= 1:
+        return np.ones(N, dtype=bool)
     is_efficient = np.ones(N, dtype=bool)
-    for i in range(N):
-        # i is dominated by j if:
-        # all(Y[j] <= Y[i]) AND any(Y[j] < Y[i])
-        better_or_equal = (Y <= Y[i]).all(axis=1)
-        better = (Y < Y[i]).any(axis=1)
-        dominators = better_or_equal & better
-        if dominators.any():
-            is_efficient[i] = False
+    order = np.lexsort(Y.T[::-1])
+    for i in range(1, N):
+        idx = order[i]
+        prior_indices = order[:i]
+        efficient_priors = prior_indices[is_efficient[prior_indices]]
+        if len(efficient_priors) == 0:
+            continue
+        prior_vals = Y[efficient_priors]
+        curr_val = Y[idx]
+        dominated = (prior_vals <= curr_val).all(axis=1) & (prior_vals < curr_val).any(axis=1)
+        if dominated.any():
+            is_efficient[idx] = False
     return is_efficient
 
 
