@@ -15,15 +15,17 @@ current supported workflow is the refactored **static** pipeline.
 
 MISDA reports three deliberately distinct quantities:
 
-- **latent dimension**: connected components in the signed dependence graph;
-- **structural dimension**: connected components in the positive-dependence
-  graph;
+- **latent dimension**: independence number of the signed dependence graph
+  `G±`, where significant positive and negative dependencies both form edges;
+- **structural dimension**: independence number of the positive-redundancy
+  graph `G+`;
 - **preferred MIS size**: number of original objectives selected in the
   highest-ranked maximal independent set.
 
-Negative associations connect latent structure but never create redundancy
-edges in the structural graph. Constant objectives remain explicit isolated
-vertices.
+Connected-component counts remain graph-topology diagnostics and are not used
+as dimensional estimates. Negative associations connect latent dependence but
+never create redundancy edges in the structural graph. Constant objectives
+remain explicit isolated vertices.
 
 ## Installation
 
@@ -98,12 +100,13 @@ print(bench.report())
 Analysis values remain in `bench.result`; only comparisons requiring the
 external declaration are stored directly in `bench`.
 
-The current method estimates `structural_dimension` from the connected
-components of the positive graph and `latent_dimension` from the connected
-components of the signed dependence graph. The selected dimension is stored
-separately as `result.selected_dimension`, the size of the preferred MIS.
-`benchmark()` compares each declared dimension with its corresponding estimate;
-it never substitutes the selected dimension for either estimate.
+The current method estimates `structural_dimension` as the independence number
+of the positive graph `G+` and `latent_dimension` as the independence number of
+the signed dependence graph `G±`. The number of connected components of each
+graph is stored separately as topology. The selected dimension remains
+`result.selected_dimension`, the size of the preferred MIS. `benchmark()`
+compares each declared dimension with its corresponding estimate; it never
+substitutes the selected dimension for either estimate.
 
 ## On-demand heavy evaluation
 
