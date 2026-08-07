@@ -28,9 +28,9 @@ def test_report_contains_global_summary_rank_counts_and_stored_light_metrics():
 
     assert "MISDA static report: two groups" in report
     assert (
-        "original=4; latent components=1; structural components=2; "
-        "preferred MIS size=2"
+        "original=4; latent=1; structural=2; preferred MIS size=2"
     ) in report
+    assert "Graph topology: G± components=1; G+ components=2" in report
     assert "MIS evaluation: 2 of 4 normally evaluated; 0 heavy" in report
     assert "Rank counts: rank 1=4" in report
     assert "mis_000 rank=1 size=2" in report
