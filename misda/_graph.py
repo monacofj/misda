@@ -17,6 +17,23 @@ from ._statistics import (
 )
 
 
+def independence_number(graph: nx.Graph) -> int:
+    """Return the exact independence number of ``graph``.
+
+    The value is the maximum cardinality among independent vertex sets.  It is
+    computed as the maximum clique size in the complement graph, without using
+    MIS ranking or connected-component counts.
+    """
+
+    if graph.number_of_nodes() == 0:
+        return 0
+    complement = nx.complement(graph)
+    return max(
+        (len(clique) for clique in nx.find_cliques(complement)),
+        default=0,
+    )
+
+
 @dataclass(frozen=True)
 class GraphStructure:
     """Positive structural and signed dependence projections of one analysis."""
@@ -28,10 +45,26 @@ class GraphStructure:
 
     @property
     def structural_dimension(self) -> int:
-        return len(self.structural_components)
+        """Maximum number of mutually non-redundant vertices in ``G+``."""
+
+        return independence_number(self.structural_graph)
 
     @property
     def latent_dimension(self) -> int:
+        """Maximum number of mutually independent vertices in ``G±``."""
+
+        return independence_number(self.dependence_graph)
+
+    @property
+    def structural_component_count(self) -> int:
+        """Connected-component count of ``G+`` for topology diagnostics."""
+
+        return len(self.structural_components)
+
+    @property
+    def latent_component_count(self) -> int:
+        """Connected-component count of ``G±`` for topology diagnostics."""
+
         return len(self.latent_components)
 
 
