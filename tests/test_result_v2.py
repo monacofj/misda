@@ -18,6 +18,13 @@ def _two_conflicting_groups(include_constant=False):
     return np.column_stack(columns)
 
 
+def _independence_number(graph):
+    return max(
+        (len(clique) for clique in nx.find_cliques(nx.complement(graph))),
+        default=0,
+    )
+
+
 @pytest.fixture
 def refactored_result():
     return misda._analyze_static_v2(
@@ -50,11 +57,11 @@ def test_dimensions_and_components_are_distinct_graph_properties(
     assert analysis.latent_dimension == 1
     assert analysis.structural_components == ((0, 1), (2, 3))
     assert analysis.latent_components == ((0, 1, 2, 3),)
-    assert analysis.structural_dimension == nx.algorithms.clique.graph_clique_number(
-        nx.complement(analysis.structural_graph)
+    assert analysis.structural_dimension == _independence_number(
+        analysis.structural_graph
     )
-    assert analysis.latent_dimension == nx.algorithms.clique.graph_clique_number(
-        nx.complement(analysis.dependence_graph)
+    assert analysis.latent_dimension == _independence_number(
+        analysis.dependence_graph
     )
     assert analysis.graph_summaries == {
         "structural": {"nodes": 4, "edges": 2, "components": 2},
