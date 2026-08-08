@@ -44,7 +44,7 @@ result = misda.analyze(
 | `aggressiveness` | Float in `[0, 1]`. `0` selects the positive-signal onset and `1` the null-calibrated endpoint; larger values generally admit more positive redundancy edges. |
 | `rank_policy` | Candidate ordering policy. The current supported value is `"default"`. |
 | `max_evaluated_mis` | Positive integer or `None`. Limits light evaluation to a ranked prefix but never hides ranked MISs. |
-| `seed` | Seed for reproducible sequential null estimation and derived evaluation seeds. |
+| `seed` | Seed for reproducible sequential null estimation, dimensional-support permutations, and derived evaluation seeds. |
 | `name` | Optional display label stored in the result. |
 
 Manual `alpha` is intentionally unsupported by the static v2 entry point. The
@@ -55,14 +55,16 @@ permutation null estimate.
 
 MISDA builds two graphs at the same data-driven threshold:
 
-1. The **structural graph** contains statistically supported positive edges.
-   Its connected-component count is `structural_dimension`; its maximal
-   independent sets are representative subsets of original objectives.
-2. The **dependence graph** contains supported positive and negative edges.
-   Its connected-component count is `latent_dimension`.
+1. The **structural graph** `G+` contains statistically supported positive
+   edges. `structural_dimension` is its independence number: the maximum number
+   of mutually non-redundant vertices.
+2. The **dependence graph** `G±` contains supported positive and negative edges.
+   `latent_dimension` is its independence number: the maximum number of mutually
+   independent vertices when either sign expresses dependence.
 
-These counts and the preferred MIS size answer different questions and may
-differ legitimately:
+Connected-component counts are topology diagnostics and are stored separately.
+A graph may therefore have one connected component and dimension greater than
+one.
 
 ```python
 analysis = result.analysis
@@ -70,24 +72,63 @@ print(analysis.original_dimension)
 print(analysis.latent_dimension)
 print(analysis.structural_dimension)
 print(result.best_mis.size)
+print(analysis.graph_summaries)
 ```
 
-These graph-component counts are the method's current estimates of structural
-and latent dimension. They are not interchangeable with selected
-dimensionality: a connected graph may require a preferred MIS with two or more
-non-redundant representatives.
+The preferred MIS is selected from `G+`. Its size is the selected reduction
+dimension. With the current size-first ranking it commonly equals the structural
+independence number, but ranking and dimensional estimation remain distinct
+concepts.
 
 The separation status is explicit. `NULL_SEPARATION` means the positive-signal
 onset precedes the null-calibrated endpoint. `NO_NULL_SEPARATION` means no such
 strict separation was established; it is not rewritten as a successful
 separation.
 
-## 4. Result tree
+## 4. Dimensional support
+
+`analyze()` also stores an internal diagnostic at
+`result.analysis.dimensional_support`. It does not use benchmark truth and does
+not alter the estimated dimensions or the selected MIS.
+
+```python
+support = result.analysis.dimensional_support
+print(support["status"])
+print(support["reasons"])
+print(support["transitivity"]["excess"])
+print(support["spectral"]["excess"])
+```
+
+The diagnostic works on objective ranks and checks two possible contradictions:
+
+- **transitive chaining**: an eliminated objective is connected to the retained
+  MIS much more strongly through an indirect max-min path than by direct
+  positive association;
+- **hidden spectral structure**: the first rank-correlation eigenvalue beyond
+  `latent_dimension` contains more structure than expected after destroying
+  inter-objective association.
+
+Both references are obtained by independently permuting objective columns.
+Exactly `N` permutations are used, so there is no user-set permutation budget.
+The stored quantities are null-subtracted excesses. The only categorical
+boundary is zero:
+
+```text
+UNSUPPORTED  if transitivity_excess > 0 or spectral_excess > 0
+SUPPORTED    otherwise
+```
+
+`TRANSITIVE_CHAINING` and `HIDDEN_SPECTRAL_STRUCTURE` identify the detected
+mechanism. `SUPPORTED` means that these diagnostics found no internal
+contradiction to the estimate; it does **not** prove that the estimated
+dimension is the unknown true dimension.
+
+## 5. Result tree
 
 `MISDAResult` contains three top-level branches:
 
-- `result.analysis`: global dimensions, graphs, thresholds, rank counts, and
-  evaluation counts;
+- `result.analysis`: global dimensions, graphs, thresholds, dimensional support,
+  rank counts, and evaluation counts;
 - `result.mis`: every ranked `MISCandidate`, in deterministic order;
 - `result.execution`: effective configuration, seed, timings, convergence, and
   RNG diagnostics.
@@ -109,7 +150,7 @@ candidate.evaluation
 `result.best_mis` is the first ranked candidate. `best_mis_indices` and
 `best_mis_labels` are transitional convenience properties.
 
-## 5. Light evaluation
+## 6. Light evaluation
 
 Light evaluation is performed during `analyze()` for the requested ranked
 prefix. It stores two blocks per evaluated candidate.
@@ -137,7 +178,7 @@ stores:
 Duplicate rows are mapped back to their original observations. Mixed objective
 directions are rejected explicitly rather than silently normalized.
 
-## 6. On-demand heavy evaluation
+## 7. On-demand heavy evaluation
 
 Use `misda.heavy()` only for candidates that need nonlinear evidence:
 
@@ -162,7 +203,7 @@ and above-null metrics. Neither loop has a hidden fixed cap. Both record
 convergence or non-convergence explicitly and accept an application-provided
 `cancel_requested` callback.
 
-## 7. Reports and graphs
+## 8. Reports and graphs
 
 ```python
 print(result.summary())
@@ -171,10 +212,12 @@ figure = result.graph_plot(show=False)
 ```
 
 `summary()` is compact. `report()` renders only metrics already stored in the
-result; it never triggers hidden evaluation. `graph_plot()` visualizes the
-positive structural graph. The former `plot()` spelling is deprecated.
+result; it includes the dimensional-support status and its two null-subtracted
+excesses. It never triggers hidden evaluation. `graph_plot()` visualizes the
+positive structural graph `G+`; negative edges used by latent analysis are not
+drawn. The former `plot()` spelling is deprecated.
 
-## 8. Reproducible benchmark artifacts
+## 9. Reproducible benchmark artifacts
 
 An individual result can be evaluated against external ground truth without
 contaminating `analyze()`:
@@ -234,7 +277,7 @@ PCA curve reports global standardized reconstruction R². MISDA reports
 reconstruction of eliminated objectives from selected original objectives;
 these estimands remain separate.
 
-## 9. Migration from the legacy result API
+## 10. Migration from the legacy result API
 
 | Legacy spelling | Static v2 spelling |
 |---|---|
@@ -249,12 +292,15 @@ these estimands remain separate.
 The unambiguous transitional aliases emit `DeprecationWarning`. Ambiguous legacy
 validation fields are not synthesized on the new result tree.
 
-## 10. Scope and limitations
+## 11. Scope and limitations
 
 - The static pipeline is the current supported and acceptance-tested method.
 - The earlier adaptive implementation is suspended and excluded from the
   scientific baseline.
 - Pairwise structure is correlation-based and does not establish causality.
-- Structural dimension, latent dimension, and MIS size are not interchangeable.
+- Structural dimension, latent dimension, connected-component count, and MIS
+  size are distinct quantities.
+- `SUPPORTED` is absence of detected internal contradiction, not proof of
+  dimensional truth.
 - Heavy evaluation can be expensive because its stopping rules are
   data-driven; use candidate selection and cancellation deliberately.
