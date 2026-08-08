@@ -422,13 +422,13 @@ def _analyze_static_v2(
         structural_components=structure.structural_components,
         latent_components=structure.latent_components,
         graph_summaries=graph_summaries,
+        dimensional_support=dimensional_support,
         rank_policy=rank_policy,
         rank_counts=rank_counts,
         n_mis=len(candidates),
         n_evaluated_mis=n_evaluated,
         n_heavy_mis=0,
     )
-    analysis.dimensional_support = dimensional_support
 
     execution = ExecutionResult(
         configuration={
