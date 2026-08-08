@@ -236,6 +236,21 @@ def _evaluation_lines(evaluation):
     return lines
 
 
+def _dimensional_support_lines(support):
+    reasons = ", ".join(support.get("reasons", ())) or "none"
+    transitivity = support.get("transitivity", {})
+    spectral = support.get("spectral", {})
+    return [
+        f"Dimensional support: {support.get('status', 'N/A')}; reasons={reasons}",
+        (
+            "Support diagnostics: "
+            f"transitivity excess={transitivity.get('excess', float('nan')):.4f}; "
+            f"spectral excess={spectral.get('excess', float('nan')):.4f}; "
+            f"null permutations={support.get('n_permutations', 'N/A')}"
+        ),
+    ]
+
+
 def render_result_report(result):
     """Render only metrics already stored in a refactored static result."""
 
@@ -253,6 +268,9 @@ def render_result_report(result):
         f"G± components={analysis.graph_summaries['dependence']['components']}; "
         f"G+ components={analysis.graph_summaries['structural']['components']}"
     )
+    dimensional_support = getattr(analysis, "dimensional_support", None)
+    if dimensional_support is not None:
+        lines.extend(_dimensional_support_lines(dimensional_support))
     lines.append(
         f"Separation: {analysis.separation_status.value}; "
         f"aggressiveness={analysis.aggressiveness:.4f}; "
