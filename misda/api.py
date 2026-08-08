@@ -22,6 +22,7 @@ from ._pareto import (
     get_nondominated_mask_minimize,
 )
 from ._reconstruction import evaluate_linear_reconstruction
+from ._support import evaluate_dimensional_support
 from ._statistics import (
     _correlation_strength,
     AlphaRegime,
@@ -356,6 +357,16 @@ def _analyze_static_v2(
         )
         for index, candidate in enumerate(ranked)
     )
+
+    support_start = time.perf_counter()
+    dimensional_support = evaluate_dimensional_support(
+        normalized.data,
+        candidates[0].indices,
+        structure.latent_dimension,
+        seed=seed,
+    )
+    support_seconds = time.perf_counter() - support_start
+
     evaluation_start = time.perf_counter()
     if max_evaluated_mis is None:
         n_evaluated = len(candidates)
@@ -417,6 +428,8 @@ def _analyze_static_v2(
         n_evaluated_mis=n_evaluated,
         n_heavy_mis=0,
     )
+    analysis.dimensional_support = dimensional_support
+
     execution = ExecutionResult(
         configuration={
             "aggressiveness": normalized_aggressiveness,
@@ -427,6 +440,7 @@ def _analyze_static_v2(
         timings={
             "statistics": statistics_seconds,
             "graph_and_ranking": graph_seconds,
+            "dimensional_support": support_seconds,
             "evaluation": evaluation_seconds,
             "total": time.perf_counter() - total_start,
         },
