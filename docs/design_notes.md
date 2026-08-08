@@ -57,7 +57,52 @@ intervals, convergence, seed, and RNG state.
 log-domain calculation. A value of `0` selects the onset; `1` selects the
 null-calibrated endpoint.
 
-## 3. Candidate enumeration and ranking
+## 3. Internal dimensional support
+
+A dimensional estimate is accompanied by an internal support diagnostic that
+uses no benchmark declaration. `SUPPORTED` does not mean that the estimated
+dimension has been proved correct; it means that the observed data did not
+produce either of the two implemented contradictions. `UNSUPPORTED` means that
+at least one contradiction was detected.
+
+The diagnostic works in rank space so monotonic nonlinear transformations do
+not create artificial disagreement. It uses two complementary statistics:
+
+- transitivity: for each eliminated objective, compare its strongest direct
+  positive rank correlation with the retained MIS to the strength of its
+  strongest indirect max-min path to that MIS. The maximum indirect-minus-direct
+  value detects chaining;
+- spectrum: inspect the first rank-correlation eigenvalue beyond the estimated
+  latent dimension. A large remaining direction indicates hidden systematic
+  structure beyond the graph estimate.
+
+Each statistic is calibrated by independently permuting every objective column.
+The null reference is the mean statistic over exactly `N` permutations, so the
+Monte Carlo budget is derived from the sample size rather than supplied as a
+hyperparameter. The stored excesses are
+
+`transitivity_excess = observed_transitivity - null_transitivity`
+
+and
+
+`spectral_excess = observed_next_eigenvalue - null_next_eigenvalue`.
+
+The categorical rule has the intrinsic zero boundary:
+
+- if either excess is strictly greater than zero, status is `UNSUPPORTED`;
+- otherwise status is `SUPPORTED`.
+
+Positive transitivity excess carries reason `TRANSITIVE_CHAINING`. Positive
+spectral excess carries reason `HIDDEN_SPECTRAL_STRUCTURE`. These diagnostics
+do not change the graph, dimension, MIS enumeration, or ranking; they only state
+whether the data contain internal evidence contradicting the estimate.
+
+As a general methodological rule, categorical MISDA decisions may use a
+mathematically privileged boundary such as zero or a reference estimated from
+the data. Fixed performance thresholds chosen externally (for example R² > 0.9)
+are not introduced as hidden hyperparameters.
+
+## 4. Candidate enumeration and ranking
 
 Maximal independent sets are enumerated from the positive structural graph.
 Every result is unique, maximal, and deterministically ordered. The default
@@ -67,7 +112,7 @@ stable final tie-breaker. Equal criterion values share a rank.
 All candidates are retained in `result.mis`; evaluation limits affect evidence
 collection, not visibility or ranking.
 
-## 4. Light and heavy evidence
+## 5. Light and heavy evidence
 
 Light evaluation runs for a ranked prefix during `analyze()`:
 
@@ -86,7 +131,7 @@ permutation null reports reconstruction beyond chance and incidental
 reconstruction frequency. Both expensive layers preserve partial results and
 explicitly record cancellation or non-convergence.
 
-## 5. Result and reporting boundaries
+## 6. Result and reporting boundaries
 
 The result tree has three responsibilities:
 
@@ -99,7 +144,7 @@ The result tree has three responsibilities:
 not run validation, tune parameters, or mutate scientific results. Metric names
 and explanations are centralized in reporting metadata.
 
-## 6. External benchmarks
+## 7. External benchmarks
 
 Benchmark declarations are external expectations, not inputs to `analyze()`.
 Each run records its input digest, seed, software versions, estimates, and
@@ -116,7 +161,7 @@ The comparative suite keeps two estimands separate:
 They may be displayed together as complementary evidence but must not be
 collapsed into one unqualified fidelity axis.
 
-## 7. Compatibility boundary
+## 8. Compatibility boundary
 
 The static v2 pipeline is the supported scientific contract. Unambiguous legacy
 spellings are temporary deprecated forwards. Ambiguous legacy validation fields
