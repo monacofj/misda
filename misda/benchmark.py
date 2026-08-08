@@ -315,6 +315,15 @@ class BenchmarkResult:
             )
         )
         lines.append(f"  Found blocks   : {_format_blocks(self.found_blocks)}")
+        support = analysis.dimensional_support
+        support_reasons = ", ".join(support["reasons"]) or "none"
+        lines.append(f"  Dim. support   : {support['status']}")
+        lines.append(
+            "  Support diag.  : "
+            f"transitivity_excess={_format_metric(support['transitivity']['excess'])}, "
+            f"spectral_excess={_format_metric(support['spectral']['excess'])}"
+        )
+        lines.append(f"  Support reason : {support_reasons}")
 
         lines.append("Dimensional accuracy")
         lines.append(
