@@ -33,7 +33,7 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "git+https://github.com/monacofj/misda.git@refactor#egg=misda[benchmarks]" in source
+    assert "git+https://github.com/monacofj/misda.git@efficient#egg=misda[benchmarks]" in source
     assert 'method="static"' in source
     assert "misda.benchmark(result, truth)" in source
     assert "print(benchmark_result.report())" in source
