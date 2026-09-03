@@ -22,6 +22,7 @@ from scipy.optimize import linear_sum_assignment
 from ._pareto import evaluate_pareto_consistency
 from ._reconstruction import calculate_ses_nonlinear
 from ._statistics import _CORRELATION_MODE
+from ._tolerances import gate_isclose
 from .result import MISDAResult
 
 
@@ -861,7 +862,7 @@ def compare_results(baseline, candidate, *, expected_changes=None):
                 after = metric_value(candidate, block, metric)
                 if before is None or after is None:
                     continue
-                if np.isclose(after, before, rtol=1e-10, atol=1e-12):
+                if gate_isclose(after, before):
                     status = "PASS"
                 elif after > before:
                     status = "IMPROVED"
