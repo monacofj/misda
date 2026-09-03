@@ -251,6 +251,20 @@ def _dimensional_support_lines(support):
     ]
 
 
+def _alpha_null_convergence_line(result):
+    convergence = result.execution.convergence.get("alpha_null", {})
+    converged = convergence.get("converged")
+    rendered = "yes" if converged else "no"
+    reason = convergence.get("reason") or "none"
+    return (
+        "Alpha-null convergence: "
+        f"converged={rendered}; "
+        f"permutations={convergence.get('n_permutations', 'N/A')}; "
+        f"cap={convergence.get('max_permutations', 'N/A')}; "
+        f"reason={reason}"
+    )
+
+
 def render_result_report(result):
     """Render only metrics already stored in a refactored static result."""
 
@@ -276,6 +290,7 @@ def render_result_report(result):
         f"aggressiveness={analysis.aggressiveness:.4f}; "
         f"rank_policy={analysis.rank_policy}"
     )
+    lines.append(_alpha_null_convergence_line(result))
     lines.append(
         f"MIS evaluation: {analysis.n_evaluated_mis} of {analysis.n_mis} "
         f"normally evaluated; {analysis.n_heavy_mis} heavy"

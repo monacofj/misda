@@ -5,6 +5,7 @@
 
 import copy
 import math
+import warnings
 from dataclasses import dataclass, replace
 from enum import Enum, IntEnum
 from numbers import Integral
@@ -58,6 +59,7 @@ class NullAlphaEstimate:
     samples: Tuple[float, ...]
     seed: Optional[int] = None
     rng_state: Optional[dict] = None
+    reason: Optional[str] = None
 
     @property
     def alpha_null(self) -> float:
@@ -216,6 +218,7 @@ def _null_estimate_snapshot(
     n_samples,
     signature: Callable[[float], Any],
     converged,
+    reason=None,
 ) -> NullAlphaEstimate:
     values = np.asarray(samples, dtype=float)
     count = len(values)
@@ -253,6 +256,7 @@ def _null_estimate_snapshot(
         lower_r_signature=lower_r_signature,
         upper_r_signature=upper_r_signature,
         samples=tuple(float(value) for value in values),
+        reason=reason,
     )
 
 
@@ -262,8 +266,14 @@ def estimate_null_from_maxima(
     n_samples: int,
     signature: Callable[[float], Any],
     cancel_requested: Optional[Callable[[int], bool]] = None,
+    max_permutations: Optional[int] = None,
 ) -> NullAlphaEstimate:
-    """Run the sequential stopping rule on controlled null maxima."""
+    """Run the sequential stopping rule on controlled null maxima.
+
+    ``max_permutations`` is optional for controlled/internal sequences.  Public
+    structural null estimation sets it to ``10 * N`` so termination is
+    autonomous even when the structural signatures do not stabilize.
+    """
 
     if (
         isinstance(n_samples, (bool, np.bool_))
@@ -275,6 +285,15 @@ def estimate_null_from_maxima(
         raise TypeError("signature must be callable.")
     if cancel_requested is not None and not callable(cancel_requested):
         raise TypeError("cancel_requested must be callable or None.")
+    if max_permutations is not None:
+        if (
+            isinstance(max_permutations, (bool, np.bool_))
+            or not isinstance(max_permutations, Integral)
+        ):
+            raise TypeError("max_permutations must be an integer or None.")
+        max_permutations = int(max_permutations)
+        if max_permutations < int(n_samples):
+            raise ValueError("max_permutations must be greater than or equal to n_samples.")
 
     samples = []
     for maximum in maxima:
@@ -292,15 +311,18 @@ def estimate_null_from_maxima(
             converged=False,
         )
         if snapshot.lower_r_signature == snapshot.upper_r_signature:
-            return replace(snapshot, converged=True)
+            return replace(snapshot, converged=True, reason=None)
         if cancel_requested is not None and cancel_requested(len(samples)):
-            return snapshot
+            return replace(snapshot, reason="CANCELLED")
+        if max_permutations is not None and len(samples) >= max_permutations:
+            return replace(snapshot, reason="MAX_PERMUTATIONS_REACHED")
 
     return _null_estimate_snapshot(
         samples,
         int(n_samples),
         signature,
         converged=False,
+        reason="SEQUENCE_EXHAUSTED",
     )
 
 
@@ -378,7 +400,15 @@ def estimate_null_positive_correlation(
         n_samples=normalized.n_samples,
         signature=signature,
         cancel_requested=cancel_requested,
+        max_permutations=10 * normalized.n_samples,
     )
+    if not result.converged and result.reason == "MAX_PERMUTATIONS_REACHED":
+        warnings.warn(
+            "Structural alpha_null estimation did not converge by B_max=10N; "
+            "returning the current null estimate with converged=False.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     return replace(
         result,
         seed=seed,
@@ -620,7 +650,7 @@ def describe_alpha_regime(metrics: dict) -> str:
                         (output of `diagnose_alpha_regime`).
 
     Returns:
-        str: A formatted string report of the statistical regime.
+        str: A formatted string report describing the statistical regime.
     """
     regime = AlphaRegime(int(metrics["regime"]))
     alpha_min = float(metrics["alpha_min"])
@@ -709,27 +739,14 @@ def calculate_spectral_entropy(Y):
     if m < 2:
         return 0.0
 
-    # Correlation matrix
     corr = np.corrcoef(data, rowvar=False)
-    # Eigenvalues (Hermitian/Symmetric)
     eigvals = np.linalg.eigvalsh(corr)
-
-    # Normalize eigenvalues to probability distribution
-    # Filter small negative/zeros due to precision
     eigvals = eigvals[eigvals > 1e-9]
     if len(eigvals) == 0:
         return 0.0
 
     p = eigvals / np.sum(eigvals)
-
-    # Entropy
     se = -np.sum(p * np.log(p))
-
-    # Normalize by log(M)
-    # Note: Max entropy for M variables is log(M) when all eigenvalues = 1
-    # However, number of non-zero eigenvalues could be < M if N < M.
-    # Usually we norm by log(min(N, M)) or log(len(eigvals)).
-    # Using log(len(eigvals)) is safer.
     denom = np.log(len(eigvals))
     if denom == 0:
         return 0.0
