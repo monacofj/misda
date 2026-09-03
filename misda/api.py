@@ -48,6 +48,7 @@ from .result import (
     MISDAResult,
 )
 
+
 def report_significant_correlations(R, z_stat, z_crit, max_pairs=50, label_prefix="f"):
     """
     Generates a string report of significant correlations found in the data.
@@ -60,7 +61,7 @@ def report_significant_correlations(R, z_stat, z_crit, max_pairs=50, label_prefi
         label_prefix (str): Prefix for feature labels (e.g., "f" for f1, f2).
 
     Returns:
-        str: A formatted string report of significant correlations.
+        str: A formatted string report.
     """
     M = R.shape[0]
     pos_corr = []
@@ -264,6 +265,7 @@ def _analyze_static_fast(Y, corr, alpha_min, alpha_max, alpha_exec, caution=1.0,
         name=name
     )
 
+
 def _analyze_static(Y, caution=1.0, name=None, ensure_coverage=True, alpha=None):
     """
     Executes the full MISDA pipeline on dataset Y.
@@ -447,7 +449,9 @@ def _analyze_static_v2(
         convergence={
             "alpha_null": {
                 "converged": null_estimate.converged,
+                "reason": null_estimate.reason,
                 "n_permutations": null_estimate.n_permutations,
+                "max_permutations": 10 * normalized.n_samples,
                 "r_null": null_estimate.r_null,
                 "se_mc": null_estimate.se_mc,
                 "r_interval": null_estimate.r_interval,
