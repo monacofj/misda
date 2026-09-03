@@ -13,6 +13,12 @@ from examples.benchmarks._baseline import (
     _linear_press_reconstruction,
     _pareto_preservation,
 )
+from misda.benchmark import (
+    DECLARATION_MATCH,
+    DECLARATION_MISMATCH,
+    EXPECTED_DECLARATION_MISMATCH,
+    NO_DECLARATION,
+)
 
 
 def test_press_reconstruction_matches_explicit_leave_one_out():
@@ -141,14 +147,22 @@ def test_benchmark_cli_writes_normalized_static_json(
     }
     assert case["assessment"]["case_id"] == case_id
     assert case["assessment"]["status"] in {
-        "PASS",
-        "EXPECTED_CHANGE",
-        "REGRESSION",
+        DECLARATION_MATCH,
+        DECLARATION_MISMATCH,
+        EXPECTED_DECLARATION_MISMATCH,
+        NO_DECLARATION,
     }
     if suite == "comparative":
         assert artifact["methods"] == ["static", "pca"]
         assert case["pca"]["metric"] == "global_standardized_r2"
+        assert case["pca"]["protocol"] == "in_sample"
         assert len(case["pca"]["curve"]) == 10
+        assert case["comparison"]["metric"] == "global_standardized_external_r2"
+        assert case["comparison"]["protocol"] == "leave_one_out"
+        assert case["comparison"]["misda"]["dimension"] == case["estimated"][
+            "preferred_mis_size"
+        ]
+        assert len(case["comparison"]["pca"]["curve"]) == case["m"]
 
 
 def test_unknown_case_id_is_rejected(tmp_path):

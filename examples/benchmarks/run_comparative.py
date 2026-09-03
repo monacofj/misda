@@ -5,11 +5,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from sklearn.decomposition import PCA
-from sklearn.metrics import r2_score
-from sklearn.preprocessing import StandardScaler
+import numpy as np
 
 import misda
+import misda.benchmarks as bench
 from misda.benchmark import (
     BenchmarkCase,
     DEFAULT_SEED,
@@ -33,22 +32,31 @@ COMPARATIVE_CASES = (
 )
 
 
-def _pca_curve(frame, max_components: int = 10) -> list[dict]:
-    scaled = StandardScaler().fit_transform(frame)
-    curve = []
-    for dimension in range(1, min(max_components, frame.shape[1]) + 1):
-        pca = PCA(n_components=dimension)
-        scores = pca.fit_transform(scaled)
-        reconstructed = pca.inverse_transform(scores)
-        curve.append(
-            {
-                "dimension": dimension,
-                "global_standardized_r2": float(
-                    r2_score(scaled, reconstructed)
-                ),
-            }
-        )
-    return curve
+def _serialized_misda_common_score(frame, case) -> float:
+    matrix = frame.to_numpy(dtype=float) if hasattr(frame, "to_numpy") else np.asarray(frame, dtype=float)
+    centered = matrix - np.mean(matrix, axis=0)
+    totals = np.sum(centered * centered, axis=0)
+    selected = set(case.get("preferred_indices", ()))
+    reconstruction = case.get("linear_reconstruction") or {}
+    per_objective = reconstruction.get("r2_by_objective") or {}
+    labels = list(frame.columns) if hasattr(frame, "columns") else [f"f{i+1}" for i in range(matrix.shape[1])]
+
+    scores = []
+    for index, label in enumerate(labels):
+        if totals[index] <= np.finfo(float).eps:
+            continue
+        if index in selected:
+            scores.append(1.0)
+            continue
+        value = per_objective.get(label)
+        if value is None:
+            raise ValueError(
+                f"serialized MISDA artifact lacks reconstruction R² for objective {label!r}."
+            )
+        scores.append(float(value))
+    if not scores:
+        raise ValueError("global reconstruction R² is undefined for all-constant data.")
+    return float(np.mean(scores))
 
 
 def run_comparative(
@@ -63,6 +71,7 @@ def run_comparative(
         if case_ids is not None and case_id not in case_ids:
             continue
         frame, truth = generator(N=n, seed=seed)
+        result = None
         if serializer is not None:
             case = serializer(case_id, frame, truth, seed=seed)
         else:
@@ -80,9 +89,40 @@ def run_comparative(
                 frame,
                 seed=seed,
             )
+
         case["pca"] = {
             "metric": "global_standardized_r2",
-            "curve": _pca_curve(frame),
+            "protocol": "in_sample",
+            "curve": bench.pca_in_sample_reconstruction_curve(frame, max_components=10),
+        }
+
+        misda_common = (
+            bench.misda_global_standardized_external_r2(frame, result)
+            if result is not None
+            else _serialized_misda_common_score(frame, case)
+        )
+        selected_dimension = int(case["estimated"]["preferred_mis_size"])
+        pca_external_curve = bench.pca_external_reconstruction_curve(
+            frame,
+            max_components=frame.shape[1],
+        )
+        pca_same_dimension = next(
+            point[bench.COMMON_RECONSTRUCTION_METRIC]
+            for point in pca_external_curve
+            if point["dimension"] == selected_dimension
+        )
+        case["comparison"] = {
+            "metric": bench.COMMON_RECONSTRUCTION_METRIC,
+            "protocol": "leave_one_out",
+            "objective_weighting": "equal_after_variance_standardization",
+            "misda": {
+                "dimension": selected_dimension,
+                bench.COMMON_RECONSTRUCTION_METRIC: misda_common,
+            },
+            "pca": {
+                "at_misda_dimension": pca_same_dimension,
+                "curve": pca_external_curve,
+            },
         }
         cases.append(case)
     if case_ids is not None:

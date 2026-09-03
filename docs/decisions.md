@@ -99,7 +99,7 @@ There is no public partial-enumeration budget in the current version. A future b
 
 ## 5. Statistical endpoints: `alpha_onset` and `alpha_null`
 
-**Status: implemented decision, except for the binding cap described below.**
+**Status: implemented decision.**
 
 Legacy `alpha_min`/`alpha_max` semantics are replaced by:
 
@@ -118,7 +118,7 @@ The structural signature includes the structural estimate and the ordered/ranked
 
 No arbitrary fixed 500-permutation rule and no arbitrary percentile such as 95% is part of the method.
 
-### Binding pending item: autonomous null-estimation cap
+### Autonomous null-estimation cap
 
 The post-implementation audit closed the decision that the structural `alpha_null` estimator must terminate autonomously at:
 
@@ -126,18 +126,17 @@ The post-implementation audit closed the decision that the structural `alpha_nul
 B_max = 10N
 ```
 
-If the structural signatures have not stabilized at the cap, the public result must return the current estimate with:
+If the structural signatures have not stabilized at the cap, the public result returns the current estimate with:
 
 ```text
 converged = False
 n_permutations = 10N
+reason = MAX_PERMUTATIONS_REACHED
 ```
 
-and emit exactly one `RuntimeWarning` per public call. The reason for non-convergence must propagate to execution diagnostics and reporting.
+and emits exactly one `RuntimeWarning` per public call. The reason propagates to execution diagnostics and reporting. An internal cancellation callback remains an additional, distinct mechanism.
 
-An internal cancellation callback does not satisfy this requirement and may remain only as an additional mechanism.
-
-**Status: binding pending item; not implemented in the audited refactor.**
+**Status: implemented after the post-audit review; final full-gate validation remains pending.**
 
 ## 6. Separation status and aggressiveness
 
@@ -279,13 +278,13 @@ Claims such as `Ideal (Disjoint Cliques)` and uses of homogeneity/compactness as
 
 ## 13. Benchmark architecture
 
-**Status: implemented decision, with binding terminology cleanup pending.**
+**Status: implemented decision.**
 
 Benchmark declarations are external expectations. They may include declared dimensions, expected graph/topology, structural units/blocks, Pareto declarations, notes, and adversarial-case status.
 
 Baseline artifacts record the input hash, seed, and software versions so data changes cannot be confused with algorithm changes.
 
-Two benchmark operations are semantically distinct and must use different vocabularies.
+Two benchmark operations are semantically distinct and use different vocabularies.
 
 ### 13.1 Conformity with the theoretical declaration
 
@@ -298,7 +297,7 @@ EXPECTED_DECLARATION_MISMATCH
 NO_DECLARATION
 ```
 
-Known adversarial Case 5 should use `EXPECTED_DECLARATION_MISMATCH` where appropriate.
+Known adversarial Case 5 uses `EXPECTED_DECLARATION_MISMATCH` where appropriate.
 
 ### 13.2 Historical non-regression against a frozen baseline
 
@@ -313,11 +312,9 @@ REGRESSION
 
 Only this historical operation may use the word `REGRESSION`.
 
-### Binding pending item: migrate declaration-conformity terminology
+The post-audit terminology migration has been implemented in benchmark evaluation and its tests. Historical comparison retains the original regression vocabulary.
 
-The audited implementation still used `PASS`, `EXPECTED_CHANGE`, and `REGRESSION` for declaration conformity. This must be migrated in the module, serialized schema, CLIs, tests, notebooks, and presentation layer.
-
-**Status: binding pending item.**
+**Status: implemented after the post-audit review; final full-gate validation remains pending.**
 
 ## 14. Numerical portability of gates
 
@@ -325,15 +322,21 @@ Discrete structural quantities — input hashes, indices, ranks, counts, graph c
 
 Floating-point scientific metrics must not depend on last-bit equality across supported numerical environments.
 
-### Binding pending item: explicit versioned tolerances
+The versioned gate policy is:
 
-The post-implementation audit observed three last-bit mismatches in an alternate numerical environment. Explicit, documented, versioned tolerances must replace fragile exact comparisons for floating-point gate metrics. Tolerances must absorb platform/library numerical variation only and must not mask scientifically material degradation.
+```text
+GATE_TOLERANCE_VERSION = 1
+GATE_RTOL = 0
+GATE_ATOL = 1e-12
+```
 
-**Status: binding pending item.**
+Only floating-point scientific metrics use this tolerance. Discrete structure remains exact. The tolerance is intended to absorb platform/library last-bit variation and must not mask scientifically material degradation.
 
-## 15. Benchmark modes and canonical sizes
+**Status: implemented after the post-audit review; final full-gate validation remains pending.**
 
-**Status: implemented operational decision.**
+## 15. Benchmark modes, canonical sizes, and comparative protocol
+
+**Status: implemented operational decision, with final full-gate validation pending.**
 
 Three uses are distinguished:
 
@@ -341,13 +344,51 @@ Three uses are distinguished:
 - canonical scientific battery (7 canonical cases + 6 MOPs): `N=1000`, seed `123`, `max_evaluated_mis=1`;
 - canonical comparative battery (3 comparative experiments): `N=500`, seed `123`, `max_evaluated_mis=1`.
 
-`benchmark.ipynb` is an interactive scientific interface rather than the acceptance manifest. Its historical default is `N=300`, it runs only the static method, displays each declaration, calls `result.report()`, draws `result.graph_plot()`, and preserves results for inspection.
+`benchmark.ipynb` is an interactive scientific interface rather than the acceptance manifest. Its historical default is `N=300`, it runs only the static method, displays each declaration, calls the public analysis/benchmark API, draws `result.graph_plot()`, and preserves results for inspection.
 
-### Binding pending item: comparative notebook
+`comparative.ipynb` follows the same interactive API pattern. It generates the three comparative cases explicitly, calls `misda.analyze(..., method="static")` and `misda.benchmark()`, displays the report and graph for each case, and stores the resulting objects for inspection. `run_comparative.py` remains the non-interactive JSON/gate frontend rather than the user-facing notebook API.
 
-`comparative.ipynb` remained subject to an equivalent interactive rebuild/review. Its comparison must keep PCA global standardized reconstruction distinct from MISDA reconstruction of eliminated original objectives.
+### 15.1 Native reconstruction metrics remain distinct
 
-**Status: binding pending item.**
+MISDA's native light-reconstruction summaries (`mean_r2`, `worst_r2`, and per-objective R²) concern only original objectives eliminated by the selected MIS and use external PRESS/LOO predictions.
+
+PCA's conventional `global_standardized_r2` curve is retained as a separate in-sample compression diagnostic over all original objectives after standardization.
+
+These native quantities have different estimands and must not be numerically compared to each other.
+
+### 15.2 Common direct MISDA-versus-PCA metric
+
+For direct comparison, both methods use the additional benchmark-only metric:
+
+```text
+global_standardized_external_r2
+```
+
+For each non-constant original objective `j`, compute an external reconstruction R² `R²_j`, then give every objective equal weight:
+
+```text
+global_standardized_external_r2 = mean_j(R²_j)
+```
+
+This is equivalent to measuring squared reconstruction error after variance-standardizing each original objective, so physical scale does not determine its weight. Constant objectives are excluded because R² is undefined for them. Negative R² values are retained.
+
+For MISDA:
+
+- the comparison dimension is the preferred MIS size;
+- preserved objectives are part of the reduced representation and therefore reconstruct exactly (`R²=1`);
+- eliminated objectives use the external PRESS/LOO R² already produced by light reconstruction.
+
+For PCA:
+
+- centering, scaling, and principal directions are fit without the held-out row;
+- the held-out row is projected onto `k` learned components and reconstructed;
+- the same equal-objective-weight external R² is then computed over the original objective space.
+
+The principal direct comparison is made at the same reduced dimension, `k = preferred MIS size`. The PCA external curve may additionally be shown across dimensions.
+
+This comparison measures **information preservation of reduced representations**, not objective-acquisition cost. PCA uses transformed components whose scores are formed from the original objective vector, whereas MISDA preserves a subset of original objectives. This distinction must remain explicit in interpretation.
+
+**Status: implemented decision for the comparative benchmark/notebook; final full-gate validation remains pending.**
 
 ## 16. Reproducibility contracts
 
@@ -379,17 +420,19 @@ Temporary, unambiguous compatibility forwards may emit `DeprecationWarning`. Amb
 
 NaN and infinite input values are rejected explicitly. Constant objectives are handled explicitly rather than silently discarded or used to invalidate the entire analysis.
 
-## 18. Binding pending items from the post-implementation audit
+## 18. Post-implementation audit closure status
 
-The static refactor was functional and extensively tested, but it was explicitly **not considered definitively closed** until the following were completed and validated:
+The static refactor was functional and extensively tested, but it was explicitly not considered definitively closed until five post-audit obligations were completed and validated.
 
-1. **Autonomous `alpha_null` cap:** implement `B_max=10N`, `converged=False`, diagnostic reason, and one `RuntimeWarning` when the structural null estimator does not stabilize by the cap.
-2. **Benchmark vocabulary separation:** use declaration-specific statuses for theoretical conformity and reserve `PASS/IMPROVED/EXPECTED_CHANGE/REGRESSION` for historical baseline comparison.
-3. **Portable numerical comparisons:** introduce explicit, versioned tolerances for floating-point gate metrics while preserving exact comparison for discrete structure.
-4. **Interactive review/rebuild of `comparative.ipynb`:** preserve `N=500` in its canonical battery and maintain the semantic distinction between PCA and MISDA reconstruction metrics.
-5. **Final static gate:** rerun the full static suite, relevant `slow` tests, both notebooks end-to-end, the canonical 13-case scientific battery, and the 3 comparative experiments; confirm adaptive remains excluded; only then update documentation that still describes the pre-cap behavior and declare the static refactor closed.
+Current implementation status:
 
-These five items are **binding implementation/validation obligations**, not optional future research.
+1. **Autonomous `alpha_null` cap — implemented:** `B_max=10N`, `converged=False`, diagnostic reason, and one `RuntimeWarning` when the structural null estimator does not stabilize by the cap.
+2. **Benchmark vocabulary separation — implemented:** declaration-specific statuses are distinct from historical baseline regression statuses.
+3. **Portable numerical comparisons — implemented:** floating-point gate metrics use versioned `rtol=0`, `atol=1e-12`; discrete structure remains exact.
+4. **Interactive review/rebuild of `comparative.ipynb` — implemented:** canonical `N=500`, direct public API usage, native metrics kept distinct, and a common external reconstruction score added for numerical PCA/MISDA comparison.
+5. **Final static gate — pending:** rerun the full static suite, relevant `slow` tests, both notebooks end-to-end, the canonical 13-case scientific battery, and the 3 comparative experiments; confirm adaptive remains excluded; then update remaining active documentation and declare the static refactor closed.
+
+Items 1–4 are implemented but remain subject to the final gate. Item 5 is the remaining binding validation obligation.
 
 ## 19. Future investigations that are not binding implementation obligations
 
