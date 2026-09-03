@@ -29,6 +29,11 @@ FORMAT_VERSION = 3
 METHOD = "static"
 DEFAULT_SEED = 123
 
+DECLARATION_MATCH = "DECLARATION_MATCH"
+DECLARATION_MISMATCH = "DECLARATION_MISMATCH"
+EXPECTED_DECLARATION_MISMATCH = "EXPECTED_DECLARATION_MISMATCH"
+NO_DECLARATION = "NO_DECLARATION"
+
 
 def software_versions():
     packages = ("numpy", "pandas", "scipy", "scikit-learn")
@@ -540,7 +545,7 @@ class BenchmarkCase:
         )
 
     def evaluate(self, result):
-        """Compare a completed result with declarations kept outside MISDA."""
+        """Compare a completed result with external declarations."""
 
         if not isinstance(result, MISDAResult):
             raise TypeError("result must be a refactored MISDAResult.")
@@ -552,7 +557,7 @@ class BenchmarkCase:
                 checks.append(
                     {
                         "field": name,
-                        "status": "SKIP",
+                        "status": NO_DECLARATION,
                         "observed": observed,
                         "expected": None,
                         "reason": "NO_DECLARATION",
@@ -561,13 +566,13 @@ class BenchmarkCase:
                 return None
             error = abs(int(observed) - int(expected))
             if error == 0:
-                status = "PASS"
+                status = DECLARATION_MATCH
                 reason = None
             elif self.adversarial:
-                status = "EXPECTED_CHANGE"
+                status = EXPECTED_DECLARATION_MISMATCH
                 reason = "KNOWN_ADVERSARIAL_CASE"
             else:
-                status = "REGRESSION"
+                status = DECLARATION_MISMATCH
                 reason = "DECLARED_DIMENSION_MISMATCH"
             checks.append(
                 {
@@ -600,13 +605,13 @@ class BenchmarkCase:
                 observed = observed_summary.get(metric)
                 matches = observed == expected
                 if matches:
-                    graph_status = "PASS"
+                    graph_status = DECLARATION_MATCH
                     graph_reason = None
                 elif self.adversarial:
-                    graph_status = "EXPECTED_CHANGE"
+                    graph_status = EXPECTED_DECLARATION_MISMATCH
                     graph_reason = "KNOWN_ADVERSARIAL_CASE"
                 else:
-                    graph_status = "REGRESSION"
+                    graph_status = DECLARATION_MISMATCH
                     graph_reason = "DECLARED_GRAPH_MISMATCH"
                 checks.append(
                     {
@@ -633,13 +638,13 @@ class BenchmarkCase:
                 and result.best_mis.size == len(self.structural_units)
             )
             if unit_adequacy:
-                unit_status = "PASS"
+                unit_status = DECLARATION_MATCH
                 unit_reason = None
             elif self.adversarial:
-                unit_status = "EXPECTED_CHANGE"
+                unit_status = EXPECTED_DECLARATION_MISMATCH
                 unit_reason = "KNOWN_ADVERSARIAL_CASE"
             else:
-                unit_status = "REGRESSION"
+                unit_status = DECLARATION_MISMATCH
                 unit_reason = "DECLARED_UNIT_MISMATCH"
             checks.append(
                 {
@@ -654,7 +659,7 @@ class BenchmarkCase:
             checks.append(
                 {
                     "field": "preferred_structural_units",
-                    "status": "SKIP",
+                    "status": NO_DECLARATION,
                     "observed": None,
                     "expected": None,
                     "reason": unit_reason,
@@ -662,12 +667,14 @@ class BenchmarkCase:
             )
 
         statuses = {check["status"] for check in checks}
-        if "REGRESSION" in statuses:
-            status = "REGRESSION"
-        elif "EXPECTED_CHANGE" in statuses:
-            status = "EXPECTED_CHANGE"
+        if DECLARATION_MISMATCH in statuses:
+            status = DECLARATION_MISMATCH
+        elif EXPECTED_DECLARATION_MISMATCH in statuses:
+            status = EXPECTED_DECLARATION_MISMATCH
+        elif statuses == {NO_DECLARATION}:
+            status = NO_DECLARATION
         else:
-            status = "PASS"
+            status = DECLARATION_MATCH
         return {
             "case_id": self.case_id,
             "status": status,
@@ -697,12 +704,14 @@ class BenchmarkSuite:
             case.evaluate(results[case.case_id]) for case in self.cases
         ]
         statuses = {assessment["status"] for assessment in assessments}
-        if "REGRESSION" in statuses:
-            status = "REGRESSION"
-        elif "EXPECTED_CHANGE" in statuses:
-            status = "EXPECTED_CHANGE"
+        if DECLARATION_MISMATCH in statuses:
+            status = DECLARATION_MISMATCH
+        elif EXPECTED_DECLARATION_MISMATCH in statuses:
+            status = EXPECTED_DECLARATION_MISMATCH
+        elif statuses == {NO_DECLARATION}:
+            status = NO_DECLARATION
         else:
-            status = "PASS"
+            status = DECLARATION_MATCH
         return {
             "suite": self.name,
             "status": status,
@@ -894,8 +903,6 @@ def compile_benchmark_summary(results_dict, sort_by=None):
     rows = []
 
     for case_name, item in results_dict.items():
-        # Handle both direct MISDAResult and wrapper dicts (e.g. from benchmark.ipynb)
-        # item could be MISDAResult or dict
         res = None
         truth_dim = None
 
@@ -908,24 +915,18 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         if res is None:
             continue
 
-        # Basic Params
-        # Handle res.Y being dataframe or numpy
         N, M = res.Y.shape
         algo_alpha = res.alpha
-
-        # MIS Info
         mis_indices = res.best_mis.indices if res.best_mis else []
         dim_red = len(mis_indices)
 
-        # Fidelity (Linear)
         fidel_lin = None
         if res.ses_results and isinstance(res.ses_results, dict):
             fidel_lin = res.ses_results.get("F_real", None)
 
-        # Fidelity (Non-Linear)
         fidel_nl = None
         try:
-            if N <= 5000: # Per safeguard
+            if N <= 5000:
                 nl_out = calculate_ses_nonlinear(res.Y, mis_indices, n_estimators=50, return_details=True)
                 if isinstance(nl_out, dict):
                     fidel_nl = nl_out.get("F_real", None)
@@ -934,17 +935,14 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         except Exception:
             pass
 
-        # Pareto Consistency
         prec, rec = 0.0, 0.0
         try:
              prec, rec = evaluate_pareto_consistency(res, res.Y)
         except Exception:
              pass
 
-        # Homogeneity
         homog = res.homogeneity_ratio
 
-        # Status
         status = "OK"
         low_lin = (fidel_lin is not None and fidel_lin < 0.9)
         low_nl = (fidel_nl is not None and fidel_nl < 0.9)
@@ -955,7 +953,6 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         if truth_dim and dim_red != truth_dim:
              status += f"|DimMismatch({dim_red}!={truth_dim})"
 
-        # Alpha Bounds
         a_min = res.alpha_min if hasattr(res, 'alpha_min') else 0.0
         a_max = res.alpha_max if hasattr(res, 'alpha_max') else 1.0
 
@@ -988,8 +985,6 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-
-    # Reorder columns if Exp exists
     cols = ["Case", "Regime", "N", "M", "Exp", "Dim(Red)", "Alpha", "Min", "Max", "Homog", "Fidel(Lin)", "Fidel(NL)", "Prec", "Rec", "Status"]
     existing_cols = [c for c in cols if c in df.columns]
     df = df[existing_cols]
