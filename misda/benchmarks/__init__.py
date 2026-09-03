@@ -26,6 +26,13 @@ from .mop import (
     generate_dtlz2,
     generate_dtlz5,
 )
+from .comparative import (
+    COMMON_RECONSTRUCTION_METRIC,
+    global_standardized_reconstruction_r2,
+    misda_global_standardized_external_r2,
+    pca_external_reconstruction_curve,
+    pca_in_sample_reconstruction_curve,
+)
 from ..benchmark import (
     BenchmarkCase,
     BenchmarkResult,
@@ -54,6 +61,11 @@ __all__ = [
     "mopF_regime_switching",
     "generate_dtlz2",
     "generate_dtlz5",
+    "COMMON_RECONSTRUCTION_METRIC",
+    "global_standardized_reconstruction_r2",
+    "misda_global_standardized_external_r2",
+    "pca_external_reconstruction_curve",
+    "pca_in_sample_reconstruction_curve",
     "BenchmarkCase",
     "BenchmarkResult",
     "BenchmarkSuite",

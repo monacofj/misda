@@ -71,35 +71,52 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
     )
 
 
-def test_comparative_notebook_is_thin_static_front_end():
+def test_comparative_notebook_uses_public_api_and_runs_three_experiments(monkeypatch):
     path = Path("examples/comparative.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "run_comparative" in source
-    assert "method='static'" not in source
-    assert 'method="static"' not in source
-    assert sum(cell["cell_type"] == "code" for cell in notebook["cells"]) <= 4
+    assert "git+https://github.com/monacofj/misda.git@efficient#egg=misda[benchmarks]" in source
+    assert 'method="static"' in source
+    assert "misda.analyze(" in source
+    assert "misda.benchmark(result, truth)" in source
+    assert "print(benchmark_result.report())" in source
+    assert "result.graph_plot()" in source
+    assert "COMPARATIVE_CASES" in source
+    assert "run_comparative" not in source
 
+    monkeypatch.setenv("MPLBACKEND", "Agg")
     namespace = {"__name__": "notebook_comparative"}
     for index, cell in enumerate(notebook["cells"]):
         if cell["cell_type"] != "code":
             continue
+        tags = cell.get("metadata", {}).get("tags", [])
+        if "setup" in tags:
+            continue
+        if "comparative-run" in tags:
+            namespace["N"] = 32
         cell_source = "".join(cell.get("source", []))
         exec(compile(cell_source, f"{path}:cell-{index}", "exec"), namespace)
 
-    artifact = namespace["artifact"]
-    assert artifact["suite"] == "comparative"
-    assert len(artifact["cases"]) == 3
-    assert artifact["methods"][0] == "static"
+    observed = namespace["comparative_results"]
+    assert len(observed) == 3
+    assert all(isinstance(item["result_obj"], MISDAResult) for item in observed.values())
+    assert all(
+        isinstance(item["benchmark_obj"], BenchmarkResult)
+        for item in observed.values()
+    )
+    assert len(namespace["comparison"]) == 3
+    assert set(namespace["comparison"]["case_id"]) == {"exp_01", "exp_02", "exp_03"}
 
 
-def test_comparative_notebook_keeps_estimands_separate():
+def test_comparative_notebook_keeps_native_estimands_and_adds_common_score():
     _, source = _read_notebook(Path("examples/comparative.ipynb"))
 
     assert "mean_eliminated_objective_r2" in source
     assert "worst_eliminated_objective_r2" in source
     assert "global_standardized_r2" in source
+    assert "global_standardized_external_r2" in source
     assert "misda_reconstruction" in source
     assert "pca_reconstruction" in source
+    assert "misda_minus_pca" in source
