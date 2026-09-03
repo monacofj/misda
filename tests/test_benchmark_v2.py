@@ -202,20 +202,23 @@ def test_truth_reference_validation_is_explicit():
         misda.benchmark(result, {"pareto_expected": [0, 0]})
 
 
-def test_case7_external_declarations_pass_without_entering_result():
+def test_case7_external_declarations_match_without_entering_result():
     _data, result = _two_group_result()
     observed = _case7().evaluate(result)
 
-    assert observed["status"] == "PASS"
+    assert observed["status"] == benchmark.DECLARATION_MATCH
     assert observed["dimension_errors"] == {"latent": 0, "structural": 0}
     assert observed["preferred_unit_adequacy"]
     assert observed["preferred_unit_counts"] == [1, 1]
-    assert all(check["status"] == "PASS" for check in observed["checks"])
+    assert all(
+        check["status"] == benchmark.DECLARATION_MATCH
+        for check in observed["checks"]
+    )
     assert not hasattr(result, "declared")
     assert not hasattr(result.analysis, "latent_expected")
 
 
-def test_known_adversarial_case_records_expected_change_instead_of_false_pass():
+def test_known_adversarial_case_records_expected_declaration_mismatch():
     _data, result = _two_group_result()
     case = benchmark.BenchmarkCase(
         case_id="case_05",
@@ -231,7 +234,7 @@ def test_known_adversarial_case_records_expected_change_instead_of_false_pass():
 
     observed = case.evaluate(result)
 
-    assert observed["status"] == "EXPECTED_CHANGE"
+    assert observed["status"] == benchmark.EXPECTED_DECLARATION_MISMATCH
     assert observed["known_adversarial"]
     assert any(
         check["reason"] == "KNOWN_ADVERSARIAL_CASE"
@@ -239,7 +242,7 @@ def test_known_adversarial_case_records_expected_change_instead_of_false_pass():
     )
 
 
-def test_ambiguous_units_are_skipped_instead_of_becoming_method_metrics():
+def test_ambiguous_units_use_no_declaration_status():
     _data, result = _two_group_result()
     case = benchmark.BenchmarkCase(
         case_id="ambiguous",
@@ -256,7 +259,7 @@ def test_ambiguous_units_are_skipped_instead_of_becoming_method_metrics():
         for check in observed["checks"]
         if check["field"] == "preferred_structural_units"
     )
-    assert unit_check["status"] == "SKIP"
+    assert unit_check["status"] == benchmark.NO_DECLARATION
     assert unit_check["reason"] == "DECLARATION_NOT_UNAMBIGUOUS"
     assert observed["preferred_unit_adequacy"] is None
 
@@ -268,7 +271,7 @@ def test_suite_aggregates_ready_results_and_rejects_missing_cases():
     observed = suite.evaluate({"case_07": result})
 
     assert observed["suite"] == "small"
-    assert observed["status"] == "PASS"
+    assert observed["status"] == benchmark.DECLARATION_MATCH
     assert observed["cases"][0]["case_id"] == "case_07"
     with pytest.raises(KeyError, match="case_07"):
         suite.evaluate({})
@@ -300,7 +303,7 @@ def test_serializer_uses_only_a_completed_result_and_external_case():
         result.best_mis.evaluation["pareto_preservation"]
     )
     assert len(observed["input_sha256"]) == 64
-    assert observed["assessment"]["status"] == "PASS"
+    assert observed["assessment"]["status"] == benchmark.DECLARATION_MATCH
 
 
 def _comparison_artifact():
@@ -382,7 +385,9 @@ def test_canonical_static_battery_has_no_regression_against_frozen_baseline():
     )
     case5 = next(case for case in candidate if case["case_id"] == "case_05")
     if "assessment" in case5:
-        assert case5["assessment"]["status"] == "EXPECTED_CHANGE"
+        assert case5["assessment"]["status"] == (
+            benchmark.EXPECTED_DECLARATION_MISMATCH
+        )
     else:
         assert comparisons["case_05"]["status"] == "PASS"
     case7 = next(case for case in candidate if case["case_id"] == "case_07")
