@@ -1,0 +1,23 @@
+name: newapi gate
+
+on:
+  push:
+    branches: [newapi]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest nbconvert nbformat jupyter
+      - name: Static tests
+        run: pytest -q -m 'not slow and not adaptive'
