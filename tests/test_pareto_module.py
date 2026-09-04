@@ -1,20 +1,9 @@
-"""Characterization tests for the extracted legacy Pareto layer."""
-
-from types import SimpleNamespace
+"""Contracts for the Pareto-preservation engine used by evaluate()."""
 
 import numpy as np
-import pandas as pd
 import pytest
 
-import misda
 from misda import _pareto
-
-
-PUBLIC_PARETO_OPERATIONS = (
-    "get_nondominated_mask",
-    "evaluate_pareto_consistency",
-    "evaluate_pareto_raw",
-)
 
 
 @pytest.fixture
@@ -30,57 +19,37 @@ def pareto_example():
     )
 
 
-@pytest.mark.parametrize("name", PUBLIC_PARETO_OPERATIONS)
-def test_legacy_pareto_operations_are_reexported_from_package(name):
-    assert getattr(misda, name) is getattr(_pareto, name)
-
-
-def test_nondominated_mask_is_unchanged(pareto_example):
+def test_nondominated_mask_engine_is_stable(pareto_example):
     np.testing.assert_array_equal(
-        misda.get_nondominated_mask(pareto_example),
+        _pareto.get_nondominated_mask_minimize(pareto_example),
         [True, True, True, True, True],
     )
 
 
-@pytest.mark.parametrize(
-    ("selected", "expected"),
-    [
-        ([0, 1, 2], (1.0, 1.0)),
-        ([0, 1], (1.0, 1.0)),
-        ([0], (1.0, 0.2)),
-        ([], (0.0, 0.0)),
-    ],
-)
-def test_raw_pareto_values_are_unchanged(
-    pareto_example, selected, expected
-):
-    assert misda.evaluate_pareto_raw(pareto_example, selected) == expected
+def test_pareto_preservation_reports_retention_validity_and_jaccard():
+    data = np.array([[0.0, 2.0], [1.0, 1.0], [2.0, 0.0], [1.5, 1.5]])
+
+    observed = _pareto.evaluate_pareto_preservation(data, [0])
+
+    assert observed["full_front_size"] == 3
+    assert observed["reduced_front_size"] == 1
+    assert observed["intersection_size"] == 1
+    assert observed["pareto_retention"] == pytest.approx(1 / 3)
+    assert observed["pareto_validity"] == 1.0
+    assert observed["pareto_jaccard"] == pytest.approx(1 / 3)
+    assert observed["exact_preservation"] is False
+    assert observed["reduced_front_indices"] == (0,)
 
 
-def test_raw_pareto_dataframe_and_directions_are_unchanged(pareto_example):
-    frame = pd.DataFrame(pareto_example, columns=["a", "b", "c"])
-
-    assert misda.evaluate_pareto_raw(
-        frame,
-        [0, 1],
-        directions=[-1, 1, -1],
-    ) == (1.0, 1 / 3)
+def test_pareto_preservation_rejects_empty_selection(pareto_example):
+    with pytest.raises(ValueError, match="selected_indices must not be empty"):
+        _pareto.evaluate_pareto_preservation(pareto_example, [])
 
 
-def test_consistency_empty_selection_behavior_is_unchanged(pareto_example):
-    result = SimpleNamespace(
-        Y=pareto_example,
-        best_mis=SimpleNamespace(indices=[]),
-    )
-
-    assert misda.evaluate_pareto_consistency(result) == (0.0, 0.0)
-
-
-def test_consistency_undefined_recall_bug_is_preserved(pareto_example):
-    result = SimpleNamespace(
-        Y=pareto_example,
-        best_mis=SimpleNamespace(indices=[0]),
-    )
-
-    with pytest.raises(NameError, match="recall"):
-        misda.evaluate_pareto_consistency(result)
+def test_pareto_preservation_rejects_mixed_directions_for_now(pareto_example):
+    with pytest.raises(ValueError, match="Mixed objective directions are not supported"):
+        _pareto.evaluate_pareto_preservation(
+            pareto_example,
+            [0, 1],
+            directions=[-1, 1, -1],
+        )
