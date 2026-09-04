@@ -1,24 +1,11 @@
-"""Characterization tests for the extracted legacy statistics layer."""
+"""Characterization tests for statistical utilities retained by the new API."""
 
 import math
 
 import numpy as np
 import pytest
 
-import misda
 from misda import _statistics
-
-
-PUBLIC_STATISTICS = (
-    "alpha_from_r",
-    "max_abs_corr",
-    "estimate_null_max_r",
-    "estimate_alpha_interval",
-    "select_alpha",
-    "AlphaRegime",
-    "diagnose_alpha_regime",
-    "describe_alpha_regime",
-)
 
 
 def _characterization_matrix():
@@ -28,18 +15,13 @@ def _characterization_matrix():
     return data
 
 
-@pytest.mark.parametrize("name", PUBLIC_STATISTICS)
-def test_legacy_statistics_are_reexported_from_package(name):
-    assert getattr(misda, name) is getattr(_statistics, name)
-
-
 def test_alpha_and_interval_values_are_unchanged():
     data = _characterization_matrix()
 
-    assert misda.alpha_from_r(0.5, 30) == pytest.approx(
+    assert _statistics.alpha_from_r(0.5, 30) == pytest.approx(
         0.004313470570616613
     )
-    assert misda.estimate_alpha_interval(
+    assert _statistics.estimate_alpha_interval(
         data, B=12, random_state=9
     ) == pytest.approx(
         (
@@ -69,7 +51,7 @@ def test_null_estimate_samples_are_reproducible():
         ]
     )
 
-    observed_max, observed = misda.estimate_null_max_r(
+    observed_max, observed = _statistics.estimate_null_max_r(
         _characterization_matrix(), B=12, random_state=9
     )
 
@@ -80,18 +62,18 @@ def test_null_estimate_samples_are_reproducible():
 @pytest.mark.parametrize(
     ("alpha_min", "alpha_max", "regime", "s", "s_norm"),
     [
-        (0.2, 0.1, misda.AlphaRegime.SIGNAL_BELOW_NOISE, -math.log(2), math.nan),
-        (0.0, 0.0, misda.AlphaRegime.END_OF_SCALE, math.nan, math.nan),
-        (0.0, 0.1, misda.AlphaRegime.IMMEDIATE_SEPARATION, math.inf, math.nan),
-        (0.01, 0.1, misda.AlphaRegime.LIMINAL_SEPARATION, math.log(10), 0.5),
+        (0.2, 0.1, _statistics.AlphaRegime.SIGNAL_BELOW_NOISE, -math.log(2), math.nan),
+        (0.0, 0.0, _statistics.AlphaRegime.END_OF_SCALE, math.nan, math.nan),
+        (0.0, 0.1, _statistics.AlphaRegime.IMMEDIATE_SEPARATION, math.inf, math.nan),
+        (0.01, 0.1, _statistics.AlphaRegime.LIMINAL_SEPARATION, math.log(10), 0.5),
     ],
 )
 def test_alpha_regime_diagnosis_is_unchanged(
     alpha_min, alpha_max, regime, s, s_norm
 ):
-    observed = misda.diagnose_alpha_regime(alpha_min, alpha_max)
+    observed = _statistics.diagnose_alpha_regime(alpha_min, alpha_max)
 
     assert observed["regime"] == int(regime)
     assert observed["S"] == pytest.approx(s, nan_ok=True)
     assert observed["S_norm"] == pytest.approx(s_norm, nan_ok=True)
-    assert "Statistical regime:" in misda.describe_alpha_regime(observed)
+    assert "Statistical regime:" in _statistics.describe_alpha_regime(observed)
