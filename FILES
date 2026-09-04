@@ -11,7 +11,7 @@ misda/__init__.py
       - rank: ranking views under named policies.
       - benchmark: declaration-aware scientific assessment kept outside discovery.
 
-misda/newapi.py
+misda/api.py
     Static discovery/evaluation/ranking implementation and typed result model:
       - MISSet and MISCandidate.
       - Ranking and the structural_coverage policy.
@@ -69,9 +69,6 @@ examples/benchmarks/run_comparative.py
 
 examples/benchmarks/_baseline.py
     Historical baseline comparison helpers used only by regression tests.
-
-examples/dtlz.ipynb
-    Exploratory DTLZ notebook; not part of the current static acceptance gate.
 
 
 3. DOCUMENTATION
