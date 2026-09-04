@@ -24,7 +24,7 @@ import pandas as pd
 from scipy.optimize import linear_sum_assignment
 
 from ._tolerances import gate_isclose
-from .newapi import MISSet, STRUCTURAL_COVERAGE
+from .api import MISSet, STRUCTURAL_COVERAGE
 
 
 FORMAT_VERSION = 4
