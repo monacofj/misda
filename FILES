@@ -1,98 +1,123 @@
-
 MISDA PROJECT FILE STRUCTURE
 ================================================================================
 
 1. CORE LIBRARY
-----------------
+---------------
 
-misda.py
+misda/__init__.py
+    Small public facade exporting the static MISDA API:
+      - discover: structural inference and complete MIS universe.
+      - evaluate: candidate-level linear, nonlinear, and Pareto evidence.
+      - rank: ranking views under named policies.
+      - benchmark: declaration-aware scientific assessment kept outside discovery.
 
-    The main library file containing the implementation of the MISDA algorithm:
-      - `analyze`: Core execution (graph construction, MIS finding).
-      - `MISDAResult`: Result object with `validate`, `plot`, `to_pandas` methods.
-      - `MISCandidate`: Object-Oriented wrapper for individual solution sets.
-      - Diagnostic metrics (Regime, S-value).
-      - Helper classes and graph plotting utilities.
+misda/newapi.py
+    Static discovery/evaluation/ranking implementation and typed result model:
+      - MISSet and MISCandidate.
+      - Ranking and the structural_coverage policy.
+      - StructuralMetrics, LinearMetrics, NonlinearMetrics, and ParetoMetrics.
+      - DimensionalSupport and CandidateSupport.
 
-2. NOTEBOOKS & BENCHMARKS (examples/)
-----------------------------------------
+misda/_graph.py
+    Construction of G+ and G±, independence-number dimensions, and structural
+    MIS enumeration.
+
+misda/_statistics.py
+    Correlation statistics, alpha_onset/alpha_null estimation, Monte Carlo
+    stopping, and aggressiveness interpolation.
+
+misda/_support.py
+    Data-driven dimensional-support diagnostics:
+      - TRANSITIVE_CHAINING.
+      - HIDDEN_SPECTRAL_STRUCTURE.
+
+misda/_reconstruction.py
+    Linear and nonlinear external reconstruction engines and nonlinear null
+    reference protocol.
+
+misda/_pareto.py
+    Pareto-front preservation metrics.
+
+misda/_ranking.py
+    Structural candidate measurements used by ranking policies.
+
+misda/_plotting_newapi.py
+    Graph visualization for MISSet/Ranking objects.
+
+misda/benchmark.py
+    Benchmark declarations, reports, serialization, and regression comparison.
+
+misda/benchmarks/
+    Canonical synthetic and MOP benchmark generators plus comparative helpers.
+
+
+2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
+------------------------------------------------
 
 examples/benchmark.ipynb
-
-    The primary test suite covering:
-      - 7 Canonical Cases (structural logic tests: Independence, Redundancy...)
-      - 6 Synthetic MOPs (A-F) testing complex correlations, non-linearity,
-        and regime switching.
-
-examples/dtlz.ipynb
-
-    Specialized benchmark for geometric manifolds (DTLZ2, DTLZ5) and high-
-    dimensional analysis (M=10), featuring 3D reconstruction visualizations.
+    Interactive execution of the 7 canonical structural cases and 6 synthetic
+    MOP cases using discover/evaluate/benchmark and graph_plot.
 
 examples/comparative.ipynb
+    Three MISDA/PCA comparative experiments using the public static API.
 
-    Rigorous benchmark comparing MISDA vs PCA vs Clustering (Efficiency vs
-    Effectiveness/Fidelity), demonstrating the "Blind Spot" of PCA in preserving
-    structural conflicts.
+examples/benchmarks/run_benchmark.py
+    Executable canonical 13-case scientific battery.
+
+examples/benchmarks/run_comparative.py
+    Executable three-experiment comparative battery.
+
+examples/benchmarks/_baseline.py
+    Historical baseline comparison helpers used only by regression tests.
+
+examples/dtlz.ipynb
+    Exploratory DTLZ notebook; not part of the current static acceptance gate.
 
 
-3. PROJECT METADATA & SETUP
-----------------------------
-
-pyproject.toml
-    Modern build configuration file (PEP 612). Defines project metadata,
-    dependencies (numpy, pandas, scipy, networkx, matplotlib, sklearn),
-    and build system requirements (setuptools). Replaces setup.py.
+3. DOCUMENTATION
+----------------
 
 README.md
+    Project overview, installation, and new static API quick start.
 
-    Project overview, installation instructions, and quick start guide.
+docs/userguide.md
+    Detailed user-facing static API guide.
+
+docs/design_notes.md
+    Current implementation semantics and algorithmic notes.
+
+docs/decisions.md
+    Normative decision ledger for scientific and API choices.
 
 docs/CONTRIBUTING.md
+    Contributor guidelines.
 
-    Guidelines for external contributors.
+
+4. PROJECT METADATA
+-------------------
+
+pyproject.toml
+    Build configuration, dependencies, package metadata, and pytest settings.
 
 CHANGELOG.md
+    Version history.
 
-    History of version updates and fixes (e.g., transition to v0.2.0).
+AUTHORS.md
+    Project authors and maintainers.
 
-AUTHORS
-
-    List of project authors/maintainers.
-
-LICENSE
-
-    Symbolic link to LICENSES/GPL-3.0-or-later.txt.
-
-LICENSES/
-
-    Directory containing full text of applicable licenses (e.g., GPL-3.0).
+COPYING / LICENSES/
+    GPL-3.0-or-later license material.
 
 REUSE.toml
+    REUSE licensing metadata.
 
-    Configuration for REUSE compliance (license tracking).
 
+5. TESTING AND CI
+-----------------
 
-4. TESTING & VERIFICATION SCRIPTS (examples/)
-----------------------------------------
+tests/
+    Unit, API, benchmark, documentation, notebook, and scientific-contract tests.
 
-examples/verify_example.py
-
-    A minimal script to sanity-check the basic misda.analyze functionality.
-
-examples/verify_table.py
-
-    Script used to verify the output formatting of summary tables.
-
-examples/verify_mop.py
-
-    Dedicated script for verifying MOP generator logic.
-
-examples/run_summary_test.py
-
-    Utility to test the compile_benchmark_summary function specifically.
-
-doc/
-    
-    usage.md: Detailed manual.
-    CONTRIBUTING.md: Guidelines for external contributors.
+.github/workflows/newapi.yml
+    Branch gate running the full test suite, the canonical scientific battery,
+    and the comparative experiments.
