@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import misda
-import misda.newapi as newapi
+import misda.api as api
 from misda import _statistics, _validation
 
 
@@ -72,7 +72,7 @@ def test_alpha_null_nonconvergence_reason_reaches_discovery(monkeypatch):
         reason="MAX_PERMUTATIONS_REACHED",
     )
     monkeypatch.setattr(
-        newapi,
+        api,
         "estimate_null_positive_correlation",
         lambda *args, **kwargs: fake,
     )
