@@ -1,4 +1,4 @@
-"""Compatibility helpers for normalized pre-refactor benchmark artifacts."""
+"""Historical baseline helpers used only to read/compare pre-new-API artifacts."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-import misda
+from misda._pareto import get_nondominated_mask
 
 
 FORMAT_VERSION = 1
@@ -19,7 +19,6 @@ DEFAULT_SEED = 123
 
 
 def matrix_sha256(frame) -> str:
-    """Hash the canonical float64 representation of a generated input matrix."""
     matrix = np.ascontiguousarray(frame.to_numpy(dtype=np.float64))
     return hashlib.sha256(matrix.tobytes()).hexdigest()
 
@@ -30,6 +29,7 @@ def software_versions() -> dict[str, str]:
         "python": platform.python_version(),
         **{name: importlib.metadata.version(name) for name in packages},
     }
+
 
 def write_json(artifact: dict, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -97,8 +97,8 @@ def _linear_press_reconstruction(frame, selected: list[int]) -> dict:
 
 def _pareto_preservation(frame, selected: list[int]) -> dict:
     data = frame.to_numpy(dtype=float)
-    full_front = misda.get_nondominated_mask(data)
-    reduced_front = misda.get_nondominated_mask(data[:, selected])
+    full_front = get_nondominated_mask(data)
+    reduced_front = get_nondominated_mask(data[:, selected])
     intersection = full_front & reduced_front
     union = full_front | reduced_front
     n_full = int(np.sum(full_front))
@@ -113,91 +113,4 @@ def _pareto_preservation(frame, selected: list[int]) -> dict:
         "reduced_front_size": n_reduced,
         "intersection_size": n_intersection,
         "exact_preservation": bool(np.array_equal(full_front, reduced_front)),
-    }
-
-
-def _rank_values(candidate: dict) -> dict:
-    """Capture every legacy value implicated in ordering or rank grouping."""
-    keys = (
-        "size",
-        "neighborhood",
-        "neighborhood_ratio",
-        "span",
-        "avg_external_degree",
-        "avg_internal_degree",
-    )
-    return {key: candidate[key] for key in keys}
-
-
-def serialize_static_case(
-    case_id: str,
-    frame,
-    truth: dict,
-    *,
-    seed: int = DEFAULT_SEED,
-) -> dict:
-    """Run legacy static MISDA and serialize its scientific baseline fields."""
-    result = misda._analyze_static(
-        frame,
-        name=truth["name"],
-    )
-    internal = result.isda_results
-    preferred = internal["mis_ranked"][0]
-    selected = [int(index) for index in preferred["mis_indices"]]
-    adjacency = np.asarray(internal["adjacency"], dtype=int)
-    rank_counts = {
-        str(rank): len(candidates)
-        for rank, candidates in sorted(internal["rank_groups"].items())
-    }
-    structural_components = internal["components"]
-    separation_status = (
-        "NULL_SEPARATION"
-        if result.alpha_min < result.alpha_max
-        else "NO_NULL_SEPARATION"
-    )
-
-    return {
-        "case_id": case_id,
-        "name": truth["name"],
-        "seed": int(seed),
-        "n": int(frame.shape[0]),
-        "m": int(frame.shape[1]),
-        "input_sha256": matrix_sha256(frame),
-        "declared": {
-            "latent_dimension": truth["latent_expected"],
-            "structural_dimension": truth["structural_expected"],
-        },
-        "estimated": {
-            # The legacy result has only the positive structural graph. Computing
-            # G± here would anticipate the refactor and its unresolved edge rule.
-            "latent_dimension": None,
-            "structural_dimension": len(structural_components),
-            "preferred_mis_size": len(selected),
-        },
-        "preferred_indices": selected,
-        "preferred_labels": [str(label) for label in preferred["mis_labels"]],
-        "preferred_rank": int(preferred["rank"]),
-        "preferred_rank_values": _rank_values(preferred),
-        "n_mis": len(internal["mis_ranked"]),
-        "rank_counts": rank_counts,
-        "graphs": {
-            "structural": {
-                "edges": int(np.sum(np.triu(adjacency, k=1))),
-                "components": len(structural_components),
-            },
-            "dependence": {
-                "edges": None,
-                "components": None,
-                "status": "UNAVAILABLE_IN_LEGACY_RESULT",
-            },
-        },
-        "linear_reconstruction": _linear_press_reconstruction(frame, selected),
-        "pareto": _pareto_preservation(frame, selected),
-        "separation_status": separation_status,
-        "legacy_alpha": {
-            "minimum": float(result.alpha_min),
-            "maximum": float(result.alpha_max),
-            "selected": float(result.alpha),
-            "regime": result.regime.name,
-        },
     }
