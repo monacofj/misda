@@ -41,7 +41,7 @@ misda/_pareto.py
 misda/_ranking.py
     Structural candidate measurements used by ranking policies.
 
-misda/_plotting_newapi.py
+misda/_plotting.py
     Graph visualization for MISSet/Ranking objects.
 
 misda/benchmark.py
