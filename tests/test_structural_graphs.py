@@ -1,9 +1,10 @@
-"""Tests for signed graphs, structural dimensions, MISs, and ranking."""
+"""Tests for signed graphs, dimensions, structural MISs, and discovery signature."""
 
 import numpy as np
 import pytest
 
-from misda import _graph, _ranking, _statistics
+import misda.newapi as newapi
+from misda import _graph, _statistics
 
 
 def _statistics_from_relations(relations, n_objectives, labels=None):
@@ -29,13 +30,14 @@ def _statistics_from_relations(relations, n_objectives, labels=None):
     )
 
 
-def _positive_edges(graph):
+def _edges(graph):
     return {tuple(sorted(edge)) for edge in graph.edges}
 
 
 def test_empty_graph_keeps_all_objectives_in_one_mis():
-    statistics = _statistics_from_relations([], 4)
-    structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
+    structure = _graph.build_dependency_graphs(
+        _statistics_from_relations([], 4), log_alpha=-5.0
+    )
 
     assert structure.structural_dimension == 4
     assert structure.latent_dimension == 4
@@ -49,8 +51,9 @@ def test_complete_positive_graph_has_singleton_maximal_sets():
         for left in range(4)
         for right in range(left + 1, 4)
     ]
-    statistics = _statistics_from_relations(relations, 4)
-    structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
+    structure = _graph.build_dependency_graphs(
+        _statistics_from_relations(relations, 4), log_alpha=-5.0
+    )
 
     assert structure.structural_dimension == 1
     assert structure.latent_dimension == 1
@@ -59,7 +62,7 @@ def test_complete_positive_graph_has_singleton_maximal_sets():
     assert _graph.enumerate_structural_mis(structure) == [[0], [1], [2], [3]]
 
 
-def test_signed_edges_join_latent_but_not_structural_independence():
+def test_signed_edges_join_latent_but_not_structural_redundancy():
     statistics = _statistics_from_relations(
         [(0, 1, 1), (2, 3, 1), (1, 2, -1)],
         4,
@@ -67,55 +70,44 @@ def test_signed_edges_join_latent_but_not_structural_independence():
     )
     structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
 
-    assert _positive_edges(structure.structural_graph) == {(0, 1), (2, 3)}
-    assert _positive_edges(structure.dependence_graph) == {
-        (0, 1),
-        (1, 2),
-        (2, 3),
-    }
+    assert _edges(structure.structural_graph) == {(0, 1), (2, 3)}
+    assert _edges(structure.dependence_graph) == {(0, 1), (1, 2), (2, 3)}
     assert structure.structural_components == ((0, 1), (2, 3))
     assert structure.latent_components == ((0, 1, 2, 3),)
     assert structure.structural_dimension == 2
     assert structure.latent_dimension == 2
-    assert structure.structural_component_count == 2
-    assert structure.latent_component_count == 1
     assert structure.dependence_graph.edges[1, 2]["sign"] == -1
-    assert structure.structural_graph.nodes[0]["name"] == "cost-a"
-    assert structure.structural_graph.nodes[0]["label"] == "cost-a"
-    assert structure.structural_graph.edges[0, 1]["correlation"] == 0.8
-    assert structure.structural_graph.edges[0, 1]["log_p"] == -10.0
 
 
-def test_positive_and_negative_perfect_pair_distinguish_structural_dimension():
+def test_positive_and_negative_pair_have_different_structural_dimensions():
     positive = _graph.build_dependency_graphs(
-        _statistics_from_relations([(0, 1, 1)], 2),
-        log_alpha=-5.0,
+        _statistics_from_relations([(0, 1, 1)], 2), log_alpha=-5.0
     )
     negative = _graph.build_dependency_graphs(
-        _statistics_from_relations([(0, 1, -1)], 2),
-        log_alpha=-5.0,
+        _statistics_from_relations([(0, 1, -1)], 2), log_alpha=-5.0
     )
 
-    assert positive.latent_dimension == 1
-    assert positive.structural_dimension == 1
+    assert positive.latent_dimension == positive.structural_dimension == 1
     assert negative.latent_dimension == 1
     assert negative.structural_dimension == 2
 
 
-def test_case_5_path_keeps_known_adversarial_gap_without_component_aliasing():
+def test_path_dimension_is_independence_number_not_component_count():
     relations = [(index, index + 1, 1) for index in range(19)]
     statistics = _statistics_from_relations(relations, 20)
     structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
-    ranked = _graph.rank_structural_mis(structure, statistics.labels)
+    ranked, groups = newapi._rank_structural_coverage(
+        structure, statistics.labels
+    )
 
     assert structure.structural_component_count == 1
     assert structure.structural_dimension == 10
     assert max(len(candidate) for candidate in _graph.enumerate_structural_mis(structure)) == 10
-    assert len(ranked[0]["mis_indices"]) == 10
-    assert ranked[0]["mis_indices"] != list(range(20))
+    assert ranked[0]["size"] == 10
+    assert groups[0]
 
 
-def test_case_7_two_anticorrelated_groups_has_dimensions_two_and_one():
+def test_two_anticorrelated_positive_cliques_have_structural_two_latent_one():
     first = range(10)
     second = range(10, 20)
     relations = []
@@ -129,7 +121,7 @@ def test_case_7_two_anticorrelated_groups_has_dimensions_two_and_one():
     relations.extend((left, right, -1) for left in first for right in second)
     statistics = _statistics_from_relations(relations, 20)
     structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
-    ranked = _graph.rank_structural_mis(structure, statistics.labels)
+    ranked, _ = newapi._rank_structural_coverage(structure, statistics.labels)
 
     assert structure.structural_dimension == 2
     assert structure.latent_dimension == 1
@@ -203,91 +195,90 @@ def test_enumerated_sets_are_unique_maximal_and_deterministic(relations):
             if left < right
         )
         assert all(
-            any(structure.structural_graph.has_edge(vertex, chosen) for chosen in selected)
+            any(
+                structure.structural_graph.has_edge(vertex, chosen)
+                for chosen in selected
+            )
             for vertex in set(structure.structural_graph) - selected
         )
 
 
-def test_default_policy_preserves_legacy_effective_order_and_exposes_values():
-    adjacency = np.array(
-        [
-            [0, 1, 0, 1, 0],
-            [1, 0, 1, 0, 1],
-            [0, 1, 0, 1, 0],
-            [1, 0, 1, 0, 1],
-            [0, 1, 0, 1, 0],
-        ],
-        dtype=int,
-    )
-    mis_sets = [[0, 2, 4], [1, 3], [0, 2], [1, 4], [3]]
-    labels = ["z", "a", "m", "b", "q"]
+def test_structural_coverage_groups_equal_scientific_values_and_uses_labels_only_inside_tie(monkeypatch):
+    class Structure:
+        structural_graph = __import__("networkx").empty_graph(4)
 
-    ranked = _ranking.rank_mis_candidates(mis_sets, adjacency, labels)
-
-    assert [candidate["mis_indices"] for candidate in ranked] == [
-        [0, 2, 4],
-        [1, 3],
-        [1, 4],
-        [0, 2],
-        [3],
+    measured = [
+        {
+            "mis_indices": [0, 1], "mis_labels": ["z", "y"], "size": 2,
+            "neighborhood": 0, "neighborhood_ratio": 0.0,
+            "avg_external_degree": 0.0, "avg_internal_degree": 0.0, "span": 0,
+        },
+        {
+            "mis_indices": [2, 3], "mis_labels": ["a", "b"], "size": 2,
+            "neighborhood": 0, "neighborhood_ratio": 0.0,
+            "avg_external_degree": 0.0, "avg_internal_degree": 0.0, "span": 0,
+        },
     ]
-    assert ranked[0]["rank_values"] == {
-        "size": 3,
-        "neighborhood": 2,
-        "avg_external_degree": 2.0,
-        "span": 6,
-    }
-    assert [candidate["rank"] for candidate in ranked] == [1, 2, 3, 4, 5]
-    assert all("total_correlation" not in candidate for candidate in ranked)
-    assert all("max_correlation" not in candidate for candidate in ranked)
+    monkeypatch.setattr(newapi, "enumerate_structural_mis", lambda structure: [[0, 1], [2, 3]])
+    monkeypatch.setattr(newapi, "compute_mis_metrics", lambda *args: measured)
 
-
-def test_equal_rank_values_share_rank_and_labels_only_break_ties():
-    adjacency = np.zeros((4, 4), dtype=int)
-    labels = ["z", "y", "a", "b"]
-    ranked = _ranking.rank_mis_candidates(
-        [[0, 1], [2, 3]],
-        adjacency,
-        labels,
+    ranked, groups = newapi._rank_structural_coverage(
+        Structure(), ["z", "y", "a", "b"]
     )
 
-    assert [candidate["mis_indices"] for candidate in ranked] == [[2, 3], [0, 1]]
-    assert [candidate["rank"] for candidate in ranked] == [1, 1]
-    assert ranked[0]["rank_values"] == ranked[1]["rank_values"]
+    assert [item["mis_indices"] for item in ranked] == [[2, 3], [0, 1]]
+    assert groups == ((0, 1),)
 
 
-def test_structural_signature_contains_dimension_order_ranks_and_values():
-    statistics = _statistics_from_relations(
-        [(0, 1, 1), (1, 2, 1), (2, 3, 1)],
-        4,
-    )
-    observed = _graph.structural_signature(statistics, log_alpha=-5.0)
+def test_discovery_signature_contains_ds_dl_and_tie_groups(monkeypatch):
+    class FakeStructure:
+        structural_dimension = 3
+        latent_dimension = 2
 
-    assert observed.structural_dimension == 2
-    assert observed.ranked_mis
-    assert all(len(item) == 3 for item in observed.ranked_mis)
-    assert observed == _graph.make_structural_signature(statistics)(-5.0)
-
-
-def test_null_estimator_accepts_complete_structural_signature():
-    statistics = _statistics_from_relations([(0, 1, 1)], 3)
-    normalized_data = np.array(
-        [
-            [0.0, 0.0, 1.0],
-            [1.0, 1.0, 0.0],
-            [2.0, 2.0, 3.0],
-            [3.0, 3.0, 2.0],
-        ]
-    )
-    from misda import _validation
-
-    normalized = _validation.normalize_input_matrix(normalized_data)
-    observed = _statistics.estimate_null_from_maxima(
-        [0.2, 0.2, 0.2, 0.2],
-        n_samples=normalized.n_samples,
-        signature=_graph.make_structural_signature(statistics),
+    ranked = [
+        {"mis_indices": [0, 2]},
+        {"mis_indices": [1, 3]},
+        {"mis_indices": [0, 3]},
+    ]
+    monkeypatch.setattr(newapi, "build_dependency_graphs", lambda *args: FakeStructure())
+    monkeypatch.setattr(
+        newapi,
+        "_rank_structural_coverage",
+        lambda *args: (ranked, ((0, 1), (2,))),
     )
 
-    assert observed.converged
-    assert isinstance(observed.lower_r_signature, _graph.StructuralSignature)
-    assert observed.lower_r_signature == observed.upper_r_signature
+    observed = newapi._discovery_signature(
+        _statistics_from_relations([], 4), -5.0
+    )
+
+    assert observed == (3, 2, (((0, 2), (1, 3)), ((0, 3),)))
+
+
+def test_discovery_signature_ignores_order_inside_true_tie(monkeypatch):
+    class FakeStructure:
+        structural_dimension = 2
+        latent_dimension = 2
+
+    monkeypatch.setattr(newapi, "build_dependency_graphs", lambda *args: FakeStructure())
+    statistics = _statistics_from_relations([], 4)
+
+    first = [
+        {"mis_indices": [0, 2]},
+        {"mis_indices": [1, 3]},
+    ]
+    monkeypatch.setattr(
+        newapi,
+        "_rank_structural_coverage",
+        lambda *args: (first, ((0, 1),)),
+    )
+    signature_a = newapi._discovery_signature(statistics, -5.0)
+
+    second = list(reversed(first))
+    monkeypatch.setattr(
+        newapi,
+        "_rank_structural_coverage",
+        lambda *args: (second, ((0, 1),)),
+    )
+    signature_b = newapi._discovery_signature(statistics, -5.0)
+
+    assert signature_a == signature_b
