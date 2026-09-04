@@ -360,7 +360,7 @@ class MISSet:
     def graph_plot(self, show=True, ranking=None):
         """Plot the stored positive structural graph and a ranking selection."""
 
-        from ._plotting_newapi import plot_mis_set_graph
+        from ._plotting import plot_mis_set_graph
 
         return plot_mis_set_graph(
             self,
