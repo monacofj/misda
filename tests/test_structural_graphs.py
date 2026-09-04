@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-import misda.newapi as newapi
+import misda.api as newapi
 from misda import _graph, _statistics
 
 
