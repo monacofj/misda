@@ -33,52 +33,39 @@ def test_global_standardized_reconstruction_r2_equal_weights_objectives():
 
 def test_misda_common_score_counts_preserved_objectives_as_exact():
     x = np.linspace(-2.0, 2.0, 12)
-    frame = pd.DataFrame(
-        {
-            "f1": x,
-            "f2": 2.0 * x,
-            "f3": -3.0 * x,
-        }
-    )
-    result = misda.analyze(frame, method="static", seed=123, max_evaluated_mis=1)
-    linear = result.best_mis.evaluation["linear_reconstruction"]
+    frame = pd.DataFrame({"f1": x, "f2": 2.0 * x, "f3": -3.0 * x})
+    result = misda.discover(frame, seed=123)
+    ranking = misda.rank(result)
+    misda.evaluate(result, metrics=("linear",), candidates=ranking[:1])
+    selected_candidate = ranking.selected
 
     score = bench.misda_global_standardized_external_r2(frame, result)
 
-    selected = set(result.best_mis.indices)
+    selected = set(selected_candidate.indices)
     expected = []
-    labels = list(frame.columns)
-    for index, label in enumerate(labels):
+    for index, label in enumerate(frame.columns):
         if index in selected:
             expected.append(1.0)
         else:
-            expected.append(linear["r2_by_objective"][label])
+            expected.append(selected_candidate.linear.r2(label))
     assert score == pytest.approx(np.mean(expected))
 
 
 def test_external_pca_curve_uses_common_metric_and_reaches_full_reconstruction():
     rng = np.random.default_rng(44)
     frame = pd.DataFrame(rng.normal(size=(24, 4)), columns=list("abcd"))
-
     curve = bench.pca_external_reconstruction_curve(frame, max_components=4)
 
     assert [point["dimension"] for point in curve] == [1, 2, 3, 4]
     assert all(bench.COMMON_RECONSTRUCTION_METRIC in point for point in curve)
-    assert curve[-1][bench.COMMON_RECONSTRUCTION_METRIC] == pytest.approx(
-        1.0,
-        abs=1e-12,
-    )
+    assert curve[-1][bench.COMMON_RECONSTRUCTION_METRIC] == pytest.approx(1.0, abs=1e-12)
 
 
 def test_in_sample_pca_metric_remains_separate_from_external_comparison_metric():
     rng = np.random.default_rng(91)
     frame = pd.DataFrame(rng.normal(size=(20, 3)))
-
     native = bench.pca_in_sample_reconstruction_curve(frame, max_components=2)
     external = bench.pca_external_reconstruction_curve(frame, max_components=2)
 
     assert set(native[0]) == {"dimension", "global_standardized_r2"}
-    assert set(external[0]) == {
-        "dimension",
-        bench.COMMON_RECONSTRUCTION_METRIC,
-    }
+    assert set(external[0]) == {"dimension", bench.COMMON_RECONSTRUCTION_METRIC}
