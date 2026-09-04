@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
+import misda
 from misda.benchmark import BenchmarkResult
-from misda.result import MISDAResult
 
 
 BANNED_SOURCE = (
@@ -16,6 +16,8 @@ BANNED_SOURCE = (
     "FeatureAgglomeration",
     "method='adaptive'",
     'method="adaptive"',
+    "misda.analyze(",
+    "misda.heavy(",
 )
 
 
@@ -33,11 +35,12 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "git+https://github.com/monacofj/misda.git@efficient#egg=misda[benchmarks]" in source
-    assert 'method="static"' in source
-    assert "misda.benchmark(result, truth)" in source
+    assert "git+https://github.com/monacofj/misda.git@main#egg=misda[benchmarks]" in source
+    assert "misda.discover(" in source
+    assert 'misda.evaluate(mis_set, metrics=("linear", "pareto"))' in source
+    assert "misda.benchmark(mis_set, truth)" in source
     assert "print(benchmark_result.report())" in source
-    assert "result.graph_plot()" in source
+    assert "mis_set.graph_plot()" in source
     assert "CANONICAL_CASES" in source
     assert "MOP_CASES" in source
 
@@ -60,7 +63,7 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
         list(namespace["canonical_results"].values())
         + list(namespace["mop_results"].values())
     )
-    assert all(isinstance(item["result_obj"], MISDAResult) for item in results)
+    assert all(isinstance(item["result_obj"], misda.MISSet) for item in results)
     assert all(
         isinstance(item["benchmark_obj"], BenchmarkResult)
         for item in results
@@ -77,12 +80,13 @@ def test_comparative_notebook_uses_public_api_and_runs_three_experiments(monkeyp
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "git+https://github.com/monacofj/misda.git@efficient#egg=misda[benchmarks]" in source
-    assert 'method="static"' in source
-    assert "misda.analyze(" in source
-    assert "misda.benchmark(result, truth)" in source
+    assert "git+https://github.com/monacofj/misda.git@main#egg=misda[benchmarks]" in source
+    assert "misda.discover(" in source
+    assert "misda.rank(mis_set)" in source
+    assert "misda.evaluate(" in source
+    assert "misda.benchmark(mis_set, truth)" in source
     assert "print(benchmark_result.report())" in source
-    assert "result.graph_plot()" in source
+    assert "mis_set.graph_plot(ranking=structural)" in source
     assert "COMPARATIVE_CASES" in source
     assert "run_comparative" not in source
 
@@ -101,7 +105,7 @@ def test_comparative_notebook_uses_public_api_and_runs_three_experiments(monkeyp
 
     observed = namespace["comparative_results"]
     assert len(observed) == 3
-    assert all(isinstance(item["result_obj"], MISDAResult) for item in observed.values())
+    assert all(isinstance(item["result_obj"], misda.MISSet) for item in observed.values())
     assert all(
         isinstance(item["benchmark_obj"], BenchmarkResult)
         for item in observed.values()
