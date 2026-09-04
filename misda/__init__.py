@@ -15,7 +15,7 @@ part of this API.
 """
 
 from ._metadata import __version__
-from .newapi import (
+from .api import (
     PARTIALLY_SUPPORTED,
     STRUCTURAL_COVERAGE,
     CandidateSupport,
