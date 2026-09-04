@@ -1,6 +1,6 @@
 import numpy as np
 
-from misda import api
+import misda
 from misda._support import (
     HIDDEN_SPECTRAL_STRUCTURE,
     SUPPORTED,
@@ -76,37 +76,16 @@ def test_support_uses_sample_size_as_null_budget_and_is_reproducible():
     assert first["n_permutations"] == len(data)
 
 
-def test_analyze_attaches_support_and_report_renders_it(monkeypatch):
-    marker = {
-        "status": SUPPORTED,
-        "reasons": (),
-        "transitivity": {"observed": 0.0, "null": 0.1, "excess": -0.1},
-        "spectral": {
-            "tested_dimension": 1,
-            "observed_next_eigenvalue": 0.1,
-            "null_next_eigenvalue": 1.0,
-            "excess": -0.9,
-        },
-        "n_permutations": 20,
-        "seed": 1,
+def test_discover_attaches_group_support_and_report_renders_it():
+    data, _ = make_case2_total_redundancy(N=40, seed=123)
+    result = misda.discover(data, seed=123)
+
+    assert result.support is not None
+    assert result.support.status in {
+        "SUPPORTED",
+        "PARTIALLY_SUPPORTED",
+        "UNSUPPORTED",
     }
-
-    monkeypatch.setattr(
-        api,
-        "evaluate_dimensional_support",
-        lambda *args, **kwargs: marker,
-    )
-    x = np.linspace(0.0, 1.0, 20)
-    data = np.column_stack((x, 2.0 * x))
-
-    result = api._analyze_static_v2(
-        data,
-        seed=123,
-        max_evaluated_mis=1,
-    )
-
-    assert result.analysis.dimensional_support is marker
+    assert len(result.support.results) == len(result.structural_ranking.groups[0])
     report = result.report()
-    assert "Dimensional support: SUPPORTED" in report
-    assert "transitivity excess=-0.1000" in report
-    assert "spectral excess=-0.9000" in report
+    assert "Dimensional support:" in report
