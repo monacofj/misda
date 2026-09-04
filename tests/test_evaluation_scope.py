@@ -4,7 +4,7 @@
 import numpy as np
 
 import misda
-import misda.newapi as newapi
+import misda.api as api
 
 
 def _independent_data(seed=123, n=24, m=4):
@@ -32,7 +32,7 @@ def _fake_linear(data, selected_indices, labels):
 def test_partial_evaluation_scope_accumulates_across_calls(monkeypatch):
     result = misda.discover(_independent_data(), seed=17)
     assert len(result) >= 2
-    monkeypatch.setattr(newapi, "evaluate_linear_reconstruction", _fake_linear)
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", _fake_linear)
 
     misda.evaluate(result, metrics=("linear",), candidates=[0])
     misda.evaluate(result, metrics=("linear",), candidates=[1])
@@ -45,7 +45,7 @@ def test_partial_evaluation_scope_accumulates_across_calls(monkeypatch):
 
 def test_scope_note_disappears_after_family_is_complete(monkeypatch):
     result = misda.discover(_independent_data(seed=321), seed=19)
-    monkeypatch.setattr(newapi, "evaluate_linear_reconstruction", _fake_linear)
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", _fake_linear)
 
     misda.evaluate(result, metrics=("linear",), candidates=1)
     assert "linear metrics were evaluated for" in result.report()
