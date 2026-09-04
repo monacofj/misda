@@ -33,13 +33,21 @@ COMPARATIVE_CASES = (
 
 
 def _serialized_misda_common_score(frame, case) -> float:
-    matrix = frame.to_numpy(dtype=float) if hasattr(frame, "to_numpy") else np.asarray(frame, dtype=float)
+    matrix = (
+        frame.to_numpy(dtype=float)
+        if hasattr(frame, "to_numpy")
+        else np.asarray(frame, dtype=float)
+    )
     centered = matrix - np.mean(matrix, axis=0)
     totals = np.sum(centered * centered, axis=0)
-    selected = set(case.get("preferred_indices", ()))
+    selected = set(case.get("selected_indices", ()))
     reconstruction = case.get("linear_reconstruction") or {}
     per_objective = reconstruction.get("r2_by_objective") or {}
-    labels = list(frame.columns) if hasattr(frame, "columns") else [f"f{i+1}" for i in range(matrix.shape[1])]
+    labels = (
+        list(frame.columns)
+        if hasattr(frame, "columns")
+        else [f"f{i+1}" for i in range(matrix.shape[1])]
+    )
 
     scores = []
     for index, label in enumerate(labels):
@@ -71,21 +79,24 @@ def run_comparative(
         if case_ids is not None and case_id not in case_ids:
             continue
         frame, truth = generator(N=n, seed=seed)
-        result = None
+        mis_set = None
         if serializer is not None:
             case = serializer(case_id, frame, truth, seed=seed)
         else:
             declaration = BenchmarkCase.from_truth(case_id, truth)
-            result = misda.analyze(
+            mis_set = misda.discover(
                 frame,
-                method=METHOD,
                 name=truth["name"],
                 seed=seed,
-                max_evaluated_mis=1,
+            )
+            misda.evaluate(
+                mis_set,
+                metrics=("linear", "pareto"),
+                candidates=1,
             )
             case = serialize_benchmark_result(
                 declaration,
-                result,
+                mis_set,
                 frame,
                 seed=seed,
             )
@@ -93,15 +104,17 @@ def run_comparative(
         case["pca"] = {
             "metric": "global_standardized_r2",
             "protocol": "in_sample",
-            "curve": bench.pca_in_sample_reconstruction_curve(frame, max_components=10),
+            "curve": bench.pca_in_sample_reconstruction_curve(
+                frame, max_components=10
+            ),
         }
 
         misda_common = (
-            bench.misda_global_standardized_external_r2(frame, result)
-            if result is not None
+            bench.misda_global_standardized_external_r2(frame, mis_set)
+            if mis_set is not None
             else _serialized_misda_common_score(frame, case)
         )
-        selected_dimension = int(case["estimated"]["preferred_mis_size"])
+        selected_dimension = int(case["estimated"]["selected_dimension"])
         pca_external_curve = bench.pca_external_reconstruction_curve(
             frame,
             max_components=frame.shape[1],
