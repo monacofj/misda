@@ -311,7 +311,17 @@ class MISSet:
         )
 
     def evaluation_scope(self, family):
-        return self._evaluation_scopes.get(family)
+        if family not in {"linear", "pareto", "nonlinear"}:
+            return self._evaluation_scopes.get(family)
+        basis_entry = self._evaluation_scopes.get(family)
+        evaluated = sum(
+            getattr(candidate, family) is not None
+            for candidate in self._candidates
+        )
+        if basis_entry is None and evaluated == 0:
+            return None
+        basis = basis_entry[1] if basis_entry is not None else "existing metrics"
+        return evaluated, basis
 
     def report(self):
         ranking = self.structural_ranking
@@ -839,7 +849,12 @@ def evaluate(
 
     for family in requested:
         if family != "structural":
-            mis_set._evaluation_scopes[family] = (len(selected), basis)
+            previous = mis_set._evaluation_scopes.get(family)
+            if previous is None or previous[1] == basis:
+                scope_basis = basis
+            else:
+                scope_basis = "multiple evaluation calls"
+            mis_set._evaluation_scopes[family] = (0, scope_basis)
     mis_set.timings["evaluation"] = (
         mis_set.timings.get("evaluation", 0.0) + time.perf_counter() - started
     )
