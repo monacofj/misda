@@ -36,10 +36,14 @@ def test_linear_reconstruction_no_reduction_is_explicit(reconstruction_example):
         labels=("source", "target", "noise"),
     )
 
-    assert observed["r2_by_objective"] == {}
+    assert observed["r2_by_objective"] is None
     assert observed["mean_r2"] is None
     assert observed["worst_r2"] is None
-    assert observed["reason_by_metric"]["mean_r2"] == "NO_ELIMINATED_OBJECTIVES"
+    assert observed["reason_by_metric"] == {
+        "r2_by_objective": "NO_ELIMINATED_OBJECTIVES",
+        "mean_r2": "NO_ELIMINATED_OBJECTIVES",
+        "worst_r2": "NO_ELIMINATED_OBJECTIVES",
+    }
 
 
 def test_linear_reconstruction_rejects_empty_selection(reconstruction_example):
