@@ -5,168 +5,198 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # MISDA static design notes
 
-This document records the methodological boundaries of the refactored static
-pipeline. The implementation favors explicit estimands, reproducible stopping
-rules, and result objects that distinguish stored evidence from presentation.
+These notes explain the methodological boundaries behind the current static
+implementation. Normative decisions live in `docs/decisions.md`.
 
 ## 1. Positive structure and signed dependence
 
-Positive and negative correlation have different meanings in objective
-reduction:
+Positive and negative dependence have different meanings for objective
+reduction. A supported positive association can indicate redundancy; a
+supported negative association expresses dependence/conflict but must not be
+turned into a positive-redundancy edge.
 
-- a statistically supported positive association is a candidate redundancy
-  edge;
-- a supported negative association is a conflict and must not become a
-  redundancy edge.
+MISDA therefore builds two projections at the same threshold:
 
-MISDA therefore constructs two graph projections. The positive structural
-graph `G+` contains only supported positive relations and drives the reduction
-MISs. The signed dependence graph `G±` contains supported relations of either
-sign. Dimensional estimates are graph independence numbers: `structural_dimension`
-is the maximum cardinality of an independent set in `G+`, while
-`latent_dimension` is the maximum cardinality of an independent set in `G±`.
-The sign of an edge therefore affects structural redundancy, while both signs
-express latent dependence. Connected-component counts remain topology
-diagnostics and are stored separately from both dimensions. MIS ranking chooses
-among candidate reductions and does not define either dimensional estimate.
+```text
+G+   supported positive dependence
+G±   supported positive and negative dependence
+```
 
-Constant objectives cannot support a valid pairwise Fisher-z test. They remain
-isolated nodes with explicit metadata so the pipeline never loses an input
-column silently.
+Dimensions are exact graph independence numbers:
 
-## 2. Log-domain statistical layer
+```text
+structural_dimension = alpha(G+)
+latent_dimension     = alpha(G±)
+```
 
-The static pipeline tests positive correlation with a one-tailed Fisher-z
-probability. Probabilities are stored and compared in log space, preserving
-extreme evidence that would underflow in ordinary floating-point probability
-space.
+Connected-component counts describe topology only. This distinction matters for
+chains and other connected non-clique structures, where one connected component
+can still contain several mutually independent vertices.
 
-Two thresholds delimit the analysis:
+Constant objectives remain explicit isolated vertices because a constant column
+cannot support a valid pairwise Fisher-z test.
+
+## 2. Statistical thresholds and sequential null estimation
+
+The static layer stores probability evidence in log space to avoid underflow.
+Two data-derived endpoints delimit the selected threshold:
 
 - `alpha_onset`: first observed positive structural event;
-- `alpha_null`: null-calibrated endpoint obtained by permuting each objective
-  independently and tracking the maximum positive correlation.
+- `alpha_null`: permutation-null endpoint based on the maximum positive
+  correlation under independently permuted objective columns.
 
-Null estimation begins with at least `N` permutations. It stops only when the
-structural signature is identical across the Monte Carlo uncertainty interval,
-or when an external cancellation request is received. There is no hidden
-iteration cap. The result stores the number of permutations, uncertainty
-intervals, convergence, seed, and RNG state.
+`aggressiveness` interpolates between these endpoints in log space.
 
-`aggressiveness` interpolates between the endpoints in a numerically stable
-log-domain calculation. A value of `0` selects the onset; `1` selects the
-null-calibrated endpoint.
+Null estimation begins with at least `N` permutations and is bounded by
+`B_max=10N`. Its stopping criterion is deliberately structural rather than
+numerical. At the lower and upper endpoints of the current Monte Carlo
+uncertainty interval, MISDA compares:
 
-## 3. Internal dimensional support
+```text
+Sigma(alpha) = (
+    structural_dimension,
+    latent_dimension,
+    complete structural_coverage tie-group ordering,
+)
+```
 
-A dimensional estimate is accompanied by an internal support diagnostic that
-uses no benchmark declaration. `SUPPORTED` does not mean that the estimated
-dimension has been proved correct; it means that the observed data did not
-produce either of the two implemented contradictions. `UNSUPPORTED` means that
-at least one contradiction was detected.
+The estimator stops when the two signatures match. Dimensions alone would be
+too weak because candidate sets/order could still change. Literal graph equality
+would be too strong because an edge can change without changing any public
+discovery conclusion. Raw metric equality would likewise pursue numerical
+precision with no decision consequence.
 
-The diagnostic works in rank space so monotonic nonlinear transformations do
-not create artificial disagreement. It uses two complementary statistics:
+## 3. Discovery, evaluation, and ranking are separate operations
 
-- transitivity: for each eliminated objective, compare its strongest direct
-  positive rank correlation with the retained MIS to the strength of its
-  strongest indirect max-min path to that MIS. The maximum indirect-minus-direct
-  value detects chaining;
-- spectrum: inspect the first rank-correlation eigenvalue beyond the estimated
-  latent dimension. A large remaining direction indicates hidden systematic
-  structure beyond the graph estimate.
+The public static flow is:
 
-Each statistic is calibrated by independently permuting every objective column.
-The null reference is the mean statistic over exactly `N` permutations, so the
-Monte Carlo budget is derived from the sample size rather than supplied as a
-hyperparameter. The stored excesses are
+```text
+Y -> discover() -> MISSet -> evaluate()
+                         \-> rank()
+```
 
-`transitivity_excess = observed_transitivity - null_transitivity`
+`discover()` owns threshold inference, graph construction, graph dimensions,
+complete structural MIS enumeration, structural metrics, canonical ordering,
+and dimensional support.
 
-and
+`evaluate()` adds candidate evidence without changing graphs, dimensions,
+candidate membership, or canonical positions.
 
-`spectral_excess = observed_next_eigenvalue - null_next_eigenvalue`.
+`rank()` materializes a view over the existing candidate universe. A ranking
+policy is therefore a preference rule over discovered candidates, not an input
+to threshold inference.
 
-The categorical rule has the intrinsic zero boundary:
+## 4. Canonical structural order
 
-- if either excess is strictly greater than zero, status is `UNSUPPORTED`;
-- otherwise status is `SUPPORTED`.
+The current natural policy is `structural_coverage`:
 
-Positive transitivity excess carries reason `TRANSITIVE_CHAINING`. Positive
-spectral excess carries reason `HIDDEN_SPECTRAL_STRUCTURE`. These diagnostics
-do not change the graph, dimension, MIS enumeration, or ranking; they only state
-whether the data contain internal evidence contradicting the estimate.
+```text
+size                  descending
+neighborhood          descending
+avg_external_degree   descending
+span                  descending
+```
 
-As a general methodological rule, categorical MISDA decisions may use a
-mathematically privileged boundary such as zero or a reference estimated from
-the data. Fixed performance thresholds chosen externally (for example R² > 0.9)
-are not introduced as hidden hyperparameters.
+Labels provide a deterministic final tie-break only. Equal values for the four
+scientific criteria remain one rank group.
 
-## 4. Candidate enumeration and ranking
+The canonical order makes integer positions stable and useful, but contextual
+rank does not belong to `MISCandidate`. A future policy can rank the same
+candidate differently without changing its identity.
 
-Maximal independent sets are enumerated from the positive structural graph.
-Every result is unique, maximal, and deterministically ordered. The default
-ranking records its criterion values, while objective labels are used only as a
-stable final tie-breaker. Equal criterion values share a rank.
+## 5. Candidate evidence
 
-All candidates are retained in `result.mis`; evaluation limits affect evidence
-collection, not visibility or ranking.
+Evidence is grouped by typed domain rather than stored in one unstructured
+public dictionary:
 
-## 5. Light and heavy evidence
+```text
+candidate.structural
+candidate.linear
+candidate.nonlinear
+candidate.pareto
+```
 
-Light evaluation runs for a ranked prefix during `analyze()`:
+Intrinsic candidate properties remain direct:
 
-- linear reconstruction predicts eliminated objectives only and uses external
-  predictions;
-- delete-one jackknife estimates sampling uncertainty;
-- Pareto retention, validity, and Jaccard compare nondominated row masks.
+```text
+candidate.indices
+candidate.objectives
+candidate.size
+```
 
-Undefined quantities carry `None` plus a machine-readable reason. In
-particular, full retention has no eliminated-objective reconstruction score.
+Linear reconstruction predicts eliminated objectives from selected originals
+using external PRESS/LOO semantics and keeps untruncated R² values. Nonlinear
+reconstruction uses nested external leave-one-out Random Forest evaluation,
+internal model selection, deterministic seeds, and uncertainty-driven tree
+stopping. Its optional permutation-null reference remains decomposed evidence;
+no single SES score is recreated.
 
-Heavy evaluation is separate and on demand. It uses nested leave-one-out
-Random Forest reconstruction, model selection inside each outer fold, and a
-tree count determined by uncertainty stability. An optional sequential
-permutation null reports reconstruction beyond chance and incidental
-reconstruction frequency. Both expensive layers preserve partial results and
-explicitly record cancellation or non-convergence.
+Pareto preservation currently assumes minimization and records retention,
+validity, Jaccard agreement, front sizes, and exact preservation.
 
-## 6. Result and reporting boundaries
+## 6. Evaluation scope and computational cost
 
-The result tree has three responsibilities:
+Candidate scope belongs to an `evaluate()` call as a whole. Linear/Pareto-only
+calls default to all candidates; a call containing nonlinear evaluation defaults
+to one candidate. Users can select all candidates, a canonical prefix, explicit
+indices, or a `Ranking` slice.
 
-- `AnalysisResult`: global scientific properties and graph state;
-- `MISCandidate`: stable candidate identity, rank values, and attached evidence;
-- `ExecutionResult`: effective controls, reproducibility, timing, and
-  convergence.
+A partial evaluation is scientifically valid but incomplete. Reports therefore
+state partial scope explicitly rather than warning as though an error occurred.
 
-`summary()`, `report()`, and `graph_plot()` are views over stored state. They do
-not run validation, tune parameters, or mutate scientific results. Metric names
-and explanations are centralized in reporting metadata.
+Future ranking policies may declare required metrics and computational cost.
+Expensive automatic work over a large candidate universe must then require
+explicit cost opt-in. No alternative ranking policy is defined yet.
 
-## 7. External benchmarks
+## 7. Dimensional support
 
-Benchmark declarations are external expectations, not inputs to `analyze()`.
-Each run records its input digest, seed, software versions, estimates, and
-assessment. Comparing with a frozen pre-refactor artifact is a regression gate;
-it does not force the new schema to reproduce legacy field names or known
-legacy defects.
+Dimensional support asks whether the observed data contain internal evidence
+against the sufficiency of the graph-derived description. It does not use
+benchmark truth and does not estimate a replacement dimension.
 
-The comparative suite keeps two estimands separate:
+`TRANSITIVE_CHAINING` compares direct positive association to the retained
+candidate with widest indirect max-min paths. It detects the failure mode in
+which strong local links along a chain are mistaken for global substitutability.
 
-- PCA: global standardized reconstruction R² over all objectives;
-- MISDA: external reconstruction of eliminated objectives from selected
-  original objectives.
+`HIDDEN_SPECTRAL_STRUCTURE` examines the first rank-correlation eigenvalue
+beyond the estimated latent signal dimension and subtracts a column-permutation
+null reference. Positive excess indicates organized multivariate structure
+remaining beyond the estimate.
 
-They may be displayed together as complementary evidence but must not be
-collapsed into one unqualified fidelity axis.
+If several candidates tie at first `structural_coverage` rank, all are evaluated
+using shared null permutations. This prevents an arbitrary deterministic
+label-based tie-break from deciding a scientific support status. The aggregate
+state is `SUPPORTED`, `PARTIALLY_SUPPORTED`, or `UNSUPPORTED`, while individual
+candidate evidence remains inspectable.
 
-## 8. Compatibility boundary
+## 8. Result and reporting boundaries
 
-The static v2 pipeline is the supported scientific contract. Unambiguous legacy
-spellings are temporary deprecated forwards. Ambiguous legacy validation fields
-are not recreated on the new result.
+`MISSet` owns the discovered universe and global analysis. `MISCandidate` owns
+candidate evidence. `Ranking` owns contextual order and selection.
 
-The previous adaptive implementation is suspended. It remains isolated for
-future methodological work and is excluded from current acceptance tests,
-benchmarks, examples, and claims.
+Consequently:
+
+```text
+mis_set.analysis.structural_dimension   graph-derived quantity
+ranking.selected_dimension              preference-derived quantity
+```
+
+Reports and graph plots are views over stored state; they do not trigger hidden
+evaluation.
+
+## 9. External benchmark boundary
+
+Benchmark declarations are external expectations. They can compare discovered
+quantities and stored evaluation evidence, but they never feed back into
+`discover()`, `evaluate()`, or `rank()`.
+
+The comparative suite keeps native estimands distinct. Direct MISDA/PCA
+comparison uses a separately defined common external reconstruction metric at a
+matched reduced dimension.
+
+## 10. Current scope
+
+Static MISDA is the active scientific path. Adaptive analysis, bounded MIS
+enumeration, alternative ranking policies, additional dimensional-support
+mechanisms, and maximization/mixed objective directions are deliberately left
+for later work.
