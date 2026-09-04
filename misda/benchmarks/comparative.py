@@ -12,7 +12,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import StandardScaler
 
-from ..result import MISDAResult
+from ..newapi import MISSet
 
 
 COMMON_RECONSTRUCTION_METRIC = "global_standardized_external_r2"
@@ -71,33 +71,35 @@ def global_standardized_reconstruction_r2(observed, reconstructed) -> float:
     return float(np.mean(per_objective))
 
 
-def misda_global_standardized_external_r2(data, result: MISDAResult) -> float:
-    """Derive the common reconstruction score from an evaluated MISDA result.
+def misda_global_standardized_external_r2(data, result: MISSet) -> float:
+    """Derive the common reconstruction score from an evaluated MISDA set.
 
     Preserved objectives are represented exactly and therefore contribute R²=1.
-    Eliminated objectives contribute the external PRESS/LOO R² already stored by
-    MISDA's light reconstruction evaluation. Constant objectives are excluded
-    because R² is undefined for them.
+    Eliminated objectives contribute the external PRESS/LOO R² stored on the
+    candidate selected by the canonical structural ranking. Constant objectives
+    are excluded because R² is undefined for them.
     """
 
     matrix = _as_matrix(data)
-    if not isinstance(result, MISDAResult):
-        raise TypeError("result must be a refactored MISDAResult.")
+    if not isinstance(result, MISSet):
+        raise TypeError("result must be an MISSet returned by discover().")
     if matrix.shape != result._data.shape:
         raise ValueError("data shape must match the completed MISDA result.")
-    preferred = result.best_mis
+    preferred = result.structural_ranking.selected
     if preferred is None:
-        raise ValueError("result has no preferred MIS.")
-    linear = preferred.evaluation.get("linear_reconstruction")
+        raise ValueError("result has no selected structural candidate.")
+    linear = preferred.linear
     if linear is None:
-        raise ValueError("preferred MIS must have light linear reconstruction evaluated.")
+        raise ValueError(
+            "selected MIS must have linear reconstruction evaluated."
+        )
 
     labels = tuple(
         result.analysis.structural_graph.nodes[index]["label"]
         for index in range(result.analysis.original_dimension)
     )
     selected = set(preferred.indices)
-    eliminated_scores = linear.get("r2_by_objective") or {}
+    eliminated_scores = linear.r2_by_objective or {}
     centered = matrix - np.mean(matrix, axis=0)
     totals = np.sum(centered * centered, axis=0)
 
