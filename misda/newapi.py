@@ -1,29 +1,15 @@
 # SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Static MISDA discovery, evaluation, and ranking API.
-
-This module deliberately separates three operations:
-
-``discover``
-    Infer the graph structure, dimensions, complete structural MIS universe,
-    canonical structural ordering, and dimensional-support diagnostics.
-``evaluate``
-    Add candidate-level evidence without changing the discovered universe or
-    its canonical order.
-``rank``
-    Materialize an ordered view over an existing :class:`MISSet`.
-
-The static scientific engines live in the existing private modules; this file
-provides the R4 public object model around them.
-"""
+"""Static MISDA discovery, evaluation, and ranking API."""
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional, Sequence, Tuple
+from typing import Any, Optional, Tuple
 
+import networkx as nx
 import numpy as np
 
 from ._graph import build_dependency_graphs, enumerate_structural_mis
@@ -41,7 +27,11 @@ from ._statistics import (
     interpolate_log_alpha,
     separation_status,
 )
-from ._support import SUPPORTED, UNSUPPORTED, evaluate_dimensional_support
+from ._support import (
+    SUPPORTED,
+    UNSUPPORTED,
+    evaluate_dimensional_support_group,
+)
 from ._validation import normalize_input_matrix, validate_aggressiveness
 
 
@@ -105,10 +95,12 @@ class NullReferenceMetrics:
     above_null_r2: Optional[float]
     incidental_reconstruction_rate: Optional[float]
     n_permutations: int
-    se_mc: Optional[float]
+    mc_se_mean_null_r2: Optional[float]
+    above_null_r2_se: Optional[float]
+    incidental_reconstruction_rate_se: Optional[float]
     converged: bool
     cancelled: bool
-    convergence_reason: Optional[str]
+    reason: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -156,11 +148,7 @@ class ParetoMetrics:
 
 @dataclass(frozen=True)
 class MISCandidate:
-    """One discovered structural maximal independent set.
-
-    Candidate identity is its fixed canonical position in the owning MISSet;
-    contextual ranks do not live on the candidate.
-    """
+    """One discovered structural maximal independent set."""
 
     objectives: Tuple[Any, ...]
     indices: Tuple[int, ...]
@@ -326,6 +314,7 @@ class MISSet:
         return self._evaluation_scopes.get(family)
 
     def report(self):
+        ranking = self.structural_ranking
         lines = [f"MISDA discovery: {self.name or 'Untitled'}"]
         lines.append(
             "Dimensions: "
@@ -334,9 +323,20 @@ class MISSet:
             f"structural={self.analysis.structural_dimension}"
         )
         lines.append(
-            f"MISs: {len(self)}; policy={STRUCTURAL_COVERAGE}; "
-            f"support={self.support.status if self.support is not None else 'N/A'}"
+            f"Structural ranking: policy={ranking.policy}; "
+            f"selected_dimension={ranking.selected_dimension}; MISs={len(self)}"
         )
+        lines.append(
+            f"Dimensional support: "
+            f"{self.support.status if self.support is not None else 'N/A'}"
+        )
+        if self.support is not None and len(self.support.results) > 1:
+            for item in self.support.results:
+                reasons = ", ".join(item.reasons) or "none"
+                lines.append(
+                    f"  candidate[{item.candidate_index}]: {item.status}; "
+                    f"reasons={reasons}"
+                )
         for family in ("linear", "pareto", "nonlinear"):
             scope = self.evaluation_scope(family)
             if scope is not None and scope[0] != len(self):
@@ -346,6 +346,17 @@ class MISSet:
                     f"({scope[1]})."
                 )
         return "\n".join(lines)
+
+    def graph_plot(self, show=True, ranking=None):
+        """Plot the stored positive structural graph and a ranking selection."""
+
+        from ._plotting_newapi import plot_mis_set_graph
+
+        return plot_mis_set_graph(
+            self,
+            ranking=self.structural_ranking if ranking is None else ranking,
+            show=show,
+        )
 
 
 class Ranking:
@@ -428,14 +439,11 @@ def _structural_rank_value(metric):
 
 def _rank_structural_coverage(structure, labels):
     n_objectives = structure.structural_graph.number_of_nodes()
-    adjacency = np.asarray(
-        __import__("networkx").to_numpy_array(
-            structure.structural_graph,
-            nodelist=range(n_objectives),
-            dtype=int,
-            weight=None,
-        ),
+    adjacency = nx.to_numpy_array(
+        structure.structural_graph,
+        nodelist=range(n_objectives),
         dtype=int,
+        weight=None,
     )
     measured = compute_mis_metrics(
         enumerate_structural_mis(structure), adjacency, labels
@@ -459,8 +467,10 @@ def _discovery_signature(correlation_statistics, log_alpha):
     )
     grouped_mis = tuple(
         tuple(
-            tuple(ranked[index]["mis_indices"])
-            for index in group
+            sorted(
+                tuple(ranked[index]["mis_indices"])
+                for index in group
+            )
         )
         for group in groups
     )
@@ -500,11 +510,7 @@ def discover(
     name=None,
     cancel_requested=None,
 ):
-    """Discover the complete static structural MIS universe.
-
-    No user-selectable ranking policy participates in discovery.  The sole
-    canonical order is ``structural_coverage``.
-    """
+    """Discover the complete static structural MIS universe."""
 
     total_start = time.perf_counter()
     normalized = normalize_input_matrix(Y)
@@ -557,17 +563,15 @@ def discover(
 
     support_start = time.perf_counter()
     first_group = groups[0] if groups else tuple()
+    raw_support = evaluate_dimensional_support_group(
+        normalized.data,
+        tuple(candidates[index].indices for index in first_group),
+        structure.latent_dimension,
+        seed=seed,
+    )
     support_results = tuple(
-        _candidate_support(
-            evaluate_dimensional_support(
-                normalized.data,
-                candidates[index].indices,
-                structure.latent_dimension,
-                seed=seed,
-            ),
-            index,
-        )
-        for index in first_group
+        _candidate_support(raw, index)
+        for raw, index in zip(raw_support, first_group)
     )
     support_seconds = time.perf_counter() - support_start
 
@@ -646,10 +650,14 @@ def _null_metrics(raw):
         above_null_r2=raw.get("above_null_r2"),
         incidental_reconstruction_rate=raw.get("incidental_reconstruction_rate"),
         n_permutations=int(raw.get("n_permutations", 0)),
-        se_mc=raw.get("se_mc"),
+        mc_se_mean_null_r2=raw.get("mc_se_mean_null_r2"),
+        above_null_r2_se=raw.get("above_null_r2_se"),
+        incidental_reconstruction_rate_se=raw.get(
+            "incidental_reconstruction_rate_se"
+        ),
         converged=bool(raw.get("converged", False)),
         cancelled=bool(raw.get("cancelled", False)),
-        convergence_reason=raw.get("convergence_reason"),
+        reason=raw.get("reason"),
     )
 
 
@@ -693,17 +701,25 @@ def _candidate_indices(mis_set, candidates, metrics):
             if "nonlinear" in metrics and len(mis_set)
             else tuple(range(len(mis_set)))
         ), "default scope"
-    if candidates == "all":
+    if isinstance(candidates, str):
+        if candidates != "all":
+            raise ValueError("the only string candidate selector is 'all'.")
         return tuple(range(len(mis_set))), "all candidates"
     if isinstance(candidates, Ranking):
         if candidates.mis_set is not mis_set:
             raise ValueError("Ranking belongs to a different MISSet.")
         return candidates.indices, f"{candidates.policy} Ranking view"
-    if isinstance(candidates, (int, np.integer)) and not isinstance(candidates, (bool, np.bool_)):
+    if (
+        isinstance(candidates, (int, np.integer))
+        and not isinstance(candidates, (bool, np.bool_))
+    ):
         count = int(candidates)
         if count < 0:
             raise ValueError("candidates must be non-negative.")
-        return tuple(range(min(count, len(mis_set)))), f"first {count} in {STRUCTURAL_COVERAGE} order"
+        return (
+            tuple(range(min(count, len(mis_set)))),
+            f"first {count} in {STRUCTURAL_COVERAGE} order",
+        )
     try:
         selected = tuple(int(index) for index in candidates)
     except (TypeError, ValueError) as exc:
@@ -738,6 +754,8 @@ def evaluate(
         raise TypeError("null_reference must be a boolean.")
     if null_reference and "nonlinear" not in requested:
         raise ValueError("null_reference requires nonlinear metrics.")
+    if cancel_requested is not None and not callable(cancel_requested):
+        raise TypeError("cancel_requested must be callable or None.")
 
     selected, basis = _candidate_indices(mis_set, candidates, requested)
     full_front = None
@@ -835,13 +853,7 @@ def rank(
     candidates="all",
     accept_cost=False,
 ):
-    """Create a ranking snapshot over an already discovered MISSet.
-
-    Only ``structural_coverage`` is currently defined.  The ``accept_cost``
-    parameter is part of the stable ranking contract for future policies that
-    may require automatic expensive evaluation; it has no effect for the
-    current structural policy.
-    """
+    """Create a ranking snapshot over an already discovered MISSet."""
 
     if not isinstance(mis_set, MISSet):
         raise TypeError("mis_set must be an MISSet.")
