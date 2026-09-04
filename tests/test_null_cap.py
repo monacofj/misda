@@ -6,8 +6,9 @@ import math
 import numpy as np
 import pytest
 
+import misda
+import misda.newapi as newapi
 from misda import _statistics, _validation
-from misda import api
 
 
 def test_controlled_null_sequence_stops_exactly_at_explicit_cap():
@@ -54,7 +55,7 @@ def test_cancellation_remains_distinct_from_autonomous_cap():
     assert observed.reason == "CANCELLED"
 
 
-def test_alpha_null_nonconvergence_reason_reaches_execution_and_report(monkeypatch):
+def test_alpha_null_nonconvergence_reason_reaches_discovery(monkeypatch):
     fake = _statistics.NullAlphaEstimate(
         r_null=0.2,
         se_mc=0.01,
@@ -71,23 +72,14 @@ def test_alpha_null_nonconvergence_reason_reaches_execution_and_report(monkeypat
         reason="MAX_PERMUTATIONS_REACHED",
     )
     monkeypatch.setattr(
-        api,
+        newapi,
         "estimate_null_positive_correlation",
         lambda *args, **kwargs: fake,
     )
 
     rng = np.random.default_rng(5)
-    result = api._analyze_static_v2(
-        rng.normal(size=(8, 3)),
-        seed=123,
-        max_evaluated_mis=1,
-    )
+    result = misda.discover(rng.normal(size=(8, 3)), seed=123)
 
-    convergence = result.execution.convergence["alpha_null"]
-    assert convergence["converged"] is False
-    assert convergence["reason"] == "MAX_PERMUTATIONS_REACHED"
-    assert convergence["n_permutations"] == 80
-    assert convergence["max_permutations"] == 80
-    report = result.report()
-    assert "Alpha-null convergence:" in report
-    assert "reason=MAX_PERMUTATIONS_REACHED" in report
+    assert result.analysis.alpha_null_converged is False
+    assert result.analysis.alpha_null_reason == "MAX_PERMUTATIONS_REACHED"
+    assert result.analysis.alpha_null_permutations == 80
