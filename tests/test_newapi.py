@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import misda
-import misda.newapi as newapi
+import misda.api as api
 
 
 def _two_blocks(seed=7, n=40):
@@ -102,7 +102,7 @@ def test_linear_evaluation_defaults_to_all_candidates(monkeypatch):
             },
         }
 
-    monkeypatch.setattr(newapi, "evaluate_linear_reconstruction", fake_linear)
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
     misda.evaluate(result, metrics=("linear",))
 
     assert len(calls) == len(result)
@@ -138,7 +138,7 @@ def test_nonlinear_default_scope_is_one_candidate(monkeypatch):
             "convergence_reason": None,
         }
 
-    monkeypatch.setattr(newapi, "evaluate_nonlinear_reconstruction", fake_nonlinear)
+    monkeypatch.setattr(api, "evaluate_nonlinear_reconstruction", fake_nonlinear)
     misda.evaluate(result, metrics=("nonlinear",))
 
     assert len(calls) == 1
@@ -193,8 +193,8 @@ def test_combined_expensive_call_uses_one_common_scope(monkeypatch):
             "convergence_reason": None,
         }
 
-    monkeypatch.setattr(newapi, "evaluate_linear_reconstruction", fake_linear)
-    monkeypatch.setattr(newapi, "evaluate_nonlinear_reconstruction", fake_nonlinear)
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
+    monkeypatch.setattr(api, "evaluate_nonlinear_reconstruction", fake_nonlinear)
 
     misda.evaluate(result, metrics=("linear", "nonlinear"))
 
@@ -224,7 +224,7 @@ def test_partial_scope_can_follow_ranking_slice(monkeypatch):
             },
         }
 
-    monkeypatch.setattr(newapi, "evaluate_linear_reconstruction", fake_linear)
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
     misda.evaluate(result, metrics=("linear",), candidates=ranking[:1])
 
     assert len(calls) == 1
