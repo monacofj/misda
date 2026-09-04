@@ -1,9 +1,38 @@
 # SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Legacy Pareto-front operations used by MISDA validation."""
+"""Pareto-front preservation operations for static MISDA evaluation."""
 
 import numpy as np
+
+
+def get_nondominated_mask(Y):
+    """Return the nondominated-row mask for a minimization matrix."""
+
+    data = np.asarray(Y, dtype=float)
+    if data.ndim != 2:
+        raise ValueError("Y must be a two-dimensional matrix.")
+    n_rows = data.shape[0]
+    if n_rows <= 1:
+        return np.ones(n_rows, dtype=bool)
+
+    efficient = np.ones(n_rows, dtype=bool)
+    order = np.lexsort(data.T[::-1])
+    for position in range(1, n_rows):
+        index = order[position]
+        prior_indices = order[:position]
+        efficient_priors = prior_indices[efficient[prior_indices]]
+        if len(efficient_priors) == 0:
+            continue
+        prior_values = data[efficient_priors]
+        current = data[index]
+        dominated = (
+            (prior_values <= current).all(axis=1)
+            & (prior_values < current).any(axis=1)
+        )
+        if dominated.any():
+            efficient[index] = False
+    return efficient
 
 
 def get_nondominated_mask_minimize(Y):
@@ -71,124 +100,3 @@ def evaluate_pareto_preservation(
             int(index) for index in np.flatnonzero(reduced)
         ),
     }
-
-
-def get_nondominated_mask(Y):
-    """
-    Returns boolean mask of non-dominated solutions (Minimization) for a dataset Y.
-    Args:
-        Y (np.ndarray): shape (N, M)
-    Returns:
-        np.array(bool): shape (N,), True if non-dominated.
-    """
-    Y = np.asarray(Y, dtype=float)
-    N, M = Y.shape
-    if N <= 1:
-        return np.ones(N, dtype=bool)
-    is_efficient = np.ones(N, dtype=bool)
-    order = np.lexsort(Y.T[::-1])
-    for i in range(1, N):
-        idx = order[i]
-        prior_indices = order[:i]
-        efficient_priors = prior_indices[is_efficient[prior_indices]]
-        if len(efficient_priors) == 0:
-            continue
-        prior_vals = Y[efficient_priors]
-        curr_val = Y[idx]
-        dominated = (prior_vals <= curr_val).all(axis=1) & (prior_vals < curr_val).any(axis=1)
-        if dominated.any():
-            is_efficient[idx] = False
-    return is_efficient
-
-
-def evaluate_pareto_consistency(result_obj, df_original=None):
-    """
-    Compares the True Pareto Front (Full M) vs Surrogate Pareto Front (Reduced k).
-    Calculates Precision (Safety) and Recall (Coverage).
-
-    Args:
-        result_obj (MISDAResult): The result object from misda.analyze()
-        df_original (pd.DataFrame or np.ndarray): Original data. If None, tries to use result_obj.Y
-
-    Returns:
-        (precision, recall):
-            Precision = P(True Optimum | Surrogate Optimum) -> Safety
-            Recall    = P(Surrogate Optimum | True Optimum) -> Coverage
-    """
-    Y_full = df_original if df_original is not None else result_obj.Y
-    if hasattr(Y_full, "values"):
-        Y_full = Y_full.values
-    Y_full = np.asarray(Y_full)
-
-    mis = result_obj.best_mis
-    if not mis or not mis.indices:
-        return 0.0, 0.0
-
-    indices = mis.indices
-    Y_sub = Y_full[:, indices]
-
-    # 1. True Front
-    mask_true = get_nondominated_mask(Y_full)
-
-    # 2. Surrogate Front
-    mask_surr = get_nondominated_mask(Y_sub)
-
-    # Metrics
-    intersection = (mask_true & mask_surr).sum()
-
-    # Precision: Of the points the surrogate thinks are optimal, how many are truly optimal?
-    denom_p = mask_surr.sum()
-    precision = intersection / denom_p if denom_p > 0 else 0.0
-
-    return precision, recall
-
-
-def evaluate_pareto_raw(Y, selected_indices, directions=None):
-    """
-    Evaluates Pareto precision and recall directly on raw objective matrix Y.
-    Assumes minimization by default for all objectives unless directions specifies otherwise.
-
-    Args:
-        Y (np.ndarray or pd.DataFrame): Shape (N, M) matrix of objective values.
-        selected_indices (sequence of int): Indices of selected/kept objectives.
-        directions (sequence of int, optional): Objective optimization directions (+1 for max, -1 for min).
-
-    Returns:
-        tuple[float, float]: (precision, recall)
-    """
-    if hasattr(Y, "values"):
-        data = np.asarray(Y.values, dtype=float)
-    else:
-        data = np.asarray(Y, dtype=float)
-
-    N, M = data.shape
-    if N == 0 or M == 0:
-        return 0.0, 0.0
-
-    if directions is not None:
-        dirs = np.asarray(directions, dtype=float)
-        Y_eval = data * (-dirs)
-    else:
-        Y_eval = data
-
-    mask_true = get_nondominated_mask(Y_eval)
-    sel = list(selected_indices)
-
-    if len(sel) == M:
-        return 1.0, 1.0
-
-    if len(sel) == 0:
-        return 0.0, 0.0
-
-    Y_sub = Y_eval[:, sel]
-    mask_surr = get_nondominated_mask(Y_sub)
-
-    intersection = (mask_true & mask_surr).sum()
-
-    denom_p = mask_surr.sum()
-    precision = float(intersection / denom_p) if denom_p > 0 else 0.0
-
-    denom_r = mask_true.sum()
-    recall = float(intersection / denom_r) if denom_r > 0 else 0.0
-
-    return precision, recall
