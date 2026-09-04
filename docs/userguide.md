@@ -5,222 +5,318 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # MISDA static user guide
 
-This guide documents the refactored static API. It distinguishes structural
-estimation, representative selection, and optional evaluation so that a result
-never implies evidence that was not computed.
+The static API separates structural discovery, candidate evaluation, and
+preference among candidates. This separation prevents a result from implying
+that an evaluation was computed when it was not and prevents ranking choices
+from feeding back into structural inference.
 
 ## 1. Input contract
 
-`misda.analyze()` accepts a two-dimensional NumPy array or pandas DataFrame.
+`misda.discover()` accepts a two-dimensional NumPy array or pandas DataFrame.
 Values must be finite, real, numeric, and contain at least four observations.
 DataFrame labels are preserved; arrays receive `f1`, `f2`, and so on. Constant
-objectives are retained as explicit isolated vertices rather than silently
-discarded.
+objectives remain explicit graph vertices.
 
 ```python
 import pandas as pd
 import misda
 
 frame = pd.read_csv("objectives.csv")
-result = misda.analyze(frame, seed=123)
+mis_set = misda.discover(frame, seed=123)
 ```
 
-## 2. Static analysis controls
+## 2. Discovery controls
 
 ```python
-result = misda.analyze(
+mis_set = misda.discover(
     frame,
-    method="static",
     aggressiveness=0.5,
-    rank_policy="default",
-    max_evaluated_mis=3,
     seed=123,
     name="experiment-a",
 )
 ```
 
-| Argument | Meaning |
-|---|---|
-| `aggressiveness` | Float in `[0, 1]`. `0` selects the positive-signal onset and `1` the null-calibrated endpoint; larger values generally admit more positive redundancy edges. |
-| `rank_policy` | Candidate ordering policy. The current supported value is `"default"`. |
-| `max_evaluated_mis` | Positive integer or `None`. Limits light evaluation to a ranked prefix but never hides ranked MISs. |
-| `seed` | Seed for reproducible sequential null estimation, dimensional-support permutations, and derived evaluation seeds. |
-| `name` | Optional display label stored in the result. |
+`aggressiveness` is a float in `[0,1]`. `0` selects the positive-signal onset
+and `1` the null-calibrated endpoint. `seed` controls the reproducible
+permutation procedures. `name` is an optional display label.
 
-Manual `alpha` is intentionally unsupported by the static v2 entry point. The
-threshold is derived from the observed positive correlations and a sequential
-permutation null estimate.
+`discover()` does not accept a ranking policy and does not perform linear,
+Pareto, or nonlinear candidate evaluation.
 
-## 3. What the dimensions mean
+## 3. Dimensions and graphs
 
 MISDA builds two graphs at the same data-driven threshold:
 
-1. The **structural graph** `G+` contains statistically supported positive
-   edges. `structural_dimension` is its independence number: the maximum number
-   of mutually non-redundant vertices.
-2. The **dependence graph** `G±` contains supported positive and negative edges.
-   `latent_dimension` is its independence number: the maximum number of mutually
-   independent vertices when either sign expresses dependence.
+1. `G+`, the positive structural graph. Its independence number is
+   `structural_dimension`.
+2. `G±`, the signed dependence graph. Its independence number is
+   `latent_dimension`.
 
-Connected-component counts are topology diagnostics and are stored separately.
-A graph may therefore have one connected component and dimension greater than
-one.
+Connected-component counts are topology diagnostics rather than dimensional
+estimates. A connected graph can therefore have dimension greater than one.
 
 ```python
-analysis = result.analysis
+analysis = mis_set.analysis
 print(analysis.original_dimension)
 print(analysis.latent_dimension)
 print(analysis.structural_dimension)
-print(result.best_mis.size)
-print(analysis.graph_summaries)
+print(analysis.structural_components)
+print(analysis.latent_components)
 ```
 
-The preferred MIS is selected from `G+`. Its size is the selected reduction
-dimension. With the current size-first ranking it commonly equals the structural
-independence number, but ranking and dimensional estimation remain distinct
-concepts.
+The separation status is also stored on `analysis`. `NULL_SEPARATION` means the
+positive-signal onset precedes the null-calibrated endpoint;
+`NO_NULL_SEPARATION` means no strict separation was established.
 
-The separation status is explicit. `NULL_SEPARATION` means the positive-signal
-onset precedes the null-calibrated endpoint. `NO_NULL_SEPARATION` means no such
-strict separation was established; it is not rewritten as a successful
-separation.
+## 4. The canonical MIS universe
 
-## 4. Dimensional support
-
-`analyze()` also stores an internal diagnostic at
-`result.analysis.dimensional_support`. It does not use benchmark truth and does
-not alter the estimated dimensions or the selected MIS.
-
-```python
-support = result.analysis.dimensional_support
-print(support["status"])
-print(support["reasons"])
-print(support["transitivity"]["excess"])
-print(support["spectral"]["excess"])
-```
-
-The diagnostic works on objective ranks and checks two possible contradictions:
-
-- **transitive chaining**: an eliminated objective is connected to the retained
-  MIS much more strongly through an indirect max-min path than by direct
-  positive association;
-- **hidden spectral structure**: the first rank-correlation eigenvalue beyond
-  `latent_dimension` contains more structure than expected after destroying
-  inter-objective association.
-
-Both references are obtained by independently permuting objective columns.
-Exactly `N` permutations are used, so there is no user-set permutation budget.
-The stored quantities are null-subtracted excesses. The only categorical
-boundary is zero:
+Every maximal independent set of `G+` is retained. `MISSet` has a fixed
+canonical order established by the structural policy `structural_coverage`:
 
 ```text
-UNSUPPORTED  if transitivity_excess > 0 or spectral_excess > 0
-SUPPORTED    otherwise
+size                  descending
+neighborhood          descending
+avg_external_degree   descending
+span                  descending
 ```
 
-`TRANSITIVE_CHAINING` and `HIDDEN_SPECTRAL_STRUCTURE` identify the detected
-mechanism. `SUPPORTED` means that these diagnostics found no internal
-contradiction to the estimate; it does **not** prove that the estimated
-dimension is the unknown true dimension.
-
-## 5. Result tree
-
-`MISDAResult` contains three top-level branches:
-
-- `result.analysis`: global dimensions, graphs, thresholds, dimensional support,
-  rank counts, and evaluation counts;
-- `result.mis`: every ranked `MISCandidate`, in deterministic order;
-- `result.execution`: effective configuration, seed, timings, convergence, and
-  RNG diagnostics.
-
-Each candidate exposes stable identity and stored evidence:
+A deterministic label-based tie-break makes the sequence reproducible but does
+not create a new scientific rank.
 
 ```python
-candidate = result.mis[0]
+candidate = mis_set[0]
 
-candidate.id
-candidate.objectives
 candidate.indices
+candidate.objectives
 candidate.size
-candidate.rank
-candidate.rank_values
-candidate.evaluation
+candidate.structural.neighborhood
+candidate.structural.neighborhood_ratio
+candidate.structural.avg_external_degree
+candidate.structural.span
 ```
 
-`result.best_mis` is the first ranked candidate. `best_mis_indices` and
-`best_mis_labels` are transitional convenience properties.
+A candidate does not carry a public ID or intrinsic `rank`. Its fixed position
+in the owning `MISSet` is its operational identity.
 
-## 6. Light evaluation
+## 5. Ranking
 
-Light evaluation is performed during `analyze()` for the requested ranked
-prefix. It stores two blocks per evaluated candidate.
-
-### External linear reconstruction
-
-`linear_reconstruction` predicts only eliminated objectives from the retained
-MIS. It records per-objective out-of-sample R², mean and worst R², delete-one
-jackknife standard errors, and explicit reasons for undefined values. When no
-objective is eliminated, the metric is `None` with reason
-`NO_ELIMINATED_OBJECTIVES`; it is never replaced by an artificial perfect
-score.
-
-### Pareto preservation
-
-`pareto_preservation` compares nondominated row masks under minimization and
-stores:
-
-- `pareto_retention`: fraction of the full front retained;
-- `pareto_validity`: fraction of the reduced front that is valid in the full
-  front;
-- `pareto_jaccard`: intersection over union;
-- front sizes, `exact_preservation`, and `reduced_front_indices`.
-
-Duplicate rows are mapped back to their original observations. Mixed objective
-directions are rejected explicitly rather than silently normalized.
-
-## 7. On-demand heavy evaluation
-
-Use `misda.heavy()` only for candidates that need nonlinear evidence:
+Use `rank()` to materialize an ordered view:
 
 ```python
-misda.heavy(
-    result,
-    selection=[0, 2],
+ranking = misda.rank(mis_set)
+```
+
+The default is `policy="structural_coverage"`. The current release defines no
+alternative policy yet.
+
+A `Ranking` references the same candidate objects and does not mutate the
+`MISSet`:
+
+```python
+ranking[0]             # underlying MISCandidate
+ranking[:10]           # another Ranking view
+ranking.selected       # ranking[0]
+ranking.selected_dimension
+ranking.groups         # scientific tie groups
+```
+
+The graph-derived structural dimension and the selected dimension are distinct
+concepts:
+
+```python
+mis_set.analysis.structural_dimension
+ranking.selected_dimension
+```
+
+Under the current complete enumeration and size-first canonical policy, the
+canonical selected candidate necessarily has size equal to the structural
+independence number. The definitions nevertheless remain separate so future
+ranking policies can select differently without redefining graph dimension.
+
+## 6. Dimensional support
+
+`discover()` evaluates internal evidence for whether the graph-derived
+dimensional description is sufficient. This is a global discovery diagnostic,
+not a ranking metric and not a replacement dimension estimator.
+
+The current mechanisms are:
+
+- `TRANSITIVE_CHAINING`: indirect max-min positive paths to the retained
+  candidate are stronger than direct positive association beyond a permutation
+  null reference;
+- `HIDDEN_SPECTRAL_STRUCTURE`: the first rank-correlation eigenvalue beyond the
+  estimated latent signal dimension exceeds its column-permutation null mean.
+
+If several candidates tie at the first `structural_coverage` rank, support is
+evaluated for all of them using the same null permutations. Aggregate states
+are:
+
+```text
+SUPPORTED             all tied first-rank candidates supported
+PARTIALLY_SUPPORTED   some supported and some unsupported
+UNSUPPORTED           none supported
+```
+
+Inspect the aggregate and individual evidence with:
+
+```python
+mis_set.support.status
+mis_set.support.supported
+mis_set.support.unsupported
+support = mis_set.support.for_candidate(0)
+
+support.status
+support.reasons
+support.transitivity_excess
+support.spectral_excess
+```
+
+`SUPPORTED` means that these diagnostics found no contradiction. It does not
+prove that the unknown true dimension equals the estimate.
+
+## 7. Candidate evaluation
+
+Use one API for all candidate-level evidence:
+
+```python
+misda.evaluate(
+    mis_set,
+    metrics=("linear", "pareto"),
+)
+```
+
+Current families are:
+
+```text
+structural
+linear
+nonlinear
+pareto
+```
+
+Structural metrics are already present after discovery. The other families are
+attached only when requested. Evaluation never changes graph structure,
+dimensions, the candidate universe, or the canonical order.
+
+### 7.1 Candidate selection
+
+The evaluation scope accepts:
+
+```python
+candidates="all"
+candidates=10
+candidates=[0, 4, 17]
+candidates=ranking[:10]
+```
+
+If no selector is given:
+
+- linear/Pareto-only calls evaluate all candidates;
+- any call containing nonlinear evaluation operates on one candidate.
+
+The scope applies to the whole call. Therefore:
+
+```python
+misda.evaluate(mis_set, metrics=("linear", "nonlinear"))
+```
+
+evaluates both families on one candidate. Use separate calls if different
+scopes are desired.
+
+Whenever fewer than all candidates are evaluated, `mis_set.report()` states the
+scope and selection basis explicitly.
+
+### 7.2 Linear reconstruction
+
+Linear reconstruction predicts only eliminated objectives from retained
+objectives using external PRESS/LOO semantics. It records untruncated R² and
+jackknife uncertainty.
+
+```python
+candidate = ranking.selected
+
+candidate.linear.mean_r2
+candidate.linear.worst_r2
+candidate.linear.r2("f7")
+candidate.linear.jackknife.mean_r2_se
+candidate.linear.jackknife.r2_se("f7")
+```
+
+When no objective is eliminated or a target is mathematically undefined, the
+corresponding quantity is `None` with a machine-readable reason; artificial
+perfect scores are not inserted.
+
+### 7.3 Pareto preservation
+
+Pareto evaluation currently assumes minimization and compares empirical
+nondominated row sets:
+
+```python
+candidate.pareto.retention
+candidate.pareto.validity
+candidate.pareto.jaccard
+candidate.pareto.exact_preservation
+candidate.pareto.reduced_front_indices
+```
+
+Mixed directions are outside the current contract.
+
+### 7.4 Nonlinear reconstruction
+
+Nonlinear evidence is explicitly requested:
+
+```python
+misda.evaluate(
+    mis_set,
+    metrics=("nonlinear",),
+    candidates=1,
+)
+
+candidate = ranking.selected
+candidate.nonlinear.mean_r2
+candidate.nonlinear.worst_r2
+candidate.nonlinear.r2("f7")
+```
+
+The engine uses nested external leave-one-out Random Forest reconstruction,
+internal discrete model selection, deterministic seed derivation, and tree
+stopping based on computational versus sample uncertainty.
+
+An optional sequential null reference is attached to the same nonlinear domain:
+
+```python
+misda.evaluate(
+    mis_set,
+    metrics=("nonlinear",),
+    candidates=1,
     null_reference=True,
 )
 
-nonlinear = result.mis[0].evaluation["nonlinear_reconstruction"]
+null = ranking.selected.nonlinear.null_reference
+null.mean_null_r2
+null.above_null_r2
+null.incidental_reconstruction_rate
+null.mc_se_mean_null_r2
 ```
-
-`selection` accepts one index, a range, or an explicit index sequence into
-`result.mis`. Existing metrics are preserved and already-computed heavy
-evaluations are not repeated.
-
-The nonlinear protocol uses nested leave-one-out Random Forest evaluation,
-internal discrete model selection, and a tree count determined by uncertainty
-stopping. Setting `null_reference=True` adds a sequential permutation reference
-and above-null metrics. Neither loop has a hidden fixed cap. Both record
-convergence or non-convergence explicitly and accept an application-provided
-`cancel_requested` callback.
 
 ## 8. Reports and graphs
 
 ```python
-print(result.summary())
-print(result.report())
-figure = result.graph_plot(show=False)
+print(mis_set.report())
+figure = mis_set.graph_plot(show=False)
 ```
 
-`summary()` is compact. `report()` renders only metrics already stored in the
-result; it includes the dimensional-support status and its two null-subtracted
-excesses. It never triggers hidden evaluation. `graph_plot()` visualizes the
-positive structural graph `G+`; negative edges used by latent analysis are not
-drawn. The former `plot()` spelling is deprecated.
+The report renders only stored evidence; it does not trigger hidden evaluation.
+`graph_plot()` draws `G+` and highlights the candidate selected by the supplied
+ranking. To visualize another ranking snapshot:
 
-## 9. Reproducible benchmark artifacts
+```python
+mis_set.graph_plot(ranking=ranking)
+```
 
-An individual result can be evaluated against external ground truth without
-contaminating `analyze()`:
+## 9. Benchmark evaluation
+
+External truth is evaluated only after analysis:
 
 ```python
 truth = {
@@ -229,78 +325,60 @@ truth = {
     "structural_expected": 2,
     "blocks_expected": [["f1", "f2"], ["f3", "f4"]],
     "pareto_expected": [0, 2, 5],
-    "feature": "Two known structural families.",
-    "intuition": "MISDA should retain one objective per family.",
-    "graph_expected": "Two disjoint positive components.",
-    "notes": "Optional free-form note.",
 }
 
-bench = misda.benchmark(result, truth)
-print(bench.result.analysis.structural_dimension)
-print(bench.structural_jaccard)
-print(bench.pareto_recall)
+bench = misda.benchmark(mis_set, truth)
 print(bench.report())
 ```
 
-`truth` is a plain mapping. Dimension fields, `blocks_expected`, and
-`pareto_expected` are optional; an absent reference makes only its metric
-family `None`. `blocks_expected` uses objective labels. `pareto_expected` uses
-zero-based row indices from the same observations analyzed in `result`.
-`feature`, `intuition`, `graph_expected`, and `notes` are preserved for the
-report and are never interpreted by the method.
+Truth never enters `discover()`, `evaluate()`, or `rank()`. Declared latent and
+structural dimensions are compared with their corresponding graph independence
+numbers. The canonical ranking's selected dimension is reported separately.
 
-Dimensional errors compare `latent_expected` and `structural_expected` with the
-corresponding estimates in `result.analysis`. The preferred MIS size is
-reported separately as the selected dimension and is not substituted for
-either estimate. Structural reconstruction uses optimal one-to-one block
-matching by Jaccard plus pairwise precision, recall, and F1. Pareto metrics
-compare the stored reduced-front row indices with `pareto_expected`;
-`benchmark()` does not need the original objective matrix.
+If Pareto truth is declared, the selected candidate must already have Pareto
+evidence; `benchmark()` does not perform hidden candidate evaluation.
 
-The repository-level suites remain available for reproducible artifacts.
-
-Run the canonical and comparative suites from the repository root:
+Repository-level reproducible batteries are available as:
 
 ```bash
 python -m examples.benchmarks.run_benchmark --output results/benchmark.json
 python -m examples.benchmarks.run_comparative --output results/comparative.json
 ```
 
-Each JSON artifact includes its schema version, method, parameters, software
-versions, input digest, declarations, estimates, graph summaries, evaluation
-metrics, and assessment. `compare_results()` compares a current artifact with a
-frozen external baseline without changing current estimates to fit legacy
-expectations.
+The comparative battery uses a common external reconstruction metric for direct
+MISDA/PCA comparison while preserving each method's native diagnostics as
+separate estimands.
 
-The benchmark and comparative notebooks call the same Python functions. The
-PCA curve reports global standardized reconstruction R². MISDA reports
-reconstruction of eliminated objectives from selected original objectives;
-these estimands remain separate.
+## 10. `alpha_null` convergence
 
-## 10. Migration from the legacy result API
+The structural null estimator begins with at least `N` permutations and tracks
+Monte Carlo uncertainty. It compares the discovery signature at the lower and
+upper endpoints of that uncertainty interval:
 
-| Legacy spelling | Static v2 spelling |
-|---|---|
-| `caution=x` | `aggressiveness=x` |
-| `result.alpha_min` | `result.analysis.alpha_onset` |
-| `result.alpha_max` | `result.analysis.alpha_null` |
-| `result.mis_sets` | `result.mis` |
-| `result.ranked_mis_sets` | group `result.mis` by `candidate.rank` |
-| `result.plot()` | `result.graph_plot()` |
-| post-hoc validation method | light metrics in `candidate.evaluation` or explicit `misda.heavy()` |
+```text
+Sigma(alpha) = (
+    structural_dimension,
+    latent_dimension,
+    complete structural_coverage tie-group ordering,
+)
+```
 
-The unambiguous transitional aliases emit `DeprecationWarning`. Ambiguous legacy
-validation fields are not synthesized on the new result tree.
+The estimate converges when both endpoints yield the same signature. Raw metric
+values and literal graph identity are not required to match if they cannot
+change a discrete discovery output. The autonomous upper limit remains
+`B_max=10N`; reaching it returns the current estimate with explicit
+non-convergence diagnostics.
 
 ## 11. Scope and limitations
 
-- The static pipeline is the current supported and acceptance-tested method.
-- The earlier adaptive implementation is suspended and excluded from the
-  scientific baseline.
-- Pairwise structure is correlation-based and does not establish causality.
-- Structural dimension, latent dimension, connected-component count, and MIS
-  size are distinct quantities.
-- `SUPPORTED` is absence of detected internal contradiction, not proof of
-  dimensional truth.
-- Heavy evaluation can be expensive because its stopping rules are
-  data-driven; use candidate selection and cancellation deliberately.
+- Static MISDA is the current active scientific path.
+- Adaptive analysis is suspended and outside the current API and acceptance
+  gate.
+- Pairwise graph structure is correlation-based and does not establish
+  causality.
+- Structural dimension, latent dimension, connected-component counts, and a
+  ranking-selected dimension are distinct quantities.
+- Complete MIS enumeration is currently assumed; bounded partial enumeration
+  remains future work.
+- Alternative ranking policies remain future work.
+- Maximization and mixed objective directions remain future work.
