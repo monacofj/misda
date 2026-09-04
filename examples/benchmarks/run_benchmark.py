@@ -61,16 +61,19 @@ def run_benchmark(
                 truth,
                 adversarial=case_id == "case_05",
             )
-            result = misda.analyze(
+            mis_set = misda.discover(
                 frame,
-                method=METHOD,
                 name=truth["name"],
                 seed=seed,
-                max_evaluated_mis=1,
+            )
+            misda.evaluate(
+                mis_set,
+                metrics=("linear", "pareto"),
+                candidates=1,
             )
             case = serialize_benchmark_result(
                 declaration,
-                result,
+                mis_set,
                 frame,
                 seed=seed,
             )
