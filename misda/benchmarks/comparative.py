@@ -12,7 +12,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import StandardScaler
 
-from ..newapi import MISSet
+from ..api import MISSet
 
 
 COMMON_RECONSTRUCTION_METRIC = "global_standardized_external_r2"
