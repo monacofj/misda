@@ -39,7 +39,7 @@ def test_partial_evaluation_scope_accumulates_across_calls(monkeypatch):
 
     count, basis = result.evaluation_scope("linear")
     assert count == 2
-    assert basis == "multiple evaluation calls"
+    assert basis == "explicit candidate indices"
     assert f"2 of {len(result)} candidates only" in result.report()
 
 
