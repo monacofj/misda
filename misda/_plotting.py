@@ -7,6 +7,37 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
+
+
+def _enforce_min_distance(pos, min_dist=0.28, iters=900, jitter=1e-3, seed=7):
+    """Adjusts 2D layout positions to enforce a minimum distance between nodes."""
+    rng = np.random.default_rng(seed)
+    nodes = list(pos.keys())
+    if not nodes:
+        return pos
+
+    P = np.array([pos[n] for n in nodes], dtype=float)
+    P += 1e-12 * rng.normal(size=P.shape)
+
+    for _ in range(iters):
+        moved = False
+        for i in range(len(nodes)):
+            for j in range(i + 1, len(nodes)):
+                d = P[j] - P[i]
+                dist = float(np.hypot(d[0], d[1]))
+                if dist < 1e-12:
+                    P[j] += rng.normal(scale=jitter, size=2)
+                    moved = True
+                elif dist < min_dist:
+                    push = d / dist
+                    delta = 0.5 * (min_dist - dist) * push
+                    P[i] -= delta
+                    P[j] += delta
+                    moved = True
+        if not moved:
+            break
+    return {n: P[k] for k, n in enumerate(nodes)}
 
 
 def plot_mis_set_graph(mis_set, *, ranking, show=True):
@@ -33,6 +64,12 @@ def plot_mis_set_graph(mis_set, *, ranking, show=True):
         seed=7,
         k=3.0 / max(graph.number_of_nodes(), 1) ** 0.5,
         iterations=1000,
+    )
+    positions = _enforce_min_distance(
+        positions,
+        min_dist=0.5,
+        iters=1200,
+        seed=7,
     )
     fig, ax = plt.subplots(figsize=(9, 7))
 
