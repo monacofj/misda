@@ -6,6 +6,9 @@ from misda._support import (
     SUPPORTED,
     TRANSITIVE_CHAINING,
     UNSUPPORTED,
+    _positive_and_closure,
+    _transitivity_statistic_from_closure,
+    _transitivity_statistics_from_closure,
     evaluate_dimensional_support,
 )
 from misda.benchmarks.cases import (
@@ -74,6 +77,40 @@ def test_support_uses_sample_size_as_null_budget_and_is_reproducible():
 
     assert first == second
     assert first["n_permutations"] == len(data)
+
+
+def test_vectorized_transitivity_matches_scalar_for_mixed_cardinalities():
+    rng = np.random.default_rng(2026)
+    raw = rng.uniform(-1.0, 1.0, size=(8, 8))
+    correlation = (raw + raw.T) / 2.0
+    np.fill_diagonal(correlation, 1.0)
+    positive, closure = _positive_and_closure(correlation)
+    selections = (
+        (0,),
+        (1, 3),
+        (0, 2, 5),
+        (1, 2, 4, 6),
+        tuple(range(8)),
+        (0, 3),
+    )
+
+    scalar = np.asarray(
+        [
+            _transitivity_statistic_from_closure(
+                positive,
+                closure,
+                selected,
+            )
+            for selected in selections
+        ]
+    )
+    vectorized = _transitivity_statistics_from_closure(
+        positive,
+        closure,
+        selections,
+    )
+
+    np.testing.assert_allclose(vectorized, scalar, rtol=0.0, atol=0.0)
 
 
 def test_discover_attaches_group_support_and_report_renders_it():
