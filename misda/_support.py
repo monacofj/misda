@@ -92,6 +92,52 @@ def _transitivity_statistic_from_closure(
     return float(max(excesses, default=0.0))
 
 
+def _transitivity_statistics_from_closure(
+    positive,
+    closure,
+    selections,
+):
+    """Vectorized transitivity statistics for several retained-objective sets.
+
+    Candidates with the same cardinality are evaluated together.  Structural
+    rank-tie groups naturally satisfy this condition, so a block case such as
+    4 x K_5 evaluates all 625 tied MISs with two indexed reductions instead of
+    625 Python-level candidate loops for every null permutation.
+    """
+
+    n_objectives = positive.shape[0]
+    if closure.shape != positive.shape:
+        raise ValueError("positive and closure must have the same shape.")
+    if not selections:
+        return np.empty(0, dtype=float)
+
+    statistics = np.empty(len(selections), dtype=float)
+    positions_by_size = {}
+    for position, selected in enumerate(selections):
+        positions_by_size.setdefault(len(selected), []).append(position)
+
+    for size, positions in positions_by_size.items():
+        if size == n_objectives:
+            statistics[positions] = 0.0
+            continue
+
+        selected = np.asarray(
+            [selections[position] for position in positions],
+            dtype=int,
+        )
+        direct = np.max(positive[selected, :], axis=1)
+        indirect = np.max(closure[selected, :], axis=1)
+        excess = np.maximum(indirect - direct, 0.0)
+
+        retained = np.zeros((len(positions), n_objectives), dtype=bool)
+        rows = np.arange(len(positions))[:, None]
+        retained[rows, selected] = True
+        excess[retained] = 0.0
+        statistics[positions] = np.max(excess, axis=1)
+
+    return statistics
+
+
 def _transitivity_statistic(correlation, selected_indices):
     positive, closure = _positive_and_closure(correlation)
     return _transitivity_statistic_from_closure(
@@ -135,10 +181,11 @@ def evaluate_dimensional_support_group(
 
     The observed rank correlation, every column-wise null permutation, the
     widest-path closure for each permutation, and the spectral diagnostic are
-    computed once. Candidate-specific transitivity statistics are then read
-    from those shared structures. The scientific statistics are identical to
-    evaluating each candidate separately with the same seed, but work that is
-    independent of candidate choice is not repeated.
+    computed once. Candidate-specific transitivity statistics are evaluated in
+    vectorized cardinality groups from those shared structures. The scientific
+    statistics are identical to evaluating each candidate separately with the
+    same seed, but candidate-independent work and Python-level candidate loops
+    are not repeated.
     """
 
     matrix = np.asarray(data, dtype=float)
@@ -153,16 +200,10 @@ def evaluate_dimensional_support_group(
 
     n_constants = n_objectives - int(np.sum(valid))
     positive, closure = _positive_and_closure(correlation)
-    observed_transitivity = np.asarray(
-        [
-            _transitivity_statistic_from_closure(
-                positive,
-                closure,
-                selected,
-            )
-            for selected in selections
-        ],
-        dtype=float,
+    observed_transitivity = _transitivity_statistics_from_closure(
+        positive,
+        closure,
+        selections,
     )
     observed_spectral, signal_dimension = _next_spectral_eigenvalue(
         correlation,
@@ -182,14 +223,11 @@ def evaluate_dimensional_support_group(
             permuted[:, objective] = rng.permutation(standardized[:, objective])
         null_correlation = _rank_correlation(permuted, valid)
         null_positive, null_closure = _positive_and_closure(null_correlation)
-        for position, selected in enumerate(selections):
-            null_transitivity[position, repetition] = (
-                _transitivity_statistic_from_closure(
-                    null_positive,
-                    null_closure,
-                    selected,
-                )
-            )
+        null_transitivity[:, repetition] = _transitivity_statistics_from_closure(
+            null_positive,
+            null_closure,
+            selections,
+        )
         null_spectral[repetition], _ = _next_spectral_eigenvalue(
             null_correlation,
             valid,
