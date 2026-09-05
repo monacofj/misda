@@ -305,6 +305,22 @@ candidate evaluation families and their scopes
 
 Any partial evaluation must state its scope explicitly.
 
+### 10.1 Behavior preservation under refactoring
+
+Refactoring the API does not authorize incidental behavioral changes in functionality that has not been explicitly selected for methodological or behavioral revision.
+
+For any component outside the deliberately changed scope, implementation work may alter interfaces, object wiring, representation, module boundaries, or other internal organization only as needed to fit the new architecture. Established observable behavior and functional properties must be preserved.
+
+In particular, removing a legacy representation layer does not imply permission to replace or simplify the behavior implemented behind that layer. Existing behavior should be adapted to the new data model rather than rewritten unless the rewrite itself has been explicitly approved.
+
+Any deliberate behavioral change outside the previously approved scope requires all three of the following before implementation:
+
+1. an explicit decision;
+2. a technical or methodological justification;
+3. a regression or acceptance test covering the changed property.
+
+When a refactor merely migrates an existing capability, tests should protect the relevant behavioral invariant rather than only checking that the new call executes without error.
+
 ## 11. Alpha-stage cleanup
 
 Because the project is still alpha, the new API is a direct cleanup rather than a deprecation migration. The final static surface must contain no compatibility wrappers or deprecated aliases for the superseded model.
