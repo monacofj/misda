@@ -506,7 +506,16 @@ class BenchmarkCase:
             structural_units=tuple(
                 tuple(unit) for unit in truth.get("blocks_expected", ())
             ),
-            graph_expectations={},
+            graph_expectations={
+                str(graph_name): {
+                    str(metric): int(value)
+                    for metric, value in expectations.items()
+                    if value is not None
+                }
+                for graph_name, expectations in (
+                    truth.get("graph_expectations") or {}
+                ).items()
+            },
             adversarial=bool(adversarial),
             notes=str(truth.get("notes", "")),
         )
