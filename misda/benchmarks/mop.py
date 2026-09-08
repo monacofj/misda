@@ -14,12 +14,16 @@ def _mop_truth(
     intuition="",
     graph_expected="",
     pareto_expected=None,
+    components_expected=None,
 ):
     return {
         "name": name,
         "latent_expected": int(latent_expected),
         "structural_expected": int(structural_expected),
         "blocks_expected": blocks_expected,
+        "components_expected": (
+            blocks_expected if components_expected is None else components_expected
+        ),
         "pareto_expected": (
             None
             if pareto_expected is None
@@ -140,6 +144,7 @@ def mopB_tradeoff_with_redundancies(N=1000, seed=123, noise=0.02):
         latent_expected=2,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1, 7), _mk_block_names(8, 7), _mk_block_names(15, 6)],
+        components_expected=[_mk_block_names(1, 20)],
         notes="Three families (cost/consumption/performance) with internal redundancies; effective tends to ~2.",
         feature="Three functional engineering families (7 cost, 7 consumption, 6 performance) driven by 2 decision variables.",
         intuition="An engineering problem with 3 main goals: Cost, Energy, and Performance, each measured in multiple redundant ways. MISDA should shrink 20 to ~2-3 core trade-offs.",
@@ -267,6 +272,7 @@ def mopE_partial_redundancy_noisy(N=1000, seed=123, noise=0.05):
         latent_expected=2,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,4), _mk_block_names(15,6)],
+        components_expected=[_mk_block_names(1, 20)],
         notes="Trio/quartet of 'a' extended to 10 redundants; 'b' (4); and 6 compounds around s=a+b.",
         feature="Partial redundancy across 2 latent drivers (a,b): 10 objectives on a, 4 on b, and 6 compounds on s=a+b.",
         intuition="Overlapping signals: some indicators monitor Engine A, some monitor Engine B, and some monitor both combined (A+B). Tests if MISDA untangles blended signals.",
@@ -320,6 +326,7 @@ def mopF_regime_switching(N=1000, seed=123, sharpness=20.0, noise=0.0):
         latent_expected=2,
         structural_expected=2,
         blocks_expected=[_mk_block_names(1,10), _mk_block_names(11,10)],
+        components_expected=[_mk_block_names(1, 20)],
         notes="10 objectives redundant around L (mixture by regime) + 10 redundant around b; global correlation can be misleading.",
         feature="Non-linear regime-switching mixture: 10 objectives on regime-dependent mixture L(a,b) and 10 on b.",
         intuition="System switching: indicators change behavior depending on whether the system operates in High-Power or Low-Power mode. Tests MISDA under shifting states.",
