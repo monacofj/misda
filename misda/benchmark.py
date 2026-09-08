@@ -493,6 +493,7 @@ class BenchmarkCase:
     structural_dimension: Optional[int] = None
     structural_units: tuple[tuple[Any, ...], ...] = ()
     graph_expectations: Mapping[str, Mapping[str, int]] = field(default_factory=dict)
+    expected_mismatches: Mapping[str, str] = field(default_factory=dict)
     adversarial: bool = False
     notes: str = ""
 
@@ -516,6 +517,12 @@ class BenchmarkCase:
                     truth.get("graph_expectations") or {}
                 ).items()
             },
+            expected_mismatches={
+                str(field_name): str(reason)
+                for field_name, reason in (
+                    truth.get("expected_mismatches") or {}
+                ).items()
+            },
             adversarial=bool(adversarial),
             notes=str(truth.get("notes", "")),
         )
@@ -532,6 +539,16 @@ class BenchmarkCase:
             and len(flattened) == len(set(flattened)) == len(labels)
             and set(flattened) == set(labels)
         )
+
+    def _mismatch(self, field_name, default_reason):
+        if field_name in self.expected_mismatches:
+            return (
+                EXPECTED_DECLARATION_MISMATCH,
+                self.expected_mismatches[field_name],
+            )
+        if self.adversarial:
+            return EXPECTED_DECLARATION_MISMATCH, "KNOWN_ADVERSARIAL_CASE"
+        return DECLARATION_MISMATCH, default_reason
 
     def evaluate(self, result):
         if not isinstance(result, MISSet):
@@ -552,10 +569,10 @@ class BenchmarkCase:
             error = abs(int(observed) - int(expected))
             if error == 0:
                 status, reason = DECLARATION_MATCH, None
-            elif self.adversarial:
-                status, reason = EXPECTED_DECLARATION_MISMATCH, "KNOWN_ADVERSARIAL_CASE"
             else:
-                status, reason = DECLARATION_MISMATCH, "DECLARED_DIMENSION_MISMATCH"
+                status, reason = self._mismatch(
+                    name, "DECLARED_DIMENSION_MISMATCH"
+                )
             checks.append({
                 "field": name,
                 "status": status,
@@ -582,20 +599,15 @@ class BenchmarkCase:
                 if expected is None:
                     continue
                 observed = observed_summary.get(metric)
+                field_name = f"graphs.{graph_name}.{metric}"
                 if observed == expected:
                     graph_status, graph_reason = DECLARATION_MATCH, None
-                elif self.adversarial:
-                    graph_status, graph_reason = (
-                        EXPECTED_DECLARATION_MISMATCH,
-                        "KNOWN_ADVERSARIAL_CASE",
-                    )
                 else:
-                    graph_status, graph_reason = (
-                        DECLARATION_MISMATCH,
-                        "DECLARED_GRAPH_MISMATCH",
+                    graph_status, graph_reason = self._mismatch(
+                        field_name, "DECLARED_GRAPH_MISMATCH"
                     )
                 checks.append({
-                    "field": f"graphs.{graph_name}.{metric}",
+                    "field": field_name,
                     "status": graph_status,
                     "observed": observed,
                     "expected": expected,
@@ -620,15 +632,9 @@ class BenchmarkCase:
             )
             if unit_adequacy:
                 unit_status, unit_reason = DECLARATION_MATCH, None
-            elif self.adversarial:
-                unit_status, unit_reason = (
-                    EXPECTED_DECLARATION_MISMATCH,
-                    "KNOWN_ADVERSARIAL_CASE",
-                )
             else:
-                unit_status, unit_reason = (
-                    DECLARATION_MISMATCH,
-                    "DECLARED_UNIT_MISMATCH",
+                unit_status, unit_reason = self._mismatch(
+                    "selected_structural_units", "DECLARED_UNIT_MISMATCH"
                 )
             checks.append({
                 "field": "selected_structural_units",
@@ -658,7 +664,10 @@ class BenchmarkCase:
         return {
             "case_id": self.case_id,
             "status": status,
-            "known_adversarial": self.adversarial,
+            "known_adversarial": bool(
+                self.adversarial or self.expected_mismatches
+            ),
+            "expected_mismatches": dict(self.expected_mismatches),
             "dimension_errors": {
                 "latent": latent_error,
                 "structural": structural_error,
