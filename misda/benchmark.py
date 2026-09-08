@@ -342,6 +342,7 @@ class BenchmarkResult:
     pareto_lost: Optional[int]
     pareto_spurious: Optional[int]
     unavailable_reasons: Mapping[str, str]
+    assessment: Mapping[str, Any]
 
     def report(self):
         analysis = self.result.analysis
@@ -450,6 +451,17 @@ class BenchmarkResult:
                     f"trees={nonlinear.n_trees}, "
                     f"converged={_format_metric(nonlinear.converged)}"
                 )
+
+        lines.append("Declaration assessment")
+        lines.append(f"  Status         : {self.assessment['status']}")
+        for check in self.assessment.get("checks", ()):
+            reason = check.get("reason") or "none"
+            lines.append(
+                "  "
+                f"{check['field']}: status={check['status']}, "
+                f"observed={check.get('observed')}, "
+                f"expected={check.get('expected')}, reason={reason}"
+            )
 
         lines.append("Dimensional accuracy")
         lines.append(
@@ -566,6 +578,9 @@ def benchmark(result, truth):
     if structural_expected is None:
         unavailable["structural_dimension"] = "structural_expected was not declared"
 
+    case_id = _truth_text(truth, "case_id") or _truth_text(truth, "name") or "benchmark"
+    assessment = BenchmarkCase.from_truth(case_id, truth).evaluate(result)
+
     return BenchmarkResult(
         result=result,
         truth=truth,
@@ -588,6 +603,7 @@ def benchmark(result, truth):
         structural_relative_error=structural_dimension[1],
         structural_dimension_exact=structural_dimension[2],
         unavailable_reasons=unavailable,
+        assessment=assessment,
         **structural,
         **pareto,
     )
@@ -609,7 +625,7 @@ class BenchmarkCase:
     def from_truth(cls, case_id, truth, *, adversarial=False):
         return cls(
             case_id=str(case_id),
-            name=str(truth["name"]),
+            name=str(truth.get("name") or case_id),
             latent_dimension=truth.get("latent_expected"),
             structural_dimension=truth.get("structural_expected"),
             structural_units=tuple(
