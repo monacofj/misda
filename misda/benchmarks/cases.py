@@ -28,6 +28,7 @@ def _truth(
             else None
         ),
         "blocks_expected": blocks_expected,
+        "components_expected": blocks_expected,
         "pareto_expected": (
             None
             if pareto_expected is None

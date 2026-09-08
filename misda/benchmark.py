@@ -95,20 +95,30 @@ def _truth_dimension(truth, field_name):
     return value
 
 
-def _truth_blocks(truth):
-    blocks = truth.get("blocks_expected")
-    if blocks is None:
+def _normalize_label_blocks(value, field_name):
+    if value is None:
         return None
     try:
-        normalized = tuple(tuple(block) for block in blocks)
+        normalized = tuple(tuple(block) for block in value)
         for block in normalized:
             for label in block:
                 hash(label)
     except (TypeError, ValueError) as exc:
         raise TypeError(
-            "truth['blocks_expected'] must be a sequence of label sequences."
+            f"truth[{field_name!r}] must be a sequence of label sequences."
         ) from exc
     return normalized
+
+
+def _truth_blocks(truth):
+    return _normalize_label_blocks(truth.get("blocks_expected"), "blocks_expected")
+
+
+def _truth_components(truth):
+    components = truth.get("components_expected")
+    if components is None:
+        return _truth_blocks(truth)
+    return _normalize_label_blocks(components, "components_expected")
 
 
 def _truth_pareto_indices(truth):
@@ -277,6 +287,7 @@ class BenchmarkResult:
     latent_expected: Optional[int]
     structural_expected: Optional[int]
     blocks_expected: Optional[tuple]
+    components_expected: Optional[tuple]
     pareto_expected: Optional[tuple]
     found_blocks: tuple
     selected_dimension: Optional[int]
@@ -310,6 +321,7 @@ class BenchmarkResult:
         lines.append(f"  Intuition      : {self.intuition or 'N/A'}")
         lines.append(f"  Expected graph : {self.graph_expected or 'N/A'}")
         lines.append(f"  Expected blocks: {_format_blocks(self.blocks_expected)}")
+        lines.append(f"  Expected comps.: {_format_blocks(self.components_expected)}")
         if self.notes:
             lines.append(f"  Notes          : {self.notes}")
 
@@ -326,7 +338,7 @@ class BenchmarkResult:
             + (_format_blocks((preferred.objectives,)) if preferred else "N/A")
         )
         lines.append(f"  Ranking policy : {ranking.policy}")
-        lines.append(f"  Found blocks   : {_format_blocks(self.found_blocks)}")
+        lines.append(f"  Found comps.   : {_format_blocks(self.found_blocks)}")
         lines.append(f"  Dim. support   : {self.result.support.status}")
         reasons = ", ".join(_support_reasons(self.result)) or "none"
         lines.append(f"  Support reason : {reasons}")
@@ -349,7 +361,7 @@ class BenchmarkResult:
             f"exact={_format_metric(self.structural_dimension_exact)}"
         )
 
-        lines.append("Structural reconstruction")
+        lines.append("Structural component reconstruction")
         if "structural" in self.unavailable_reasons:
             lines.append("  N/A — " + self.unavailable_reasons["structural"])
         else:
@@ -393,6 +405,7 @@ def benchmark(result, truth):
     latent_expected = _truth_dimension(truth, "latent_expected")
     structural_expected = _truth_dimension(truth, "structural_expected")
     blocks_expected = _truth_blocks(truth)
+    components_expected = _truth_components(truth)
     pareto_expected = _truth_pareto_indices(truth)
     found_blocks = _found_structural_blocks(result)
     preferred = result.structural_ranking.selected
@@ -403,7 +416,7 @@ def benchmark(result, truth):
     )
     unavailable = {}
 
-    if blocks_expected is None:
+    if components_expected is None:
         structural = {
             "structural_jaccard": None,
             "structural_precision": None,
@@ -413,7 +426,7 @@ def benchmark(result, truth):
         }
         unavailable["structural"] = "blocks_expected was not declared"
     else:
-        structural = _structural_metrics(found_blocks, blocks_expected)
+        structural = _structural_metrics(found_blocks, components_expected)
 
     if pareto_expected is None:
         pareto = {
@@ -456,6 +469,7 @@ def benchmark(result, truth):
         latent_expected=latent_expected,
         structural_expected=structural_expected,
         blocks_expected=blocks_expected,
+        components_expected=components_expected,
         pareto_expected=pareto_expected,
         found_blocks=found_blocks,
         selected_dimension=result.structural_ranking.selected_dimension,
