@@ -115,10 +115,9 @@ def _truth_blocks(truth):
 
 
 def _truth_components(truth):
-    components = truth.get("components_expected")
-    if components is None:
-        return _truth_blocks(truth)
-    return _normalize_label_blocks(components, "components_expected")
+    return _normalize_label_blocks(
+        truth.get("components_expected"), "components_expected"
+    )
 
 
 def _truth_pareto_indices(truth):
@@ -424,7 +423,7 @@ def benchmark(result, truth):
             "structural_f1": None,
             "structural_partition_exact": None,
         }
-        unavailable["structural"] = "blocks_expected was not declared"
+        unavailable["structural"] = "components_expected was not declared"
     else:
         structural = _structural_metrics(found_blocks, components_expected)
 

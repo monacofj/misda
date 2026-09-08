@@ -49,6 +49,7 @@ def test_public_benchmark_preserves_external_truth():
         "latent_expected": 1,
         "structural_expected": 2,
         "blocks_expected": [["f3", "f4"], ["f1", "f2"]],
+        "components_expected": [["f3", "f4"], ["f1", "f2"]],
         "pareto_expected": [0, 1, 2, 3],
         "feature": "two antagonistic families",
         "intuition": "one representative per family",
@@ -64,6 +65,7 @@ def test_public_benchmark_preserves_external_truth():
     assert observed.name == truth["name"]
     assert observed.feature == truth["feature"]
     assert observed.blocks_expected == (("f3", "f4"), ("f1", "f2"))
+    assert observed.components_expected == (("f3", "f4"), ("f1", "f2"))
     assert not hasattr(result.analysis, "latent_expected")
     assert not hasattr(result.analysis, "structural_expected")
 
@@ -75,7 +77,7 @@ def test_benchmark_compares_dimensions_and_partition_to_graph_outputs():
         {
             "latent_expected": 1,
             "structural_expected": 2,
-            "blocks_expected": [["f3", "f4"], ["f1", "f2"]],
+            "components_expected": [["f3", "f4"], ["f1", "f2"]],
         },
     )
 
@@ -88,6 +90,21 @@ def test_benchmark_compares_dimensions_and_partition_to_graph_outputs():
     assert observed.structural_precision == 1.0
     assert observed.structural_recall == 1.0
     assert observed.structural_partition_exact
+
+
+def test_blocks_do_not_implicitly_declare_connected_components():
+    _data, result = _two_group_result()
+    observed = misda.benchmark(
+        result,
+        {"blocks_expected": [["f1", "f2", "f3", "f4"]]},
+    )
+
+    assert observed.blocks_expected == (("f1", "f2", "f3", "f4"),)
+    assert observed.components_expected is None
+    assert observed.structural_jaccard is None
+    assert observed.unavailable_reasons["structural"] == (
+        "components_expected was not declared"
+    )
 
 
 def test_benchmark_pareto_uses_stored_selected_candidate_evidence_only():
@@ -126,13 +143,13 @@ def test_missing_declarations_are_explicit_na():
     assert observed.structural_jaccard is None
     assert observed.pareto_recall is None
     assert observed.unavailable_reasons == {
-        "structural": "blocks_expected was not declared",
+        "structural": "components_expected was not declared",
         "pareto": "pareto_expected was not declared",
         "latent_dimension": "latent_expected was not declared",
         "structural_dimension": "structural_expected was not declared",
     }
     report = observed.report()
-    assert "N/A — blocks_expected was not declared" in report
+    assert "N/A — components_expected was not declared" in report
     assert "N/A — pareto_expected was not declared" in report
 
 
