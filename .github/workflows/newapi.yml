@@ -22,6 +22,6 @@ jobs:
       - name: Full test suite
         run: pytest -q
       - name: Canonical scientific battery
-        run: python -m examples.benchmarks.run_benchmark --output /tmp/misda-benchmark.json
+        run: python -m examples.benchmarks.run_benchmark --strict --output /tmp/misda-benchmark.json
       - name: Comparative experiments
         run: python -m examples.benchmarks.run_comparative --output /tmp/misda-comparative.json

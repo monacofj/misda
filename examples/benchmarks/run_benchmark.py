@@ -99,6 +99,15 @@ def unexpected_mismatch_case_ids(artifact) -> tuple[str, ...]:
     )
 
 
+def enforce_scientific_assessment(artifact) -> None:
+    unexpected = unexpected_mismatch_case_ids(artifact)
+    if unexpected:
+        raise SystemExit(
+            "Unexpected benchmark declaration mismatch: "
+            + ", ".join(unexpected)
+        )
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -106,6 +115,11 @@ def _parse_args() -> argparse.Namespace:
         "--quick",
         action="store_true",
         help="Use N=64 for smoke testing; never use this for scientific baselines.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail the scientific acceptance command on unexpected declaration mismatches.",
     )
     parser.add_argument(
         "--case-id",
@@ -123,14 +137,8 @@ def main() -> None:
         case_ids=set(args.case_ids) if args.case_ids else None,
     )
     write_json(artifact, args.output)
-    if args.quick:
-        return
-    unexpected = unexpected_mismatch_case_ids(artifact)
-    if unexpected:
-        raise SystemExit(
-            "Unexpected benchmark declaration mismatch: "
-            + ", ".join(unexpected)
-        )
+    if args.strict and not args.quick:
+        enforce_scientific_assessment(artifact)
 
 
 if __name__ == "__main__":
