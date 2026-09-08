@@ -8,6 +8,7 @@ from pathlib import Path
 import misda
 from misda.benchmark import (
     BenchmarkCase,
+    DECLARATION_MISMATCH,
     DEFAULT_SEED,
     FORMAT_VERSION,
     METHOD,
@@ -56,11 +57,7 @@ def run_benchmark(
         if serializer is not None:
             case = serializer(case_id, frame, truth, seed=seed)
         else:
-            declaration = BenchmarkCase.from_truth(
-                case_id,
-                truth,
-                adversarial=case_id == "case_05",
-            )
+            declaration = BenchmarkCase.from_truth(case_id, truth)
             mis_set = misda.discover(
                 frame,
                 name=truth["name"],
@@ -94,6 +91,15 @@ def run_benchmark(
     }
 
 
+def unexpected_mismatch_case_ids(artifact) -> tuple[str, ...]:
+    return tuple(
+        case["case_id"]
+        for case in artifact.get("cases", ())
+        if (case.get("assessment") or {}).get("status")
+        == DECLARATION_MISMATCH
+    )
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -118,6 +124,12 @@ def main() -> None:
         case_ids=set(args.case_ids) if args.case_ids else None,
     )
     write_json(artifact, args.output)
+    unexpected = unexpected_mismatch_case_ids(artifact)
+    if unexpected:
+        raise SystemExit(
+            "Unexpected benchmark declaration mismatch: "
+            + ", ".join(unexpected)
+        )
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ def _truth(
     pareto_expected=None,
     notes="",
     graph_expectations=None,
+    expected_mismatches=None,
 ):
     return {
         "name": name,
@@ -39,6 +40,7 @@ def _truth(
         "intuition": intuition,
         "graph_expected": graph_expected,
         "graph_expectations": dict(graph_expectations or {}),
+        "expected_mismatches": dict(expected_mismatches or {}),
         "notes": notes,
     }
 
@@ -167,6 +169,10 @@ def make_case5_chain_structure(N=1000, M=20, seed=123):
         intuition="A chain of 20 dominoes: adjacent dominoes are strongly linked, but the 1st and 20th are far apart. Tests gradual, step-by-step continuous dependency.",
         graph_expected="1 connected chain/band graph (adjacent node edges, 1 connected component)",
         graph_expectations={"structural": {"components": 1}},
+        expected_mismatches={
+            "latent_dimension": "TRANSITIVE_CHAINING",
+            "structural_dimension": "TRANSITIVE_CHAINING",
+        },
     )
     return df, truth
 
