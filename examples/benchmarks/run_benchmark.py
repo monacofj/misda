@@ -44,7 +44,7 @@ BENCHMARK_CASES = tuple(
 
 def run_benchmark(
     *,
-    n: int = 1000,
+    n: int = 300,
     seed: int = DEFAULT_SEED,
     case_ids: set[str] | None = None,
     serializer=None,
@@ -66,7 +66,6 @@ def run_benchmark(
             misda.evaluate(
                 mis_set,
                 metrics=("linear", "pareto"),
-                candidates=1,
             )
             case = serialize_benchmark_result(
                 declaration,
@@ -120,7 +119,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     artifact = run_benchmark(
-        n=64 if args.quick else 1000,
+        n=64 if args.quick else 300,
         case_ids=set(args.case_ids) if args.case_ids else None,
     )
     write_json(artifact, args.output)

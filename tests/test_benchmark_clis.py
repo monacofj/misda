@@ -1,5 +1,6 @@
 """Smoke tests for executable benchmark front ends under the new public API."""
 
+import inspect
 import json
 import importlib
 import subprocess
@@ -199,3 +200,21 @@ def test_cli_never_passes_case_declarations_into_discover(monkeypatch):
             "seed": 123,
         }
     ]
+
+
+def test_benchmark_runner_matches_notebook_reference_scope(monkeypatch):
+    module = importlib.import_module("examples.benchmarks.run_benchmark")
+    assert inspect.signature(module.run_benchmark).parameters["n"].default == 300
+
+    original = module.misda.evaluate
+    observed_kwargs = []
+
+    def capture(result, **kwargs):
+        observed_kwargs.append(dict(kwargs))
+        return original(result, **kwargs)
+
+    monkeypatch.setattr(module.misda, "evaluate", capture)
+    artifact = module.run_benchmark(n=32, case_ids={"case_02"})
+
+    assert len(artifact["cases"]) == 1
+    assert observed_kwargs == [{"metrics": ("linear", "pareto")}]
