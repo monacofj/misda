@@ -14,6 +14,7 @@ def _truth(
     graph_expected="",
     pareto_expected=None,
     notes="",
+    graph_expectations=None,
 ):
     return {
         "name": name,
@@ -37,6 +38,7 @@ def _truth(
         "feature": feature,
         "intuition": intuition,
         "graph_expected": graph_expected,
+        "graph_expectations": dict(graph_expectations or {}),
         "notes": notes,
     }
 
@@ -54,6 +56,10 @@ def make_case1_independence(N=1000, M=20, seed=123):
         feature="All 20 objectives are mutually independent i.i.d. Gaussian noise variables.",
         intuition="20 completely unrelated random sensors; knowing one tells you nothing about any other. MISDA should keep all 20.",
         graph_expected="20 isolated nodes (0 edges, 20 connected components)",
+        graph_expectations={
+            "structural": {"edges": 0, "components": 20},
+            "dependence": {"edges": 0, "components": 20},
+        },
     )
     return df, truth
 
@@ -73,6 +79,10 @@ def make_case2_total_redundancy(N=1000, M=20, seed=123):
         feature="All 20 objectives are noisy linear copies of a single 1D latent factor.",
         intuition="20 identical thermometers measuring the exact same room temperature with minor noise. MISDA should keep just 1.",
         graph_expected="1 fully connected graph (K_20, 190 edges, 1 connected component)",
+        graph_expectations={
+            "structural": {"edges": 190, "components": 1},
+            "dependence": {"edges": 190, "components": 1},
+        },
     )
     return df, truth
 
@@ -102,6 +112,10 @@ def make_case3_block_structure(N=1000, M=20, seed=123):
         feature="4 independent latent factors; each factor generates a cluster of 5 redundant objectives.",
         intuition="4 physical properties (e.g., Temp, Pressure, Humidity, Speed), each measured by 5 duplicate sensors. MISDA should reduce 20 sensors to 4.",
         graph_expected="4 disjoint complete subgraphs of 5 nodes each (4 x K_5, 40 total edges)",
+        graph_expectations={
+            "structural": {"edges": 40, "components": 4},
+            "dependence": {"edges": 40, "components": 4},
+        },
     )
     return df, truth
 
@@ -128,6 +142,10 @@ def make_case4_two_big_blocks(N=1000, M=20, seed=123):
         feature="2 independent latent factors; each factor generates a cluster of 10 redundant objectives.",
         intuition="Measuring 2 goals (e.g., Cost and Weight), but using 10 duplicate formulas for Cost and 10 for Weight. MISDA should reduce 20 formulas to 2.",
         graph_expected="2 disjoint complete subgraphs of 10 nodes each (2 x K_10, 90 total edges)",
+        graph_expectations={
+            "structural": {"edges": 90, "components": 2},
+            "dependence": {"edges": 90, "components": 2},
+        },
     )
     return df, truth
 
@@ -148,6 +166,7 @@ def make_case5_chain_structure(N=1000, M=20, seed=123):
         feature="Markovian random walk chain where correlation decays smoothly with index distance.",
         intuition="A chain of 20 dominoes: adjacent dominoes are strongly linked, but the 1st and 20th are far apart. Tests gradual, step-by-step continuous dependency.",
         graph_expected="1 connected chain/band graph (adjacent node edges, 1 connected component)",
+        graph_expectations={"structural": {"components": 1}},
     )
     return df, truth
 
@@ -179,6 +198,10 @@ def make_case6_mixed_structure(N=1000, M=20, seed=123):
         feature="Heterogeneous structure: 10 independent noise objectives (f1..f10) and 2 redundant blocks of 5.",
         intuition="10 random independent variables mixed with 2 redundant groups of 5 sensors each. MISDA should keep 10 + 2 = 12 objectives.",
         graph_expected="10 isolated nodes and 2 disjoint complete subgraphs of 5 nodes each (10 x K_1 + 2 x K_5)",
+        graph_expectations={
+            "structural": {"edges": 20, "components": 12},
+            "dependence": {"edges": 20, "components": 12},
+        },
     )
     return df, truth
 
@@ -209,6 +232,10 @@ def make_case7_pure_conflict_groups(
         feature="Two groups (+x and -x) with internal redundancy and strong structural conflict (anti-correlation).",
         intuition="10 sensors measuring Car Speed (+x) and 10 measuring Remaining Travel Time (-x). Speed and Time conflict, but both are essential! MISDA must keep 1 of each.",
         graph_expected="2 disjoint complete subgraphs of 10 nodes each (2 x K_10, 90 total edges, 2 connected components)",
+        graph_expectations={
+            "structural": {"edges": 90, "components": 2},
+            "dependence": {"edges": 190, "components": 1},
+        },
     )
     return Y, truth
 
