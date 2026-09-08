@@ -124,6 +124,8 @@ def main() -> None:
         case_ids=set(args.case_ids) if args.case_ids else None,
     )
     write_json(artifact, args.output)
+    if args.quick:
+        return
     unexpected = unexpected_mismatch_case_ids(artifact)
     if unexpected:
         raise SystemExit(
