@@ -274,6 +274,40 @@ def _support_reasons(result):
     return tuple(observed)
 
 
+def _evaluation_scope_text(result, family):
+    scope = result.evaluation_scope(family)
+    if scope is None:
+        return "not evaluated"
+    count, basis = scope
+    return f"{count}/{len(result)} candidates ({basis})"
+
+
+def _candidate_metric_values(result, family, attribute):
+    values = []
+    for candidate in result:
+        metrics = getattr(candidate, family, None)
+        if metrics is None:
+            continue
+        value = getattr(metrics, attribute, None)
+        if value is None:
+            continue
+        value = float(value)
+        if np.isfinite(value):
+            values.append(value)
+    return tuple(values)
+
+
+def _format_range(values):
+    if not values:
+        return "N/A"
+    values = tuple(float(value) for value in values)
+    return (
+        f"min={_format_metric(min(values))}, "
+        f"median={_format_metric(float(np.median(values)))}, "
+        f"max={_format_metric(max(values))}"
+    )
+
+
 @dataclass(frozen=True)
 class BenchmarkResult:
     result: MISSet
@@ -342,6 +376,81 @@ class BenchmarkResult:
         reasons = ", ".join(_support_reasons(self.result)) or "none"
         lines.append(f"  Support reason : {reasons}")
 
+        lines.append("Candidate evaluation evidence")
+        lines.append(
+            f"  Linear scope   : {_evaluation_scope_text(self.result, 'linear')}"
+        )
+        if preferred is not None and preferred.linear is not None:
+            linear = preferred.linear
+            lines.append(
+                "  Linear selected: "
+                f"mean_r2={_format_metric(linear.mean_r2)}, "
+                f"worst_r2={_format_metric(linear.worst_r2)}, "
+                f"mean_r2_se={_format_metric(linear.jackknife.mean_r2_se)}, "
+                f"worst_r2_se={_format_metric(linear.jackknife.worst_r2_se)}, "
+                f"jackknife_n={linear.jackknife.n_replicates}"
+            )
+            lines.append(
+                "  Linear across  : mean_r2 "
+                + _format_range(
+                    _candidate_metric_values(self.result, "linear", "mean_r2")
+                )
+            )
+            lines.append(
+                "                   worst_r2 "
+                + _format_range(
+                    _candidate_metric_values(self.result, "linear", "worst_r2")
+                )
+            )
+        else:
+            lines.append("  Linear selected: N/A")
+
+        lines.append(
+            f"  Pareto scope   : {_evaluation_scope_text(self.result, 'pareto')}"
+        )
+        if preferred is not None and preferred.pareto is not None:
+            pareto_observed = preferred.pareto
+            lines.append(
+                "  Pareto selected: "
+                f"retention={_format_metric(pareto_observed.retention)}, "
+                f"validity={_format_metric(pareto_observed.validity)}, "
+                f"jaccard={_format_metric(pareto_observed.jaccard)}, "
+                f"exact={_format_metric(pareto_observed.exact_preservation)}"
+            )
+            lines.append(
+                "  Pareto fronts  : "
+                f"full={pareto_observed.full_front_size}, "
+                f"reduced={pareto_observed.reduced_front_size}, "
+                f"intersection={pareto_observed.intersection_size}, "
+                f"union={pareto_observed.union_size}"
+            )
+            for attribute in ("retention", "validity", "jaccard"):
+                lines.append(
+                    f"  Pareto across  : {attribute} "
+                    + _format_range(
+                        _candidate_metric_values(
+                            self.result, "pareto", attribute
+                        )
+                    )
+                )
+        else:
+            lines.append("  Pareto selected: N/A")
+
+        nonlinear_scope = self.result.evaluation_scope("nonlinear")
+        if nonlinear_scope is not None:
+            lines.append(
+                f"  Nonlinear scope: {_evaluation_scope_text(self.result, 'nonlinear')}"
+            )
+            if preferred is not None and preferred.nonlinear is not None:
+                nonlinear = preferred.nonlinear
+                lines.append(
+                    "  Nonlinear sel. : "
+                    f"mean_r2={_format_metric(nonlinear.mean_r2)}, "
+                    f"worst_r2={_format_metric(nonlinear.worst_r2)}, "
+                    f"trees={nonlinear.n_trees}, "
+                    f"converged={_format_metric(nonlinear.converged)}"
+                )
+
         lines.append("Dimensional accuracy")
         lines.append(
             "  Latent         : "
@@ -376,7 +485,7 @@ class BenchmarkResult:
                 f"f1={_format_metric(self.structural_f1)}"
             )
 
-        lines.append("Pareto-front preservation")
+        lines.append("Pareto declaration agreement")
         if "pareto" in self.unavailable_reasons:
             lines.append("  N/A — " + self.unavailable_reasons["pareto"])
         else:
