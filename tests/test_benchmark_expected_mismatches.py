@@ -7,6 +7,7 @@ import misda
 from examples.benchmarks.run_benchmark import (
     enforce_scientific_assessment,
     unexpected_mismatch_case_ids,
+    unexpected_mismatch_details,
 )
 from misda.benchmark import (
     BenchmarkCase,
@@ -74,7 +75,32 @@ def test_strict_gate_rejects_only_unexpected_declaration_mismatches():
     assert unexpected_mismatch_case_ids(artifact) == ()
     enforce_scientific_assessment(artifact)
 
-    artifact["cases"][1]["assessment"]["status"] = DECLARATION_MISMATCH
+    artifact["cases"][1]["assessment"] = {
+        "status": DECLARATION_MISMATCH,
+        "checks": [
+            {
+                "field": "structural_dimension",
+                "status": DECLARATION_MISMATCH,
+                "observed": 3,
+                "expected": 4,
+                "reason": "DECLARED_DIMENSION_MISMATCH",
+            }
+        ],
+    }
     assert unexpected_mismatch_case_ids(artifact) == ("case_03",)
-    with pytest.raises(SystemExit, match="case_03"):
+    details = unexpected_mismatch_details(artifact)
+    assert details == (
+        (
+            "case_03",
+            (
+                {
+                    "field": "structural_dimension",
+                    "observed": 3,
+                    "expected": 4,
+                    "reason": "DECLARED_DIMENSION_MISMATCH",
+                },
+            ),
+        ),
+    )
+    with pytest.raises(SystemExit, match="structural_dimension: observed=3, expected=4"):
         enforce_scientific_assessment(artifact)

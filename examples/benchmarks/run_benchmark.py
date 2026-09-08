@@ -91,21 +91,43 @@ def run_benchmark(
 
 
 def unexpected_mismatch_case_ids(artifact) -> tuple[str, ...]:
-    return tuple(
-        case["case_id"]
-        for case in artifact.get("cases", ())
-        if (case.get("assessment") or {}).get("status")
-        == DECLARATION_MISMATCH
-    )
+    return tuple(case_id for case_id, _checks in unexpected_mismatch_details(artifact))
+
+
+def unexpected_mismatch_details(artifact):
+    details = []
+    for case in artifact.get("cases", ()):
+        assessment = case.get("assessment") or {}
+        if assessment.get("status") != DECLARATION_MISMATCH:
+            continue
+        checks = tuple(
+            {
+                "field": check.get("field"),
+                "observed": check.get("observed"),
+                "expected": check.get("expected"),
+                "reason": check.get("reason"),
+            }
+            for check in assessment.get("checks", ())
+            if check.get("status") == DECLARATION_MISMATCH
+        )
+        details.append((case["case_id"], checks))
+    return tuple(details)
 
 
 def enforce_scientific_assessment(artifact) -> None:
-    unexpected = unexpected_mismatch_case_ids(artifact)
-    if unexpected:
-        raise SystemExit(
-            "Unexpected benchmark declaration mismatch: "
-            + ", ".join(unexpected)
-        )
+    details = unexpected_mismatch_details(artifact)
+    if not details:
+        return
+    lines = ["Unexpected benchmark declaration mismatch:"]
+    for case_id, checks in details:
+        lines.append(f"  {case_id}")
+        for check in checks:
+            lines.append(
+                "    "
+                f"{check['field']}: observed={check['observed']}, "
+                f"expected={check['expected']}, reason={check['reason']}"
+            )
+    raise SystemExit("\n".join(lines))
 
 
 def _parse_args() -> argparse.Namespace:
