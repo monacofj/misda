@@ -1,9 +1,13 @@
 """Regression tests for expected versus unexpected benchmark mismatches."""
 
 import numpy as np
+import pytest
 
 import misda
-from examples.benchmarks.run_benchmark import unexpected_mismatch_case_ids
+from examples.benchmarks.run_benchmark import (
+    enforce_scientific_assessment,
+    unexpected_mismatch_case_ids,
+)
 from misda.benchmark import (
     BenchmarkCase,
     DECLARATION_MISMATCH,
@@ -68,6 +72,9 @@ def test_strict_gate_rejects_only_unexpected_declaration_mismatches():
         ]
     }
     assert unexpected_mismatch_case_ids(artifact) == ()
+    enforce_scientific_assessment(artifact)
 
     artifact["cases"][1]["assessment"]["status"] = DECLARATION_MISMATCH
     assert unexpected_mismatch_case_ids(artifact) == ("case_03",)
+    with pytest.raises(SystemExit, match="case_03"):
+        enforce_scientific_assessment(artifact)
