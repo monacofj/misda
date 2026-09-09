@@ -1,5 +1,7 @@
 """Regression tests for expected versus unexpected benchmark mismatches."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -15,6 +17,7 @@ from misda.benchmark import (
     EXPECTED_DECLARATION_MISMATCH,
 )
 from misda.benchmarks.cases import make_case5_chain_structure
+from misda.benchmarks.mop import mopF_regime_switching
 
 
 def _two_group_result():
@@ -23,8 +26,16 @@ def _two_group_result():
     return misda.discover(data, seed=19, name="two groups")
 
 
+def _set_support_reasons(result, *reasons):
+    result.support = SimpleNamespace(
+        status="UNSUPPORTED" if reasons else "SUPPORTED",
+        results=(SimpleNamespace(reasons=tuple(reasons)),),
+    )
+
+
 def test_expected_mismatches_are_field_specific_not_blanket_adversarial():
     result = _two_group_result()
+    _set_support_reasons(result, "TRANSITIVE_CHAINING")
     case = BenchmarkCase.from_truth(
         "x",
         {
@@ -48,6 +59,43 @@ def test_expected_mismatches_are_field_specific_not_blanket_adversarial():
     assert checks["structural_dimension"]["status"] == EXPECTED_DECLARATION_MISMATCH
     assert checks["graphs.structural.components"]["status"] == DECLARATION_MISMATCH
     assert assessment["status"] == DECLARATION_MISMATCH
+    assert assessment["observed_support_reasons"] == ("TRANSITIVE_CHAINING",)
+
+
+def test_expected_mismatch_requires_matching_observed_diagnostic():
+    result = _two_group_result()
+    _set_support_reasons(result)
+    case = BenchmarkCase.from_truth(
+        "x",
+        {
+            "name": "diagnostic-gated mismatch",
+            "latent_expected": 4,
+            "expected_mismatches": {
+                "latent_dimension": "TRANSITIVE_CHAINING",
+            },
+        },
+    )
+
+    assessment = case.evaluate(result)
+    latent = next(
+        check for check in assessment["checks"]
+        if check["field"] == "latent_dimension"
+    )
+    assert latent["status"] == DECLARATION_MISMATCH
+    assert latent["reason"] == (
+        "DECLARED_DIMENSION_MISMATCH; "
+        "EXPECTED_DIAGNOSTIC_NOT_OBSERVED:TRANSITIVE_CHAINING"
+    )
+    assert assessment["observed_support_reasons"] == ()
+
+    _set_support_reasons(result, "TRANSITIVE_CHAINING")
+    assessment = case.evaluate(result)
+    latent = next(
+        check for check in assessment["checks"]
+        if check["field"] == "latent_dimension"
+    )
+    assert latent["status"] == EXPECTED_DECLARATION_MISMATCH
+    assert latent["reason"] == "TRANSITIVE_CHAINING"
 
 
 def test_case5_declares_only_dimensional_chaining_mismatches():
@@ -56,6 +104,16 @@ def test_case5_declares_only_dimensional_chaining_mismatches():
     assert truth["expected_mismatches"] == {
         "latent_dimension": "TRANSITIVE_CHAINING",
         "structural_dimension": "TRANSITIVE_CHAINING",
+    }
+
+
+def test_mopf_declares_only_spectral_structure_mismatches():
+    _frame, truth = mopF_regime_switching(N=64, seed=123)
+
+    assert truth["expected_mismatches"] == {
+        "latent_dimension": "HIDDEN_SPECTRAL_STRUCTURE",
+        "structural_dimension": "HIDDEN_SPECTRAL_STRUCTURE",
+        "selected_structural_units": "HIDDEN_SPECTRAL_STRUCTURE",
     }
 
 
