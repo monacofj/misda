@@ -165,14 +165,18 @@ def make_case5_chain_structure(N=1000, M=20, seed=123):
         latent_expected=M,
         structural_expected=M,
         blocks_expected=[cols],
-        feature="Markovian random walk chain where correlation decays smoothly with index distance.",
-        intuition="A chain of 20 dominoes: adjacent dominoes are strongly linked, but the 1st and 20th are far apart. Tests gradual, step-by-step continuous dependency.",
-        graph_expected="1 connected chain/band graph (adjacent node edges, 1 connected component)",
-        graph_expectations={"structural": {"components": 1}},
+        feature="Cumulative random-walk chain with one independent innovation added at each objective; pairwise correlations decay with index distance but remain strongly positive at this noise scale.",
+        intuition="Each objective adds new information to the previous one, so the generating dimension remains 20 even though accumulated pairwise correlation can make all objectives pass the positive-dependence threshold. This is the intended transitive-chaining failure mode.",
+        graph_expected="Thresholded positive/dependence graph saturates to K_20 (190 edges, 1 connected component) even though the generating mechanism is a chain.",
+        graph_expectations={
+            "structural": {"edges": 190, "components": 1},
+            "dependence": {"edges": 190, "components": 1},
+        },
         expected_mismatches={
             "latent_dimension": "TRANSITIVE_CHAINING",
             "structural_dimension": "TRANSITIVE_CHAINING",
         },
+        notes="The complete threshold graph is not ground-truth redundancy: TRANSITIVE_CHAINING is expected to flag the collapse from the 20-dimensional generating process to graph-derived dimension 1.",
     )
     return df, truth
 
