@@ -1,5 +1,7 @@
 """Regression tests for notebook-visible benchmark declaration assessment."""
 
+from types import SimpleNamespace
+
 import numpy as np
 
 import misda
@@ -36,15 +38,21 @@ def test_public_benchmark_report_exposes_structured_declaration_checks():
 
 def test_public_benchmark_report_exposes_expected_mismatch_reason():
     result = _result()
+    result.support = SimpleNamespace(
+        status="UNSUPPORTED",
+        results=(SimpleNamespace(reasons=("HIDDEN_SPECTRAL_STRUCTURE",)),),
+    )
     observed = misda.benchmark(
         result,
         {
             "latent_expected": 4,
-            "expected_mismatches": {"latent_dimension": "KNOWN_LIMITATION"},
+            "expected_mismatches": {
+                "latent_dimension": "HIDDEN_SPECTRAL_STRUCTURE"
+            },
         },
     )
 
     assert observed.assessment["status"] == EXPECTED_DECLARATION_MISMATCH
     report = observed.report()
     assert "latent_dimension: status=EXPECTED_DECLARATION_MISMATCH" in report
-    assert "reason=KNOWN_LIMITATION" in report
+    assert "reason=HIDDEN_SPECTRAL_STRUCTURE" in report
