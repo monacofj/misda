@@ -290,6 +290,16 @@ The benchmark must not feed truth back into `discover()`, `evaluate()`, or `rank
 
 Dimension declarations are not graph component-count declarations. A benchmark must never infer expected connected-component counts merely from expected structural or latent dimension.
 
+### 9.1 Benchmark declarations and scientific acceptance
+
+Structural/generating units and observed graph topology are distinct benchmark concepts. `blocks_expected` declares the intended structural or generating units; `components_expected` declares connected components. They may coincide in simple block cases, but one must never be inferred from the other by the benchmark evaluator.
+
+Expected benchmark mismatches are field-specific hypotheses about known methodological limitations, not blanket exemptions. A mismatch may be classified as `EXPECTED_DECLARATION_MISMATCH` only when the reason declared for that field is actually observed among MISDA's internal dimensional-support diagnostics for the result. If the declared diagnostic is absent, the mismatch remains an unexpected `DECLARATION_MISMATCH`.
+
+The canonical scientific benchmark execution follows the notebook reference: `N=300` with linear and Pareto evidence evaluated over the default cheap-family scope, i.e. all discovered candidates. `--quick` uses a reduced sample only as an execution smoke test and must not define or fail a scientific baseline.
+
+The acceptance workflow invokes the benchmark in strict mode. Strict mode fails only on unexpected declaration mismatches and must report the failing case, field, observed value, expected value, and reason. Expected diagnostic-backed mismatches remain visible in the artifact/report but do not fail the scientific gate.
+
 ## 10. Reporting and plotting
 
 Reports and plots are views over already stored state. They must not rerun scientific evaluation or consult benchmark truth.
