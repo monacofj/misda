@@ -664,11 +664,14 @@ class BenchmarkCase:
             and set(flattened) == set(labels)
         )
 
-    def _mismatch(self, field_name, default_reason):
-        if field_name in self.expected_mismatches:
+    def _mismatch(self, field_name, default_reason, observed_support_reasons):
+        expected_reason = self.expected_mismatches.get(field_name)
+        if expected_reason is not None:
+            if expected_reason in observed_support_reasons:
+                return EXPECTED_DECLARATION_MISMATCH, expected_reason
             return (
-                EXPECTED_DECLARATION_MISMATCH,
-                self.expected_mismatches[field_name],
+                DECLARATION_MISMATCH,
+                f"{default_reason}; EXPECTED_DIAGNOSTIC_NOT_OBSERVED:{expected_reason}",
             )
         if self.adversarial:
             return EXPECTED_DECLARATION_MISMATCH, "KNOWN_ADVERSARIAL_CASE"
@@ -679,6 +682,7 @@ class BenchmarkCase:
             raise TypeError("result must be an MISSet returned by discover().")
         analysis = result.analysis
         checks = []
+        observed_support_reasons = set(_support_reasons(result))
 
         def dimension_check(name, observed, expected):
             if expected is None:
@@ -695,7 +699,9 @@ class BenchmarkCase:
                 status, reason = DECLARATION_MATCH, None
             else:
                 status, reason = self._mismatch(
-                    name, "DECLARED_DIMENSION_MISMATCH"
+                    name,
+                    "DECLARED_DIMENSION_MISMATCH",
+                    observed_support_reasons,
                 )
             checks.append({
                 "field": name,
@@ -728,7 +734,9 @@ class BenchmarkCase:
                     graph_status, graph_reason = DECLARATION_MATCH, None
                 else:
                     graph_status, graph_reason = self._mismatch(
-                        field_name, "DECLARED_GRAPH_MISMATCH"
+                        field_name,
+                        "DECLARED_GRAPH_MISMATCH",
+                        observed_support_reasons,
                     )
                 checks.append({
                     "field": field_name,
@@ -758,7 +766,9 @@ class BenchmarkCase:
                 unit_status, unit_reason = DECLARATION_MATCH, None
             else:
                 unit_status, unit_reason = self._mismatch(
-                    "selected_structural_units", "DECLARED_UNIT_MISMATCH"
+                    "selected_structural_units",
+                    "DECLARED_UNIT_MISMATCH",
+                    observed_support_reasons,
                 )
             checks.append({
                 "field": "selected_structural_units",
@@ -792,6 +802,7 @@ class BenchmarkCase:
                 self.adversarial or self.expected_mismatches
             ),
             "expected_mismatches": dict(self.expected_mismatches),
+            "observed_support_reasons": tuple(sorted(observed_support_reasons)),
             "dimension_errors": {
                 "latent": latent_error,
                 "structural": structural_error,

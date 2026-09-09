@@ -16,6 +16,7 @@ def _mop_truth(
     pareto_expected=None,
     components_expected=None,
     graph_expectations=None,
+    expected_mismatches=None,
 ):
     return {
         "name": name,
@@ -35,6 +36,7 @@ def _mop_truth(
         "intuition": intuition,
         "graph_expected": graph_expected,
         "graph_expectations": dict(graph_expectations or {}),
+        "expected_mismatches": dict(expected_mismatches or {}),
     }
 
 
@@ -342,6 +344,11 @@ def mopF_regime_switching(N=1000, seed=123, sharpness=20.0, noise=0.0):
         intuition="System switching: indicators change behavior depending on whether the system operates in High-Power or Low-Power mode. Tests MISDA under shifting states.",
         graph_expected="1 connected graph with 2 dense interconnected clusters (10 on mixture L, 10 on b)",
         graph_expectations={"structural": {"components": 1}},
+        expected_mismatches={
+            "latent_dimension": "HIDDEN_SPECTRAL_STRUCTURE",
+            "structural_dimension": "HIDDEN_SPECTRAL_STRUCTURE",
+            "selected_structural_units": "HIDDEN_SPECTRAL_STRUCTURE",
+        },
     )
     return _mop_df(Y), truth
 
