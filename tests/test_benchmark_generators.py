@@ -180,7 +180,46 @@ def test_mop_preserves_declared_notebook_contract(
     assert truth["feature"]
     assert truth["intuition"]
     assert truth["graph_expected"]
-    assert truth["pareto_expected"] is None
+    if generator not in (mopA_monotonic_redundancy, mopD_pure_conflict_groups):
+        assert truth["pareto_expected"] is None
+
+
+def test_mop_a_declares_analytical_pareto_front_only_without_noise():
+    frame, truth = mopA_monotonic_redundancy(N=64, seed=123, noise=0.0)
+    expected = [int(np.argmin(frame["f1"].to_numpy()))]
+
+    assert truth["pareto_expected"] == expected
+    best = frame.iloc[expected[0]].to_numpy(dtype=float)
+    matrix = frame.to_numpy(dtype=float)
+    assert np.all(best <= matrix)
+    assert np.all(np.any(best < np.delete(matrix, expected[0], axis=0), axis=1))
+
+    _, noisy_truth = mopA_monotonic_redundancy(N=64, seed=123, noise=0.01)
+    assert noisy_truth["pareto_expected"] is None
+
+
+def test_mop_d_declares_all_rows_pareto_nondominated_only_without_noise():
+    frame, truth = mopD_pure_conflict_groups(N=64, seed=123, noise=0.0)
+
+    assert truth["pareto_expected"] == list(range(64))
+    order = np.argsort(frame["f1"].to_numpy())
+    opposing = frame["f11"].to_numpy()[order]
+    assert np.all(np.diff(opposing) < 0.0)
+
+    _, noisy_truth = mopD_pure_conflict_groups(N=64, seed=123, noise=0.01)
+    assert noisy_truth["pareto_expected"] is None
+
+
+def test_case7_human_graph_declaration_covers_both_graphs():
+    _, truth = make_case7_pure_conflict_groups(N=64, seed=123)
+    graph_expected = truth["graph_expected"]
+
+    assert "G+ is 2 disjoint K_10 components" in graph_expected
+    assert "90 edges" in graph_expected
+    assert "G± is K_20" in graph_expected
+    assert "190 edges" in graph_expected
+    assert "1 connected component" in graph_expected
+    assert "anti-correlated" in graph_expected
 
 
 @pytest.mark.parametrize(
