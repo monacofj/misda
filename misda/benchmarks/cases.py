@@ -241,7 +241,7 @@ def make_case7_pure_conflict_groups(
         blocks_expected=[cols[:M_pos], cols[M_pos:]],
         feature="Two groups (+x and -x) with internal redundancy and strong structural conflict (anti-correlation).",
         intuition="10 sensors measuring Car Speed (+x) and 10 measuring Remaining Travel Time (-x). Speed and Time conflict, but both are essential! MISDA must keep 1 of each.",
-        graph_expected="2 disjoint complete subgraphs of 10 nodes each (2 x K_10, 90 total edges, 2 connected components)",
+        graph_expected="G+ is 2 disjoint K_10 components (20 nodes, 90 edges); G± is K_20 (20 nodes, 190 edges, 1 connected component) because the two groups are mutually anti-correlated.",
         graph_expectations={
             "structural": {"edges": 90, "components": 2},
             "dependence": {"edges": 190, "components": 1},
