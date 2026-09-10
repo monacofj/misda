@@ -28,8 +28,15 @@ def _explicit_loo_predictions(data, selected, eliminated):
 def _press_predictions(data, selected, eliminated):
     design = np.column_stack((np.ones(data.shape[0]), data[:, selected]))
     try:
-        Q, _ = np.linalg.qr(design, mode="reduced")
+        Q, R = np.linalg.qr(design, mode="reduced")
         if Q.shape[1] < design.shape[1]:
+            return _explicit_loo_predictions(data, selected, eliminated)
+        rank_tolerance = (
+            np.finfo(float).eps
+            * max(design.shape)
+            * max(1.0, float(np.linalg.norm(R, ord=np.inf)))
+        )
+        if np.any(np.abs(np.diag(R)) <= rank_tolerance):
             return _explicit_loo_predictions(data, selected, eliminated)
         targets = data[:, eliminated]
         fitted = Q @ (Q.T @ targets)
