@@ -1,8 +1,8 @@
-name: newapi gate
+name: acceptance gate
 
 on:
   push:
-    branches: [newapi]
+    branches: [main]
   pull_request:
     branches: [main]
 
