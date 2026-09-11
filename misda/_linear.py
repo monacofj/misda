@@ -87,6 +87,11 @@ def _fast_jackknife_r2(data, selected, eliminated):
     if np.any(np.abs(denominator[off_diagonal]) <= press_tolerance):
         return None
 
+    # The diagonal corresponds to deleting the same observation twice and is
+    # not part of any jackknife replicate.  Give it a harmless denominator so
+    # vectorized division cannot emit a spurious divide-by-zero warning.
+    np.fill_diagonal(denominator, 1.0)
+
     means = np.mean(targets, axis=0)
     full_sst = np.sum((targets - means) ** 2, axis=0)
     if np.any(full_sst <= np.finfo(float).eps):
