@@ -13,11 +13,11 @@ import networkx as nx
 import numpy as np
 
 from ._graph import build_dependency_graphs, enumerate_structural_mis
+from ._linear import evaluate_linear_reconstruction
 from ._pareto import evaluate_pareto_preservation, get_nondominated_mask_minimize
 from ._ranking import compute_mis_metrics
 from ._reconstruction import (
     _derive_seed,
-    evaluate_linear_reconstruction,
     evaluate_nonlinear_reconstruction,
     evaluate_null_reconstruction,
 )
