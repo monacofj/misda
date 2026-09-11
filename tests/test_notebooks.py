@@ -29,8 +29,8 @@ def _read_notebook(path):
     return notebook, source
 
 
-def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
-    path = Path("examples/benchmark.ipynb")
+def test_diagnostic_clean_notebook_runs_and_displays_each_case(monkeypatch):
+    path = Path("examples/diagnostic_clean.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
@@ -45,7 +45,7 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
     assert "MOP_CASES" in source
 
     monkeypatch.setenv("MPLBACKEND", "Agg")
-    namespace = {"__name__": "notebook_benchmark"}
+    namespace = {"__name__": "notebook_diagnostic_clean"}
     for index, cell in enumerate(notebook["cells"]):
         if cell["cell_type"] != "code":
             continue
@@ -74,8 +74,8 @@ def test_benchmark_notebook_runs_and_displays_each_case(monkeypatch):
     )
 
 
-def test_comparative_notebook_uses_public_api_and_runs_three_experiments(monkeypatch):
-    path = Path("examples/comparative.ipynb")
+def test_comparison_notebook_uses_public_api_and_runs_three_experiments(monkeypatch):
+    path = Path("examples/comparison.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
@@ -91,7 +91,7 @@ def test_comparative_notebook_uses_public_api_and_runs_three_experiments(monkeyp
     assert "run_comparative" not in source
 
     monkeypatch.setenv("MPLBACKEND", "Agg")
-    namespace = {"__name__": "notebook_comparative"}
+    namespace = {"__name__": "notebook_comparison"}
     for index, cell in enumerate(notebook["cells"]):
         if cell["cell_type"] != "code":
             continue
@@ -114,8 +114,8 @@ def test_comparative_notebook_uses_public_api_and_runs_three_experiments(monkeyp
     assert set(namespace["comparison"]["case_id"]) == {"exp_01", "exp_02", "exp_03"}
 
 
-def test_comparative_notebook_keeps_native_estimands_and_adds_common_score():
-    _, source = _read_notebook(Path("examples/comparative.ipynb"))
+def test_comparison_notebook_keeps_native_estimands_and_adds_common_score():
+    _, source = _read_notebook(Path("examples/comparison.ipynb"))
 
     assert "mean_eliminated_objective_r2" in source
     assert "worst_eliminated_objective_r2" in source
