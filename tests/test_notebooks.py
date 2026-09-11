@@ -29,20 +29,24 @@ def _read_notebook(path):
     return notebook, source
 
 
-def test_diagnostic_clean_notebook_runs_and_displays_each_case(monkeypatch):
+def test_diagnostic_clean_notebook_runs_unified_suite(monkeypatch):
     path = Path("examples/diagnostic_clean.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
     assert "git+https://github.com/monacofj/misda.git@main#egg=misda[benchmarks]" in source
+    assert "bench.PROBLEMS" in source
+    assert "problem.generate(N=N, seed=SEED, sigma=SIGMA)" in source
+    assert "bench.diagnostic_truth(problem, dataset.Z)" in source
+    assert "dataset.Y" in source
+    assert "CANONICAL_CASES" not in source
+    assert "MOP_CASES" not in source
     assert "misda.discover(" in source
     assert 'misda.evaluate(mis_set, metrics=("linear", "pareto"))' in source
     assert "misda.benchmark(mis_set, truth)" in source
     assert "print(benchmark_result.report())" in source
     assert "mis_set.graph_plot()" in source
-    assert "CANONICAL_CASES" in source
-    assert "MOP_CASES" in source
 
     monkeypatch.setenv("MPLBACKEND", "Agg")
     namespace = {"__name__": "notebook_diagnostic_clean"}
@@ -57,20 +61,20 @@ def test_diagnostic_clean_notebook_runs_and_displays_each_case(monkeypatch):
         cell_source = "".join(cell.get("source", []))
         exec(compile(cell_source, f"{path}:cell-{index}", "exec"), namespace)
 
-    assert len(namespace["canonical_results"]) == 7
-    assert len(namespace["mop_results"]) == 6
-    results = (
-        list(namespace["canonical_results"].values())
-        + list(namespace["mop_results"].values())
-    )
-    assert all(isinstance(item["result_obj"], misda.MISSet) for item in results)
+    results = namespace["diagnostic_results"]
+    assert len(results) == 13
+    assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
     assert all(
         isinstance(item["benchmark_obj"], BenchmarkResult)
-        for item in results
+        for item in results.values()
     )
     assert all(
         item["benchmark_obj"].result is item["result_obj"]
-        for item in results
+        for item in results.values()
+    )
+    assert all(item["dataset"].sigma == 0.0 for item in results.values())
+    assert all(
+        item["dataset"].Y.equals(item["dataset"].Z) for item in results.values()
     )
 
 
