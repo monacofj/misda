@@ -48,23 +48,26 @@ misda/benchmark.py
     Benchmark declarations, reports, serialization, and regression comparison.
 
 misda/benchmarks/
-    Canonical synthetic and MOP benchmark generators plus comparative helpers.
+    Controlled diagnostic problem definitions, truth helpers, legacy regression
+    generators, and comparison helpers.
 
 
 2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
 ------------------------------------------------
 
 examples/diagnostic_clean.ipynb
-    Controlled diagnostic suite front end. During the R5 migration this first
-    preserves the historical 13-scenario execution; explicit clean observation
-    semantics are introduced in the dedicated clean-diagnostic stage.
+    Unified 13-problem controlled diagnostic suite under exact observation Y=Z.
+
+examples/diagnostic_noisy.ipynb
+    The same controlled diagnostic suite under a fixed scale-relative noisy
+    observation regime; truth remains defined on clean Z.
 
 examples/comparison.ipynb
     MISDA/PCA comparison experiments using the controlled synthetic scenarios
     and the public static API.
 
 examples/benchmarks/run_benchmark.py
-    Executable canonical 13-case scientific battery.
+    Executable clean 13-problem scientific battery.
 
 examples/benchmarks/run_comparative.py
     Executable three-experiment comparison battery.
@@ -121,5 +124,5 @@ tests/
     Unit, API, benchmark, documentation, notebook, and scientific-contract tests.
 
 .github/workflows/newapi.yml
-    Branch gate running the full test suite, the canonical scientific battery,
-    and the comparison experiments.
+    Acceptance gate for main and new-benchmark, running the full test suite,
+    clean scientific battery, and comparison experiments.

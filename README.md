@@ -225,8 +225,14 @@ python -m examples.benchmarks.run_benchmark --output results/benchmark.json
 python -m examples.benchmarks.run_comparative --output results/comparative.json
 ```
 
-- [Controlled diagnostic notebook](examples/diagnostic_clean.ipynb)
+- [Clean controlled diagnostic notebook](examples/diagnostic_clean.ipynb)
+- [Noisy controlled diagnostic notebook](examples/diagnostic_noisy.ipynb)
 - [MISDA and PCA comparison notebook](examples/comparison.ipynb)
+
+The noisy diagnostic notebook uses a fixed scale-relative `sigma=0.10`
+observation regime with a distinct observation seed as a reproducible reference
+condition. It is not a robustness threshold; noise-level degradation is studied
+separately by the robustness diagnostic workflow.
 
 The comparison artifact keeps MISDA's native eliminated-objective
 reconstruction diagnostics separate from PCA's native reconstruction curve.

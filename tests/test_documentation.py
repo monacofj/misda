@@ -63,6 +63,7 @@ def test_readme_points_to_main_and_executable_benchmarks():
     assert "examples.benchmarks.run_benchmark" in text
     assert "examples.benchmarks.run_comparative" in text
     assert "examples/diagnostic_clean.ipynb" in text
+    assert "examples/diagnostic_noisy.ipynb" in text
     assert "examples/comparison.ipynb" in text
     assert "blob/main/examples/diagnostic_clean.ipynb" in text
     assert "examples/benchmark.ipynb" not in text
