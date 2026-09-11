@@ -1,9 +1,15 @@
 """Controlled diagnostic scenario specifications for MISDA.
 
 The historical ``Case``/``MOP`` split is retained only in generator names while
-R5 migrates the implementation.  This module provides the single conceptual
-catalogue: each scenario declares its generating variables, clean problem map,
-observation model, truth dimensions, structural-unit sizes, and diagnostic tags.
+R5 migrates the implementation. This module provides one conceptual catalogue:
+each scenario declares its generating variables, clean problem map, observation
+model, truth dimensions, legacy generating-family partition, and diagnostic
+tags.
+
+Generating families are descriptive groupings and are deliberately not used to
+infer structural dimension. Case 5 (one cumulative family but structural truth
+20) and MOP-B (three functional families but structural truth 2) make this
+distinction explicit.
 
 No truth in this catalogue is inferred from observed data or MISDA output.
 """
@@ -44,23 +50,23 @@ class DiagnosticScenario:
     observation: str
     latent_expected: int
     structural_expected: int
-    unit_sizes: tuple[int, ...]
+    family_sizes: tuple[int, ...]
     tags: frozenset[str]
 
     def validate_legacy_contract(self, *, N: int = 32, seed: int = 123) -> None:
-        """Check that the legacy generator agrees with the declared problem truth."""
+        """Check legacy output against the explicit scenario declaration."""
         frame, truth = self.generator(N=N, seed=seed)
-        if frame.shape[1] != sum(self.unit_sizes):
+        if frame.shape[1] != sum(self.family_sizes):
             raise AssertionError(
-                f"{self.id}: objective count does not match declared unit sizes"
+                f"{self.id}: objective count does not match generating families"
             )
         if truth["latent_expected"] != self.latent_expected:
             raise AssertionError(f"{self.id}: latent truth mismatch")
         if truth["structural_expected"] != self.structural_expected:
             raise AssertionError(f"{self.id}: structural truth mismatch")
         observed_sizes = tuple(len(block) for block in truth["blocks_expected"])
-        if observed_sizes != self.unit_sizes:
-            raise AssertionError(f"{self.id}: structural-unit declaration mismatch")
+        if observed_sizes != self.family_sizes:
+            raise AssertionError(f"{self.id}: generating-family declaration mismatch")
 
 
 DIAGNOSTIC_SCENARIOS = (
@@ -73,7 +79,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="identity",
         latent_expected=20,
         structural_expected=20,
-        unit_sizes=(1,) * 20,
+        family_sizes=(1,) * 20,
         tags=frozenset({"independence", "linear"}),
     ),
     DiagnosticScenario(
@@ -85,7 +91,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy additive Gaussian perturbation on each copy",
         latent_expected=1,
         structural_expected=1,
-        unit_sizes=(20,),
+        family_sizes=(20,),
         tags=frozenset({"total_redundancy", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -97,7 +103,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy additive Gaussian perturbation on each copy",
         latent_expected=4,
         structural_expected=4,
-        unit_sizes=(5, 5, 5, 5),
+        family_sizes=(5, 5, 5, 5),
         tags=frozenset({"block_redundancy", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -109,7 +115,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy additive Gaussian perturbation on each copy",
         latent_expected=2,
         structural_expected=2,
-        unit_sizes=(10, 10),
+        family_sizes=(10, 10),
         tags=frozenset({"block_redundancy", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -124,7 +130,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="identity; innovations are generating degrees of freedom, not noise",
         latent_expected=20,
         structural_expected=20,
-        unit_sizes=(20,),
+        family_sizes=(20,),
         tags=frozenset({"transitive_chaining", "linear", "known_failure_mode"}),
     ),
     DiagnosticScenario(
@@ -136,7 +142,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy additive Gaussian perturbation on replicated factors",
         latent_expected=12,
         structural_expected=12,
-        unit_sizes=(1,) * 10 + (5, 5),
+        family_sizes=(1,) * 10 + (5, 5),
         tags=frozenset({"mixed_structure", "block_redundancy", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -148,7 +154,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy additive Gaussian perturbation on each objective",
         latent_expected=1,
         structural_expected=2,
-        unit_sizes=(10, 10),
+        family_sizes=(10, 10),
         tags=frozenset({"antagonistic_conflict", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -160,7 +166,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="optional additive Gaussian perturbation after each transform",
         latent_expected=1,
         structural_expected=1,
-        unit_sizes=(20,),
+        family_sizes=(20,),
         tags=frozenset({"total_redundancy", "nonlinear", "monotonic"}),
     ),
     DiagnosticScenario(
@@ -172,7 +178,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy small perturbation on selected family replicas",
         latent_expected=2,
         structural_expected=2,
-        unit_sizes=(7, 7, 6),
+        family_sizes=(7, 7, 6),
         tags=frozenset({"tradeoff", "nonlinear", "family_redundancy"}),
     ),
     DiagnosticScenario(
@@ -184,7 +190,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy perturbation on one w-family replica",
         latent_expected=4,
         structural_expected=4,
-        unit_sizes=(5, 5, 5, 5),
+        family_sizes=(5, 5, 5, 5),
         tags=frozenset({"block_redundancy", "nonlinear"}),
     ),
     DiagnosticScenario(
@@ -196,7 +202,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="optional additive Gaussian perturbation after each transform",
         latent_expected=1,
         structural_expected=2,
-        unit_sizes=(10, 10),
+        family_sizes=(10, 10),
         tags=frozenset({"antagonistic_conflict", "nonlinear", "tradeoff"}),
     ),
     DiagnosticScenario(
@@ -208,7 +214,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="legacy perturbation on selected a-family replicas",
         latent_expected=2,
         structural_expected=2,
-        unit_sizes=(10, 4, 6),
+        family_sizes=(10, 4, 6),
         tags=frozenset({"overlapping_factors", "nonlinear", "partial_redundancy"}),
     ),
     DiagnosticScenario(
@@ -220,7 +226,7 @@ DIAGNOSTIC_SCENARIOS = (
         observation="optional additive Gaussian perturbation after clean transforms",
         latent_expected=2,
         structural_expected=2,
-        unit_sizes=(10, 10),
+        family_sizes=(10, 10),
         tags=frozenset({"regime_switching", "nonlinear", "known_failure_mode"}),
     ),
 )
