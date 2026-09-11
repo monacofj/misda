@@ -1,8 +1,8 @@
 """
 misda.benchmarks — MISDA Benchmark Suite and Problem Generators.
 
-Exposes canonical structural cases, synthetic MOP problem generators, DTLZ benchmarks,
-and evaluation summary utilities.
+Exposes the unified controlled diagnostic catalogue, historical generator names,
+classical DTLZ generators, and evaluation summary utilities.
 """
 
 from .cases import (
@@ -26,6 +26,11 @@ from .mop import (
     generate_dtlz2,
     generate_dtlz5,
 )
+from .diagnostics import (
+    DIAGNOSTIC_BY_ID,
+    DIAGNOSTIC_SCENARIOS,
+    DiagnosticScenario,
+)
 from .comparative import (
     COMMON_RECONSTRUCTION_METRIC,
     global_standardized_reconstruction_r2,
@@ -44,6 +49,9 @@ from ..benchmark import (
 )
 
 __all__ = [
+    "DiagnosticScenario",
+    "DIAGNOSTIC_SCENARIOS",
+    "DIAGNOSTIC_BY_ID",
     "CANONICAL_CASES",
     "MOP_CASES",
     "make_case1_independence",
