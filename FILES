@@ -49,7 +49,7 @@ misda/benchmark.py
 
 misda/benchmarks/
     Controlled diagnostic problem definitions, truth helpers, legacy regression
-    generators, and comparison helpers.
+    generators, classical MOP generators, and comparison helpers.
 
 
 2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
@@ -62,15 +62,20 @@ examples/diagnostic_noisy.ipynb
     The same controlled diagnostic suite under a fixed scale-relative noisy
     observation regime; truth remains defined on clean Z.
 
+examples/diagnostic_robustness.ipynb
+    Focused multi-sigma/multi-replicate observation-noise robustness study using
+    a representative subset of controlled diagnostics.
+
 examples/comparison.ipynb
-    MISDA/PCA comparison experiments using the controlled synthetic scenarios
-    and the public static API.
+    MISDA/PCA method comparison on clean controlled diagnostics with explicit
+    truth. Native estimands remain distinct; direct comparison uses a common
+    external reconstruction score at explicitly named dimensions.
 
 examples/benchmarks/run_benchmark.py
     Executable clean 13-problem scientific battery.
 
-examples/benchmarks/run_comparative.py
-    Executable three-experiment comparison battery.
+examples/benchmarks/run_comparison.py
+    Executable diagnostic MISDA/PCA comparison battery.
 
 examples/benchmarks/_baseline.py
     Historical baseline comparison helpers used only by regression tests.
@@ -125,4 +130,4 @@ tests/
 
 .github/workflows/newapi.yml
     Acceptance gate for main and new-benchmark, running the full test suite,
-    clean scientific battery, and comparison experiments.
+    clean scientific battery, and diagnostic method comparison.

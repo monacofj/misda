@@ -73,13 +73,20 @@ def test_historical_pareto_helper_keeps_retention_and_validity_distinct():
 
 
 @pytest.mark.parametrize(
-    "module,case_id,suite",
+    "module,selector,case_id,suite",
     [
-        ("examples.benchmarks.run_benchmark", "case_01", "diagnostic_clean"),
-        ("examples.benchmarks.run_comparative", "exp_01", "comparative"),
+        ("examples.benchmarks.run_benchmark", "--case-id", "case_01", "diagnostic_clean"),
+        (
+            "examples.benchmarks.run_comparison",
+            "--problem-id",
+            "total_redundancy",
+            "diagnostic_comparison",
+        ),
     ],
 )
-def test_benchmark_cli_writes_newapi_json(tmp_path, module, case_id, suite):
+def test_benchmark_cli_writes_newapi_json(
+    tmp_path, module, selector, case_id, suite
+):
     output = tmp_path / f"{suite}.json"
     completed = subprocess.run(
         [
@@ -87,7 +94,7 @@ def test_benchmark_cli_writes_newapi_json(tmp_path, module, case_id, suite):
             "-m",
             module,
             "--quick",
-            "--case-id",
+            selector,
             case_id,
             "--output",
             str(output),
@@ -102,9 +109,7 @@ def test_benchmark_cli_writes_newapi_json(tmp_path, module, case_id, suite):
     assert artifact["format_version"] == 4
     assert artifact["suite"] == suite
     assert artifact.get("method", artifact.get("methods", [None])[0]) == "static"
-    expected_parameters = {"n": 64, "seed": 123}
-    if suite == "diagnostic_clean":
-        expected_parameters["sigma"] = 0.0
+    expected_parameters = {"n": 64, "seed": 123, "sigma": 0.0}
     assert artifact["parameters"] == expected_parameters
     assert len(artifact["cases"]) == 1
 
@@ -127,17 +132,6 @@ def test_benchmark_cli_writes_newapi_json(tmp_path, module, case_id, suite):
     assert case["linear_reconstruction"]["mean_r2"] is None or isinstance(
         case["linear_reconstruction"]["mean_r2"], float
     )
-    assert set((case["pareto_preservation"] or {}).keys()) >= {
-        "retention",
-        "validity",
-        "jaccard",
-        "full_front_size",
-        "reduced_front_size",
-        "intersection_size",
-        "union_size",
-        "exact_preservation",
-        "reduced_front_indices",
-    }
     assert case["dimensional_support"]["status"] in {
         "SUPPORTED",
         "PARTIALLY_SUPPORTED",
@@ -150,17 +144,38 @@ def test_benchmark_cli_writes_newapi_json(tmp_path, module, case_id, suite):
         EXPECTED_DECLARATION_MISMATCH,
         NO_DECLARATION,
     }
-    if suite == "comparative":
+
+    if suite == "diagnostic_clean":
+        assert set((case["pareto_preservation"] or {}).keys()) >= {
+            "retention",
+            "validity",
+            "jaccard",
+            "full_front_size",
+            "reduced_front_size",
+            "intersection_size",
+            "union_size",
+            "exact_preservation",
+            "reduced_front_indices",
+        }
+    else:
         assert artifact["methods"] == ["static", "pca"]
-        assert case["pca"]["metric"] == "global_standardized_r2"
-        assert case["pca"]["protocol"] == "in_sample"
-        assert len(case["pca"]["curve"]) == 10
+        assert case["problem_id"] == case_id
+        assert case["observation"] == {"sigma": 0.0}
+        assert case["pca"]["component_selection"] is None
+        assert len(case["pca"]["external_curve"]) == case["m"]
+        assert len(case["pca"]["native_curve"]) == case["m"]
+        assert set(case["pca"]["at_reference_dimensions"]) == {
+            "latent_truth",
+            "structural_truth",
+            "misda_selected",
+        }
         assert case["comparison"]["metric"] == "global_standardized_external_r2"
         assert case["comparison"]["protocol"] == "leave_one_out"
-        assert case["comparison"]["misda"]["dimension"] == case["estimated"][
-            "selected_dimension"
-        ]
-        assert len(case["comparison"]["pca"]["curve"]) == case["m"]
+        assert case["comparison"]["misda"]["selected_dimension"] == case[
+            "estimated"
+        ]["selected_dimension"]
+        assert case["comparison"]["misda"]["latent_error"] >= 0
+        assert case["comparison"]["misda"]["structural_error"] >= 0
 
 
 def test_unknown_case_id_is_rejected(tmp_path):
@@ -182,6 +197,27 @@ def test_unknown_case_id_is_rejected(tmp_path):
 
     assert completed.returncode != 0
     assert "Unknown case id(s): not_a_case" in completed.stderr
+
+
+def test_unknown_comparison_problem_id_is_rejected(tmp_path):
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "examples.benchmarks.run_comparison",
+            "--quick",
+            "--problem-id",
+            "not_a_problem",
+            "--output",
+            str(tmp_path / "unused.json"),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert "Unknown problem id(s): not_a_problem" in completed.stderr
 
 
 def test_cli_never_passes_case_declarations_into_discover(monkeypatch):
@@ -221,3 +257,23 @@ def test_benchmark_runner_matches_notebook_reference_scope(monkeypatch):
 
     assert len(artifact["cases"]) == 1
     assert observed_kwargs == [{"metrics": ("linear", "pareto")}]
+
+
+def test_comparison_runner_uses_clean_diagnostic_truth(monkeypatch):
+    module = importlib.import_module("examples.benchmarks.run_comparison")
+    assert inspect.signature(module.run_comparison).parameters["n"].default == 300
+
+    original = module.misda.discover
+    observed = []
+
+    def capture(data, **kwargs):
+        observed.append(dict(kwargs))
+        return original(data, **kwargs)
+
+    monkeypatch.setattr(module.misda, "discover", capture)
+    artifact = module.run_comparison(n=32, problem_ids={"total_redundancy"})
+
+    assert artifact["suite"] == "diagnostic_comparison"
+    assert artifact["parameters"]["sigma"] == 0.0
+    assert len(artifact["cases"]) == 1
+    assert observed == [{"name": "Case 2 - Total redundancy", "seed": 123}]

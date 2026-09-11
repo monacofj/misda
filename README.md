@@ -221,23 +221,27 @@ print(bench.report())
 Executable benchmark front ends:
 
 ```bash
-python -m examples.benchmarks.run_benchmark --output results/benchmark.json
-python -m examples.benchmarks.run_comparative --output results/comparative.json
+python -m examples.benchmarks.run_benchmark --output results/diagnostic-clean.json
+python -m examples.benchmarks.run_comparison --output results/comparison.json
 ```
 
 - [Clean controlled diagnostic notebook](examples/diagnostic_clean.ipynb)
 - [Noisy controlled diagnostic notebook](examples/diagnostic_noisy.ipynb)
+- [Diagnostic robustness notebook](examples/diagnostic_robustness.ipynb)
 - [MISDA and PCA comparison notebook](examples/comparison.ipynb)
 
 The noisy diagnostic notebook uses a fixed scale-relative `sigma=0.10`
 observation regime with a distinct observation seed as a reproducible reference
-condition. It is not a robustness threshold; noise-level degradation is studied
-separately by the robustness diagnostic workflow.
+condition. It is not a robustness threshold. `diagnostic_robustness.ipynb`
+studies degradation separately by varying sigma and replicate seeds while
+reusing the same clean sample and standardized perturbation within each curve.
 
-The comparison artifact keeps MISDA's native eliminated-objective
-reconstruction diagnostics separate from PCA's native reconstruction curve.
-Direct MISDA/PCA comparison uses the common external
-`global_standardized_external_r2` metric.
+The method comparison uses clean diagnostic problems with explicit truth. MISDA's
+latent and structural dimensions remain native MISDA estimands; PCA remains a
+linear reconstruction curve unless a component-selection protocol is explicitly
+defined. The comparison therefore does not impose an arbitrary explained-
+variance cutoff. Direct MISDA/PCA comparison uses the common external
+`global_standardized_external_r2` metric at explicitly named dimensions.
 
 ## Development status
 

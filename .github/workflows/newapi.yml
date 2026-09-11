@@ -30,12 +30,12 @@ jobs:
           name: misda-diagnostic-clean
           path: /tmp/misda-diagnostic-clean.json
           if-no-files-found: warn
-      - name: Comparative experiments
-        run: python -m examples.benchmarks.run_comparative --output /tmp/misda-comparative.json
-      - name: Preserve comparative artifact
+      - name: Diagnostic method comparison
+        run: python -m examples.benchmarks.run_comparison --output /tmp/misda-comparison.json
+      - name: Preserve comparison artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: misda-comparative
-          path: /tmp/misda-comparative.json
+          name: misda-comparison
+          path: /tmp/misda-comparison.json
           if-no-files-found: warn
