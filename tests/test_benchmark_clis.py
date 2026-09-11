@@ -75,7 +75,7 @@ def test_historical_pareto_helper_keeps_retention_and_validity_distinct():
 @pytest.mark.parametrize(
     "module,case_id,suite",
     [
-        ("examples.benchmarks.run_benchmark", "case_01", "benchmark"),
+        ("examples.benchmarks.run_benchmark", "case_01", "diagnostic_clean"),
         ("examples.benchmarks.run_comparative", "exp_01", "comparative"),
     ],
 )
@@ -102,7 +102,10 @@ def test_benchmark_cli_writes_newapi_json(tmp_path, module, case_id, suite):
     assert artifact["format_version"] == 4
     assert artifact["suite"] == suite
     assert artifact.get("method", artifact.get("methods", [None])[0]) == "static"
-    assert artifact["parameters"] == {"n": 64, "seed": 123}
+    expected_parameters = {"n": 64, "seed": 123}
+    if suite == "diagnostic_clean":
+        expected_parameters["sigma"] = 0.0
+    assert artifact["parameters"] == expected_parameters
     assert len(artifact["cases"]) == 1
 
     case = artifact["cases"][0]
