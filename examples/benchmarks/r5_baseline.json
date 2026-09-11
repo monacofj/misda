@@ -1,0 +1,16 @@
+{
+  "source_commit": "483f983b72b0c46e1b28c485e9819fe0aebbef78",
+  "reference_pr_head": "ccdeaf559f874b8ec8949b6261581ddb96af87de",
+  "acceptance_run": 104,
+  "canonical": {
+    "N": 300,
+    "seed": 123,
+    "artifact": "misda-benchmark",
+    "artifact_sha256": "cfc94f6470d25adb3e07ac71b3e02406c401f7e8276d9051b0b18951f55929bf"
+  },
+  "comparison": {
+    "artifact": "misda-comparative",
+    "artifact_sha256": "b2b6b8d64faf208eb4571350325c9967dc6aa504157076e8a933c633f0ce5ee6"
+  },
+  "purpose": "Immutable provenance marker for the successful pre-R5 conceptual benchmark refactor acceptance run."
+}
