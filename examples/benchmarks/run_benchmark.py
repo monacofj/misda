@@ -1,4 +1,4 @@
-"""Run the canonical and synthetic-MOP baseline batteries as a JSON CLI."""
+"""Run the canonical clean controlled-diagnostic battery as a JSON CLI."""
 
 from __future__ import annotations
 
@@ -16,30 +16,26 @@ from misda.benchmark import (
     software_versions,
     write_json,
 )
-from examples.benchmarks.cases import CANONICAL_CASES
-from examples.mop_definitions import (
-    mopA_monotonic_redundancy,
-    mopB_tradeoff_with_redundancies,
-    mopC_latent_blocks_4x5,
-    mopD_pure_conflict_groups,
-    mopE_partial_redundancy_noisy,
-    mopF_regime_switching,
+from misda.benchmarks import PROBLEM_BY_ID, diagnostic_truth
+
+
+# Stable CLI ids are preserved across the R5 migration even though the
+# scientific catalogue itself is now a single unified diagnostic suite.
+BENCHMARK_CASES = (
+    ("case_01", PROBLEM_BY_ID["independence"]),
+    ("case_02", PROBLEM_BY_ID["total_redundancy"]),
+    ("case_03", PROBLEM_BY_ID["blocks_4x5"]),
+    ("case_04", PROBLEM_BY_ID["blocks_2x10"]),
+    ("case_05", PROBLEM_BY_ID["transitive_chain"]),
+    ("case_06", PROBLEM_BY_ID["mixed_independent_and_blocks"]),
+    ("case_07", PROBLEM_BY_ID["antagonistic_linear_groups"]),
+    ("mop_a", PROBLEM_BY_ID["monotonic_redundancy"]),
+    ("mop_b", PROBLEM_BY_ID["tradeoff_redundancies"]),
+    ("mop_c", PROBLEM_BY_ID["nonlinear_blocks_4x5"]),
+    ("mop_d", PROBLEM_BY_ID["antagonistic_nonlinear_groups"]),
+    ("mop_e", PROBLEM_BY_ID["overlapping_factors"]),
+    ("mop_f", PROBLEM_BY_ID["regime_switching"]),
 )
-
-
-MOP_CASES = (
-    ("mop_a", mopA_monotonic_redundancy),
-    ("mop_b", mopB_tradeoff_with_redundancies),
-    ("mop_c", mopC_latent_blocks_4x5),
-    ("mop_d", mopD_pure_conflict_groups),
-    ("mop_e", mopE_partial_redundancy_noisy),
-    ("mop_f", mopF_regime_switching),
-)
-
-BENCHMARK_CASES = tuple(
-    (f"case_{number:02d}", generator)
-    for number, (_, generator) in enumerate(CANONICAL_CASES, start=1)
-) + MOP_CASES
 
 
 def run_benchmark(
@@ -50,10 +46,14 @@ def run_benchmark(
     serializer=None,
 ) -> dict:
     cases = []
-    for case_id, generator in BENCHMARK_CASES:
+    for case_id, problem in BENCHMARK_CASES:
         if case_ids is not None and case_id not in case_ids:
             continue
-        frame, truth = generator(N=n, seed=seed)
+
+        dataset = problem.generate(N=n, seed=seed, sigma=0.0)
+        frame = dataset.Y
+        truth = diagnostic_truth(problem, dataset.Z)
+
         if serializer is not None:
             case = serializer(case_id, frame, truth, seed=seed)
         else:
@@ -74,6 +74,7 @@ def run_benchmark(
                 seed=seed,
             )
         cases.append(case)
+
     if case_ids is not None:
         found = {case["case_id"] for case in cases}
         unknown = sorted(case_ids - found)
@@ -82,9 +83,9 @@ def run_benchmark(
 
     return {
         "format_version": 1 if serializer is not None else FORMAT_VERSION,
-        "suite": "benchmark",
+        "suite": "diagnostic_clean",
         "method": METHOD,
-        "parameters": {"n": int(n), "seed": int(seed)},
+        "parameters": {"n": int(n), "seed": int(seed), "sigma": 0.0},
         "software": software_versions(),
         "cases": cases,
     }
@@ -147,7 +148,7 @@ def _parse_args() -> argparse.Namespace:
         "--case-id",
         action="append",
         dest="case_ids",
-        help="Run only this case id; may be supplied more than once.",
+        help="Run only this stable diagnostic case id; may be supplied more than once.",
     )
     return parser.parse_args()
 
