@@ -104,12 +104,70 @@ def test_regular_design_uses_fast_path(monkeypatch):
     assert observed["jackknife"]["n_replicates"] == data.shape[0]
 
 
-def test_rank_deficient_design_falls_back_to_reference(monkeypatch):
+def test_stable_rank_deficient_design_uses_fast_path_and_matches_reference(monkeypatch):
     rng = np.random.default_rng(911)
     source = rng.normal(size=30)
     target = 2.0 * source + rng.normal(scale=0.1, size=30)
     data = np.column_stack((source, source, target))
     labels = ("source", "duplicate", "target")
+    selected = (0, 1)
+
+    expected = _reconstruction.evaluate_linear_reconstruction(
+        data,
+        selected,
+        labels,
+    )
+
+    def fail_reference(*_args, **_kwargs):
+        raise AssertionError("stable rank-deficient design unexpectedly used fallback")
+
+    monkeypatch.setattr(_linear, "_reference_linear_reconstruction", fail_reference)
+    observed = _linear.evaluate_linear_reconstruction(
+        data,
+        selected_indices=selected,
+        labels=labels,
+    )
+
+    _assert_linear_equivalent(observed, expected)
+
+
+def test_case7_rank_deficient_geometry_matches_reference():
+    rng = np.random.default_rng(123)
+    source = rng.normal(size=32)
+    data = np.column_stack(
+        (
+            source,
+            source,
+            source**2,
+            -source,
+            -source,
+            -2.0 * source,
+        )
+    )
+    labels = tuple(f"f{index + 1}" for index in range(data.shape[1]))
+    selected = (0, 3)
+
+    expected = _reconstruction.evaluate_linear_reconstruction(
+        data,
+        selected,
+        labels,
+    )
+    observed = _linear.evaluate_linear_reconstruction(
+        data,
+        selected,
+        labels,
+    )
+
+    _assert_linear_equivalent(observed, expected)
+
+
+def test_rank_changing_deletions_still_fall_back_to_reference(monkeypatch):
+    rng = np.random.default_rng(3811)
+    source = np.zeros(8)
+    source[0] = 1.0
+    target = rng.normal(size=8)
+    data = np.column_stack((source, target))
+    labels = ("source", "target")
     sentinel = {"fallback": True}
 
     def reference(*_args, **_kwargs):
@@ -118,7 +176,7 @@ def test_rank_deficient_design_falls_back_to_reference(monkeypatch):
     monkeypatch.setattr(_linear, "_reference_linear_reconstruction", reference)
     observed = _linear.evaluate_linear_reconstruction(
         data,
-        selected_indices=(0, 1),
+        selected_indices=(0,),
         labels=labels,
     )
 
