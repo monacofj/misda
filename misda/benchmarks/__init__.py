@@ -1,8 +1,9 @@
 """
 misda.benchmarks — MISDA Benchmark Suite and Problem Generators.
 
-Exposes the unified controlled diagnostic catalogue, historical generator names,
-classical DTLZ generators, and evaluation summary utilities.
+Exposes the unified controlled diagnostic catalogue and executable X -> Z -> Y
+problems, historical generator names, classical DTLZ generators, and evaluation
+summary utilities.
 """
 
 from .cases import (
@@ -31,6 +32,12 @@ from .diagnostics import (
     DIAGNOSTIC_SCENARIOS,
     DiagnosticScenario,
 )
+from .problems import (
+    PROBLEM_BY_ID,
+    PROBLEMS,
+    DiagnosticDataset,
+    DiagnosticProblem,
+)
 from .comparative import (
     COMMON_RECONSTRUCTION_METRIC,
     global_standardized_reconstruction_r2,
@@ -52,6 +59,10 @@ __all__ = [
     "DiagnosticScenario",
     "DIAGNOSTIC_SCENARIOS",
     "DIAGNOSTIC_BY_ID",
+    "DiagnosticProblem",
+    "DiagnosticDataset",
+    "PROBLEMS",
+    "PROBLEM_BY_ID",
     "CANONICAL_CASES",
     "MOP_CASES",
     "make_case1_independence",
