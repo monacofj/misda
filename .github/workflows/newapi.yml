@@ -2,7 +2,7 @@ name: acceptance gate
 
 on:
   push:
-    branches: [main]
+    branches: [main, new-benchmark]
   pull_request:
     branches: [main]
 
