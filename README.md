@@ -109,8 +109,8 @@ misda.evaluate(mis_set, metrics=("nonlinear",), candidates=1)
 misda.evaluate(mis_set, metrics=("nonlinear",), candidates=structural[:5])
 ```
 
-Whenever an evaluation covers fewer than all candidates, reports state that
-scope explicitly.
+Whenever fewer than all candidates are evaluated, reports state that scope
+explicitly.
 
 ## Ranking
 
@@ -223,12 +223,14 @@ Executable benchmark front ends:
 ```bash
 python -m examples.benchmarks.run_benchmark --output results/diagnostic-clean.json
 python -m examples.benchmarks.run_comparison --output results/comparison.json
+python -m examples.benchmarks.run_classical_mops --output results/classical-mops.json
 ```
 
 - [Clean controlled diagnostic notebook](examples/diagnostic_clean.ipynb)
 - [Noisy controlled diagnostic notebook](examples/diagnostic_noisy.ipynb)
 - [Diagnostic robustness notebook](examples/diagnostic_robustness.ipynb)
 - [MISDA and PCA comparison notebook](examples/comparison.ipynb)
+- [Classical DTLZ reference notebook](examples/classical_mops.ipynb)
 
 The noisy diagnostic notebook uses a fixed scale-relative `sigma=0.10`
 observation regime with a distinct observation seed as a reproducible reference
@@ -242,6 +244,10 @@ linear reconstruction curve unless a component-selection protocol is explicitly
 defined. The comparison therefore does not impose an arbitrary explained-
 variance cutoff. Direct MISDA/PCA comparison uses the common external
 `global_standardized_external_r2` metric at explicitly named dimensions.
+
+`classical_mops.ipynb` applies MISDA to reproducible on-front DTLZ2 and DTLZ5
+samples. Their analytical Pareto-manifold geometry is retained as reference
+context, but is not re-labelled as MISDA latent or structural ground truth.
 
 ## Development status
 
