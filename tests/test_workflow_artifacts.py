@@ -18,10 +18,10 @@ def test_acceptance_workflow_preserves_benchmark_json_artifacts():
     assert workflow.count("if: always()") >= 2
 
 
-def test_acceptance_workflow_runs_for_main_prs_and_pushes():
+def test_acceptance_workflow_runs_for_integration_and_main():
     workflow = _workflow_text()
 
     assert "name: acceptance gate" in workflow
-    assert "  push:\n    branches: [main]\n" in workflow
+    assert "  push:\n    branches: [main, new-benchmark]\n" in workflow
     assert "  pull_request:\n    branches: [main]\n" in workflow
     assert "newapi" not in workflow
