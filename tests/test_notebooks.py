@@ -138,6 +138,48 @@ def test_diagnostic_noisy_notebook_runs_unified_suite(monkeypatch):
         )
 
 
+def test_diagnostic_robustness_notebook_runs_lightweight_controlled_sweep(monkeypatch):
+    path = Path("examples/diagnostic_robustness.ipynb")
+    notebook, source = _read_notebook(path)
+
+    assert notebook["nbformat"] == 4
+    assert all(term not in source for term in BANNED_SOURCE)
+    assert "PROBLEM_IDS" in source
+    assert "SIGMAS = (0.00, 0.05, 0.10, 0.20, 0.40)" in source
+    assert "REPLICATE_SEEDS = (101, 202, 303, 404, 505)" in source
+    assert "problem.observe(Z, sigma=sigma, standard_noise=epsilon)" in source
+    assert "epsilon = np.random.default_rng(observation_sequence).normal(size=Z.shape)" in source
+    assert 'misda.evaluate(mis_set, metrics=("pareto",), candidates=1)' in source
+    assert "bench.diagnostic_truth(problem, Z)" in source
+    assert "transitive_chaining_rate" in source
+
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "notebook_diagnostic_robustness"}
+    for index, cell in enumerate(notebook["cells"]):
+        if cell["cell_type"] != "code":
+            continue
+        tags = cell.get("metadata", {}).get("tags", [])
+        if "setup" in tags or "visualization" in tags:
+            continue
+        if "robustness-run" in tags:
+            namespace["N"] = 48
+            namespace["PROBLEM_IDS"] = ("independence", "total_redundancy")
+            namespace["SIGMAS"] = (0.0, 0.10)
+            namespace["REPLICATE_SEEDS"] = (101,)
+        cell_source = "".join(cell.get("source", []))
+        exec(compile(cell_source, f"{path}:cell-{index}", "exec"), namespace)
+
+    robustness = namespace["robustness"]
+    summary = namespace["robustness_summary"]
+    assert len(robustness) == 4
+    assert len(summary) == 4
+    assert set(robustness["problem_id"]) == {"independence", "total_redundancy"}
+    assert set(robustness["sigma"]) == {0.0, 0.10}
+    assert robustness.groupby("problem_id")["sample_seed"].nunique().eq(1).all()
+    assert robustness["pareto_jaccard"].notna().all()
+    assert summary["replicates"].eq(1).all()
+
+
 def test_comparison_notebook_uses_public_api_and_runs_three_experiments(monkeypatch):
     path = Path("examples/comparison.ipynb")
     notebook, source = _read_notebook(path)
