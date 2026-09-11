@@ -1,7 +1,7 @@
 """Ground-truth helpers for controlled diagnostic problems.
 
 All Pareto truth in the R5 diagnostic architecture is defined on the sampled
-clean objective matrix Z, never on the observed matrix Y.  Objectives are
+clean objective matrix Z, never on the observed matrix Y. Objectives are
 minimized. Exact duplicate objective vectors are all retained as nondominated
 whenever their common vector is nondominated, preserving sample-row identity.
 """
@@ -14,9 +14,26 @@ import pandas as pd
 from .._pareto import get_nondominated_mask_minimize
 
 
+_EXPECTED_MISMATCHES = {
+    "transitive_chain": {
+        "latent_dimension": "TRANSITIVE_CHAINING",
+        "structural_dimension": "TRANSITIVE_CHAINING",
+    },
+    "regime_switching": {
+        "latent_dimension": "HIDDEN_SPECTRAL_STRUCTURE",
+        "structural_dimension": "HIDDEN_SPECTRAL_STRUCTURE",
+        "selected_structural_units": "HIDDEN_SPECTRAL_STRUCTURE",
+    },
+}
+
+
 def sampled_pareto_indices(Z: pd.DataFrame | np.ndarray) -> list[int]:
     """Return sample indices nondominated in the clean minimization matrix Z."""
-    values = Z.to_numpy(dtype=float) if isinstance(Z, pd.DataFrame) else np.asarray(Z, dtype=float)
+    values = (
+        Z.to_numpy(dtype=float)
+        if isinstance(Z, pd.DataFrame)
+        else np.asarray(Z, dtype=float)
+    )
     if values.ndim != 2 or values.shape[0] == 0 or values.shape[1] == 0:
         raise ValueError("Z must be a non-empty two-dimensional objective matrix")
     mask = get_nondominated_mask_minimize(values)
@@ -40,4 +57,5 @@ def diagnostic_truth(problem, Z: pd.DataFrame) -> dict:
         "blocks_expected": families,
         "pareto_expected": sampled_pareto_indices(Z),
         "tags": sorted(scenario.tags),
+        "expected_mismatches": dict(_EXPECTED_MISMATCHES.get(problem.id, {})),
     }
