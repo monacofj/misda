@@ -4,11 +4,11 @@
 """Performance-preserving linear reconstruction for full-candidate evaluation.
 
 The public semantics are the same as ``_reconstruction.evaluate_linear_reconstruction``:
-external PRESS/LOO R² with delete-one jackknife uncertainty.  For regular full-rank
+external PRESS/LOO R² with delete-one jackknife uncertainty. For regular full-rank
 OLS designs, the jackknife is obtained from one QR factorization using exact case-
 deletion identities instead of recomputing a QR factorization for every omitted
-sample.  Numerically delicate or rank-deficient cases fall back to the reference
-implementation.
+sample. Stable rank-deficient designs use the same identities on an SVD-derived
+orthonormal basis for the effective design column space.
 """
 
 from __future__ import annotations
@@ -25,25 +25,27 @@ from ._reconstruction import (
 def _fast_jackknife_r2(data, selected, eliminated):
     """Return delete-one jackknife R² values, or ``None`` when fallback is safer.
 
-    For a full-data OLS fit with residual vector ``e`` and hat matrix ``H``, the
-    prediction residual for observation ``i`` after observations ``i`` and ``j``
-    are deleted is obtained from the 2x2 case-deletion system
+    For a full-data OLS projection with residual vector ``e`` and hat matrix
+    ``H``, the prediction residual for observation ``i`` after observations
+    ``i`` and ``j`` are deleted is obtained from the 2x2 case-deletion system
 
         r_ij = ((1-h_jj)e_i + h_ij e_j)
                / ((1-h_ii)(1-h_jj) - h_ij**2).
 
-    For jackknife replicate ``j``, these are exactly the PRESS residuals of the
-    dataset with row ``j`` removed.  Thus all N jackknife replicates can be
-    computed from one QR factorization of the full design.
+    The identity depends on the fitted column space, not on a unique coefficient
+    representation. Regular full-rank designs therefore use the existing QR
+    basis, while rank-deficient designs use an SVD basis for the same OLS
+    projection. If deleting observations would make that projection numerically
+    singular, the reference implementation remains authoritative.
     """
 
     matrix = np.asarray(data, dtype=float)
     n_samples = matrix.shape[0]
     design = np.column_stack((np.ones(n_samples), matrix[:, selected]))
 
-    # A delete-one dataset must still contain enough rows for the regular
-    # full-rank path.  The reference implementation remains authoritative for
-    # small or degenerate cases.
+    # A delete-one dataset must still contain enough rows for the conservative
+    # fast path. The reference implementation remains authoritative for small
+    # or degenerate cases.
     if n_samples <= design.shape[1] + 1:
         return None
 
@@ -60,7 +62,24 @@ def _fast_jackknife_r2(data, selected, eliminated):
         * max(1.0, float(np.linalg.norm(r, ord=np.inf)))
     )
     if np.any(np.abs(np.diag(r)) <= rank_tolerance):
-        return None
+        # OLS fitted values are unique even when coefficients are not. Build an
+        # orthonormal basis for the effective design column space so the hat
+        # matrix represents the Moore-Penrose least-squares projection exactly.
+        try:
+            u, singular_values, _ = np.linalg.svd(design, full_matrices=False)
+        except np.linalg.LinAlgError:
+            return None
+        if singular_values.size == 0 or not np.all(np.isfinite(singular_values)):
+            return None
+        singular_tolerance = (
+            np.finfo(float).eps
+            * max(design.shape)
+            * max(1.0, float(singular_values[0]))
+        )
+        effective_rank = int(np.sum(singular_values > singular_tolerance))
+        if effective_rank < 1:
+            return None
+        q = u[:, :effective_rank]
 
     targets = matrix[:, eliminated]
     fitted = q @ (q.T @ targets)
@@ -74,10 +93,9 @@ def _fast_jackknife_r2(data, selected, eliminated):
     if np.any(np.abs(one_minus_leverage) <= press_tolerance):
         return None
 
-    # Pair-deletion denominators.  A near-zero value indicates that at least
-    # one reduced design is numerically singular; defer such cases to the
-    # reference implementation, which performs its established explicit-LOO
-    # fallback when necessary.
+    # Pair-deletion denominators. A near-zero value indicates that at least one
+    # reduced design is numerically singular or changes effective rank; defer
+    # such cases to the reference implementation.
     denominator = (
         one_minus_leverage[:, np.newaxis]
         * one_minus_leverage[np.newaxis, :]
@@ -88,7 +106,7 @@ def _fast_jackknife_r2(data, selected, eliminated):
         return None
 
     # The diagonal corresponds to deleting the same observation twice and is
-    # not part of any jackknife replicate.  Give it a harmless denominator so
+    # not part of any jackknife replicate. Give it a harmless denominator so
     # vectorized division cannot emit a spurious divide-by-zero warning.
     np.fill_diagonal(denominator, 1.0)
 
@@ -128,8 +146,9 @@ def evaluate_linear_reconstruction(data, selected_indices, labels):
     """Evaluate exact external linear reconstruction with fast jackknife.
 
     The returned schema and statistical definitions match the reference engine.
-    The optimized path is used only for regular full-rank designs; every
-    numerically delicate case delegates to the reference implementation.
+    The optimized path is used for regular full-rank designs and stable
+    rank-deficient designs whose effective column space survives deletion;
+    numerically delicate cases delegate to the reference implementation.
     """
 
     matrix = np.asarray(data, dtype=float)
