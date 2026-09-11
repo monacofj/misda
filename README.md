@@ -6,7 +6,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/benchmark.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/diagnostic_clean.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
 MISDA is a graph-theoretic method for studying and reducing the objective space
@@ -225,10 +225,10 @@ python -m examples.benchmarks.run_benchmark --output results/benchmark.json
 python -m examples.benchmarks.run_comparative --output results/comparative.json
 ```
 
-- [Canonical benchmark notebook](examples/benchmark.ipynb)
-- [Static MISDA and PCA notebook](examples/comparative.ipynb)
+- [Controlled diagnostic notebook](examples/diagnostic_clean.ipynb)
+- [MISDA and PCA comparison notebook](examples/comparison.ipynb)
 
-The comparative artifact keeps MISDA's native eliminated-objective
+The comparison artifact keeps MISDA's native eliminated-objective
 reconstruction diagnostics separate from PCA's native reconstruction curve.
 Direct MISDA/PCA comparison uses the common external
 `global_standardized_external_r2` metric.
