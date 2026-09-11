@@ -78,6 +78,66 @@ def test_diagnostic_clean_notebook_runs_unified_suite(monkeypatch):
     )
 
 
+def test_diagnostic_noisy_notebook_runs_unified_suite(monkeypatch):
+    path = Path("examples/diagnostic_noisy.ipynb")
+    notebook, source = _read_notebook(path)
+
+    assert notebook["nbformat"] == 4
+    assert all(term not in source for term in BANNED_SOURCE)
+    assert "git+https://github.com/monacofj/misda.git@main#egg=misda[benchmarks]" in source
+    assert "bench.PROBLEMS" in source
+    assert "OBSERVATION_SEED = 456" in source
+    assert "SIGMA = 0.10" in source
+    assert "sigma=SIGMA" in source
+    assert "observation_seed=OBSERVATION_SEED" in source
+    assert "bench.diagnostic_truth(problem, dataset.Z)" in source
+    assert "dataset.Y" in source
+    assert "misda.discover(" in source
+    assert 'misda.evaluate(mis_set, metrics=("linear", "pareto"))' in source
+    assert "misda.benchmark(mis_set, truth)" in source
+    assert "print(benchmark_result.report())" in source
+    assert "mis_set.graph_plot()" in source
+
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "notebook_diagnostic_noisy"}
+    for index, cell in enumerate(notebook["cells"]):
+        if cell["cell_type"] != "code":
+            continue
+        tags = cell.get("metadata", {}).get("tags", [])
+        if "setup" in tags:
+            continue
+        if "benchmark-run" in tags:
+            namespace["N"] = 64
+        cell_source = "".join(cell.get("source", []))
+        exec(compile(cell_source, f"{path}:cell-{index}", "exec"), namespace)
+
+    results = namespace["noisy_results"]
+    assert len(results) == 13
+    assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
+    assert all(
+        isinstance(item["benchmark_obj"], BenchmarkResult)
+        for item in results.values()
+    )
+    assert all(
+        item["benchmark_obj"].result is item["result_obj"]
+        for item in results.values()
+    )
+    assert all(item["dataset"].sigma == pytest.approx(0.10) for item in results.values())
+    assert all(item["dataset"].sample_seed == 123 for item in results.values())
+    assert all(item["dataset"].observation_seed == 456 for item in results.values())
+    assert all(
+        not item["dataset"].Y.equals(item["dataset"].Z)
+        for item in results.values()
+    )
+    bench = namespace["bench"]
+    by_id = {problem.id: problem for problem in bench.PROBLEMS}
+    for problem_id, item in results.items():
+        assert item["truth"] == bench.diagnostic_truth(
+            by_id[problem_id],
+            item["dataset"].Z,
+        )
+
+
 def test_comparison_notebook_uses_public_api_and_runs_three_experiments(monkeypatch):
     path = Path("examples/comparison.ipynb")
     notebook, source = _read_notebook(path)
