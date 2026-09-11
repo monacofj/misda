@@ -54,21 +54,26 @@ misda/benchmarks/
 2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
 ------------------------------------------------
 
-examples/benchmark.ipynb
-    Interactive execution of the 7 canonical structural cases and 6 synthetic
-    MOP cases using discover/evaluate/benchmark and graph_plot.
+examples/diagnostic_clean.ipynb
+    Controlled diagnostic suite front end. During the R5 migration this first
+    preserves the historical 13-scenario execution; explicit clean observation
+    semantics are introduced in the dedicated clean-diagnostic stage.
 
-examples/comparative.ipynb
-    Three MISDA/PCA comparative experiments using the public static API.
+examples/comparison.ipynb
+    MISDA/PCA comparison experiments using the controlled synthetic scenarios
+    and the public static API.
 
 examples/benchmarks/run_benchmark.py
     Executable canonical 13-case scientific battery.
 
 examples/benchmarks/run_comparative.py
-    Executable three-experiment comparative battery.
+    Executable three-experiment comparison battery.
 
 examples/benchmarks/_baseline.py
     Historical baseline comparison helpers used only by regression tests.
+
+examples/benchmarks/r5_baseline.json
+    Provenance marker for the successful pre-R5 acceptance artifacts.
 
 
 3. DOCUMENTATION
@@ -117,4 +122,4 @@ tests/
 
 .github/workflows/newapi.yml
     Branch gate running the full test suite, the canonical scientific battery,
-    and the comparative experiments.
+    and the comparison experiments.
