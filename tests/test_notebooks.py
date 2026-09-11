@@ -177,3 +177,41 @@ def test_comparison_notebook_uses_diagnostic_truth_without_pca_dimension_cutoff(
     assert comparison["pca_at_misda_dimension"].notna().all()
     assert comparison["pca_at_latent_truth"].notna().all()
     assert comparison["pca_at_structural_truth"].notna().all()
+
+
+def test_classical_mops_notebook_keeps_reference_geometry_separate_from_misda_truth(monkeypatch):
+    path = Path("examples/classical_mops.ipynb")
+    notebook, source = _read_notebook(path)
+
+    assert notebook["nbformat"] == 4
+    assert all(term not in source for term in BANNED_SOURCE)
+    assert "bench.CLASSICAL_MOPS" in source
+    assert "on_front=ON_FRONT" in source
+    assert "seed=SEED" in source
+    assert "pareto_manifold_dimension" in source
+    assert "misda_latent" in source
+    assert "misda_structural" in source
+    assert "misda.benchmark(" not in source
+    assert "latent_expected" not in source
+    assert "structural_expected" not in source
+
+    _, namespace = _execute_notebook(
+        path,
+        monkeypatch,
+        overrides={
+            "classical-run": {
+                "N": 48,
+                "M": 5,
+                "N_VARS": 14,
+                "PROBLEM_IDS": ("dtlz2", "dtlz5"),
+            }
+        },
+    )
+    results = namespace["classical_results"]
+    summary = namespace["classical_summary"]
+    assert set(results) == {"dtlz2", "dtlz5"}
+    assert len(summary) == 2
+    assert set(summary["pareto_manifold_dimension"]) == {1, 4}
+    assert summary["misda_latent"].notna().all()
+    assert summary["misda_structural"].notna().all()
+    assert summary["pareto_jaccard"].notna().all()
