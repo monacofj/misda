@@ -49,7 +49,7 @@ misda/benchmark.py
 
 misda/benchmarks/
     Controlled diagnostic problem definitions, truth helpers, legacy regression
-    generators, classical MOP generators, and comparison helpers.
+    generators, reproducible classical DTLZ references, and comparison helpers.
 
 
 2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
@@ -71,11 +71,18 @@ examples/comparison.ipynb
     truth. Native estimands remain distinct; direct comparison uses a common
     external reconstruction score at explicitly named dimensions.
 
+examples/classical_mops.ipynb
+    MISDA on reproducible DTLZ2/DTLZ5 Pareto-front samples. Known front geometry
+    is reference context, not MISDA latent/structural ground truth.
+
 examples/benchmarks/run_benchmark.py
     Executable clean 13-problem scientific battery.
 
 examples/benchmarks/run_comparison.py
     Executable diagnostic MISDA/PCA comparison battery.
+
+examples/benchmarks/run_classical_mops.py
+    Executable DTLZ2/DTLZ5 reference-MOP front end.
 
 examples/benchmarks/_baseline.py
     Historical baseline comparison helpers used only by regression tests.
