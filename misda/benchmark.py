@@ -359,7 +359,10 @@ class BenchmarkResult:
         lines.append(f"  Expected graph      : {self.graph_expected or 'N/A'}")
         lines.append(f"  Generating families : {_format_blocks(families_expected)}")
         lines.append(f"  Structural units    : {_format_blocks(self.blocks_expected)}")
-        lines.append(f"  Expected components : {_format_blocks(self.components_expected)}")
+        if self.components_expected is not None:
+            lines.append(
+                f"  Expected components : {_format_blocks(self.components_expected)}"
+            )
         if self.notes:
             lines.append(f"  Notes               : {self.notes}")
 
