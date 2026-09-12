@@ -6,8 +6,9 @@ minimized. Exact duplicate objective vectors are all retained as nondominated
 whenever their common vector is nondominated, preserving sample-row identity.
 
 Generating families and structural units are separate declarations. Families
-describe how objectives are generated; structural units are declared only when
-the problem specification supplies an unambiguous structural partition.
+describe how objectives are generated; ``blocks_expected`` keeps its public
+benchmark meaning as structural units and is declared only when the problem
+specification supplies an unambiguous structural partition.
 """
 
 from __future__ import annotations
@@ -68,7 +69,5 @@ def diagnostic_truth(problem, Z: pd.DataFrame) -> dict:
         "expected_mismatches": dict(_EXPECTED_MISMATCHES.get(problem.id, {})),
     }
     if scenario.structural_unit_sizes is not None:
-        truth["structural_units_expected"] = _label_groups(
-            scenario.structural_unit_sizes
-        )
+        truth["blocks_expected"] = _label_groups(scenario.structural_unit_sizes)
     return truth
