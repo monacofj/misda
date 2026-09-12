@@ -51,8 +51,8 @@ class DiagnosticScenario:
     latent_expected: int
     structural_expected: int
     family_sizes: tuple[int, ...]
-    structural_unit_sizes: tuple[int, ...] | None
     tags: frozenset[str]
+    structural_unit_sizes: tuple[int, ...] | None = None
 
     def validate_legacy_contract(self, *, N: int = 32, seed: int = 123) -> None:
         """Check legacy output against the explicit scenario declaration."""
