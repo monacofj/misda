@@ -29,6 +29,15 @@ def test_clean_generation_is_explicit_identity_observation(problem):
     assert dataset.truth["problem_id"] == problem.id
     assert dataset.truth["latent_expected"] == problem.scenario.latent_expected
     assert dataset.truth["structural_expected"] == problem.scenario.structural_expected
+    assert [len(group) for group in dataset.truth["families_expected"]] == list(
+        problem.scenario.family_sizes
+    )
+    if problem.scenario.structural_unit_sizes is None:
+        assert "blocks_expected" not in dataset.truth
+    else:
+        assert [len(group) for group in dataset.truth["blocks_expected"]] == list(
+            problem.scenario.structural_unit_sizes
+        )
 
 
 @pytest.mark.parametrize("problem", PROBLEMS, ids=lambda p: p.id)

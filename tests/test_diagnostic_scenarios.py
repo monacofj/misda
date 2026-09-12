@@ -20,20 +20,33 @@ def test_diagnostic_spec_agrees_with_legacy_generator(scenario):
     assert scenario.latent_expected >= 1
     assert scenario.structural_expected >= 1
     assert sum(scenario.family_sizes) == 20
+    if scenario.structural_unit_sizes is not None:
+        assert sum(scenario.structural_unit_sizes) == 20
+        assert len(scenario.structural_unit_sizes) == scenario.structural_expected
     scenario.validate_legacy_contract(N=32, seed=123)
 
 
-def test_generating_families_are_not_used_as_structural_dimension():
+def test_generating_families_are_not_used_as_structural_dimension_or_units():
     chain = DIAGNOSTIC_BY_ID["transitive_chain"]
     tradeoff = DIAGNOSTIC_BY_ID["tradeoff_redundancies"]
 
     # One cumulative generating family contains 20 independent innovations.
     assert chain.family_sizes == (20,)
     assert chain.structural_expected == 20
+    assert chain.structural_unit_sizes == (1,) * 20
 
-    # Three functional families are driven by a 2D structural truth.
+    # Three functional families are driven by a 2D structural truth, but do not
+    # define an unambiguous two-unit structural partition.
     assert tradeoff.family_sizes == (7, 7, 6)
     assert tradeoff.structural_expected == 2
+    assert tradeoff.structural_unit_sizes is None
+
+
+def test_overlapping_factors_do_not_declare_family_partition_as_structural_units():
+    overlapping = DIAGNOSTIC_BY_ID["overlapping_factors"]
+    assert overlapping.family_sizes == (10, 4, 6)
+    assert overlapping.structural_expected == 2
+    assert overlapping.structural_unit_sizes is None
 
 
 def test_case5_innovations_are_declared_as_structure_not_observation_noise():
