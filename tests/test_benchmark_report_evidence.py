@@ -32,6 +32,7 @@ def test_report_exposes_observed_evidence_without_external_metric_truth():
     assert "Pareto across  : jaccard min=" in report
     assert "Pareto declaration agreement" in report
     assert "N/A — pareto_expected was not declared" in report
+    assert "Expected components" not in report
 
 
 def test_report_distinguishes_generating_families_structural_units_and_components():
