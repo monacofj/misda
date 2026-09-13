@@ -6,7 +6,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/diagnostic_clean.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/benchmark.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
 MISDA is a graph-theoretic method for studying and reducing the objective space
@@ -226,13 +226,13 @@ python -m examples.benchmarks.run_comparison --output results/comparison.json
 python -m examples.benchmarks.run_classical_mops --output results/classical-mops.json
 ```
 
-- [Clean controlled diagnostic notebook](examples/diagnostic_clean.ipynb)
-- [Noisy controlled diagnostic notebook](examples/diagnostic_noisy.ipynb)
+- [Controlled benchmark notebook](examples/benchmark.ipynb)
+- [Noisy controlled benchmark notebook](examples/benchmark_noisy.ipynb)
 - [Diagnostic robustness notebook](examples/diagnostic_robustness.ipynb)
 - [MISDA and PCA comparison notebook](examples/comparison.ipynb)
 - [Classical DTLZ reference notebook](examples/classical_mops.ipynb)
 
-The noisy diagnostic notebook uses a fixed scale-relative `sigma=0.10`
+The noisy benchmark notebook uses a fixed scale-relative `sigma=0.10`
 observation regime with a distinct observation seed as a reproducible reference
 condition. It is not a robustness threshold. `diagnostic_robustness.ipynb`
 studies degradation separately by varying sigma and replicate seeds while
