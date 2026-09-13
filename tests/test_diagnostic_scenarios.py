@@ -5,10 +5,41 @@ import pytest
 from misda.benchmarks import DIAGNOSTIC_BY_ID, DIAGNOSTIC_SCENARIOS
 
 
+CANONICAL_CASES = (
+    ("independence", "Case 1 - Independent objectives"),
+    ("total_redundancy", "Case 2 - Complete positive redundancy"),
+    ("blocks_4x5", "Case 3 - Four redundant blocks"),
+    ("blocks_2x10", "Case 4 - Two redundant blocks"),
+    (
+        "mixed_independent_and_blocks",
+        "Case 5 - Mixed independent and redundant objectives",
+    ),
+    ("monotonic_redundancy", "Case 6 - Nonlinear monotonic redundancy"),
+    ("antagonistic_linear_groups", "Case 7 - Antagonistic linear groups"),
+    ("tradeoff_redundancies", "Case 8 - Trade-off with redundant families"),
+    ("nonlinear_blocks_4x5", "Case 9 - Nonlinear redundant blocks"),
+    (
+        "antagonistic_nonlinear_groups",
+        "Case 10 - Antagonistic nonlinear groups",
+    ),
+    ("overlapping_factors", "Case 11 - Overlapping latent factors"),
+    ("transitive_chain", "Case 12 - Transitive positive chain"),
+    ("regime_switching", "Case 13 - Regime-switching dependence"),
+)
+
+
 def test_diagnostic_catalogue_contains_thirteen_unique_scenarios():
     assert len(DIAGNOSTIC_SCENARIOS) == 13
     assert len(DIAGNOSTIC_BY_ID) == 13
     assert tuple(DIAGNOSTIC_BY_ID) == tuple(s.id for s in DIAGNOSTIC_SCENARIOS)
+
+
+def test_diagnostic_catalogue_uses_canonical_numbered_order_and_names():
+    assert tuple((scenario.id, scenario.name) for scenario in DIAGNOSTIC_SCENARIOS) == (
+        CANONICAL_CASES
+    )
+    assert all("known_failure_mode" not in scenario.tags for scenario in DIAGNOSTIC_SCENARIOS[:-2])
+    assert all("known_failure_mode" in scenario.tags for scenario in DIAGNOSTIC_SCENARIOS[-2:])
 
 
 @pytest.mark.parametrize("scenario", DIAGNOSTIC_SCENARIOS, ids=lambda s: s.id)

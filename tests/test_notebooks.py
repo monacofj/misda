@@ -20,6 +20,28 @@ BANNED_SOURCE = (
     "misda.heavy(",
 )
 
+CLEAN_CASES = (
+    ("independence", "Case 1 - Independent objectives"),
+    ("total_redundancy", "Case 2 - Complete positive redundancy"),
+    ("blocks_4x5", "Case 3 - Four redundant blocks"),
+    ("blocks_2x10", "Case 4 - Two redundant blocks"),
+    (
+        "mixed_independent_and_blocks",
+        "Case 5 - Mixed independent and redundant objectives",
+    ),
+    ("monotonic_redundancy", "Case 6 - Nonlinear monotonic redundancy"),
+    ("antagonistic_linear_groups", "Case 7 - Antagonistic linear groups"),
+    ("tradeoff_redundancies", "Case 8 - Trade-off with redundant families"),
+    ("nonlinear_blocks_4x5", "Case 9 - Nonlinear redundant blocks"),
+    (
+        "antagonistic_nonlinear_groups",
+        "Case 10 - Antagonistic nonlinear groups",
+    ),
+    ("overlapping_factors", "Case 11 - Overlapping latent factors"),
+    ("transitive_chain", "Case 12 - Transitive positive chain"),
+    ("regime_switching", "Case 13 - Regime-switching dependence"),
+)
+
 
 def _read_notebook(path):
     notebook = json.loads(path.read_text(encoding="utf-8"))
@@ -48,19 +70,33 @@ def _execute_notebook(path, monkeypatch, overrides=None, skip_tags=("setup",)):
     return notebook, namespace
 
 
-def test_diagnostic_clean_notebook_runs_unified_suite(monkeypatch):
+def test_diagnostic_clean_notebook_runs_explicit_documented_suite(monkeypatch):
     path = Path("examples/diagnostic_clean.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "bench.PROBLEMS" in source
+    assert "for problem in bench.PROBLEMS" not in source
+    assert "bench.PROBLEM_BY_ID" in source
+    assert "def run_case(problem_id)" in source
     assert "problem.generate(N=N, seed=SEED, sigma=SIGMA)" in source
     assert "bench.diagnostic_truth(problem, dataset.Z)" in source
     assert "dataset.Y" in source
     assert "misda.discover(" in source
     assert 'misda.evaluate(mis_set, metrics=("linear", "pareto"))' in source
     assert "misda.benchmark(mis_set, truth)" in source
+    assert "# Adversarial diagnostics" in source
+    assert "diagnostic_summary = misda.compile_benchmark_summary(diagnostic_results)" in source
+
+    markdown_headings = [
+        "".join(cell.get("source", [])).splitlines()[0]
+        for cell in notebook["cells"]
+        if cell["cell_type"] == "markdown"
+        and "".join(cell.get("source", [])).startswith("## Case ")
+    ]
+    assert markdown_headings == [f"## {name}" for _, name in CLEAN_CASES]
+    for index, (problem_id, _name) in enumerate(CLEAN_CASES, start=1):
+        assert f'case_{index} = run_case("{problem_id}")' in source
 
     _, namespace = _execute_notebook(
         path,
@@ -68,11 +104,16 @@ def test_diagnostic_clean_notebook_runs_unified_suite(monkeypatch):
         overrides={"benchmark-run": {"N": 64}},
     )
     results = namespace["diagnostic_results"]
+    assert tuple(results) == tuple(problem_id for problem_id, _ in CLEAN_CASES)
+    assert [item["truth"]["name"] for item in results.values()] == [
+        name for _, name in CLEAN_CASES
+    ]
     assert len(results) == 13
     assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
     assert all(isinstance(item["benchmark_obj"], BenchmarkResult) for item in results.values())
     assert all(item["dataset"].sigma == 0.0 for item in results.values())
     assert all(item["dataset"].Y.equals(item["dataset"].Z) for item in results.values())
+    assert len(namespace["diagnostic_summary"]) == 13
 
 
 def test_diagnostic_noisy_notebook_runs_unified_suite(monkeypatch):

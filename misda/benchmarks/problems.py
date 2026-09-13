@@ -8,7 +8,7 @@ function:
 - ``Y``: observed values supplied to MISDA after an optional observation model.
 
 The historical generators remain unchanged during migration and continue to
-serve as regression fixtures.  New scientific experiments should use the
+serve as regression fixtures. New scientific experiments should use the
 problem objects defined here.
 """
 
@@ -95,7 +95,7 @@ class DiagnosticProblem:
     def truth(self) -> dict:
         """Return generator truth; never inspect observed data or MISDA output."""
         truth = {
-            "name": self.scenario.historical_name,
+            "name": self.scenario.name,
             "problem_id": self.id,
             "latent_expected": self.scenario.latent_expected,
             "structural_expected": self.scenario.structural_expected,
@@ -119,9 +119,9 @@ class DiagnosticProblem:
     ) -> pd.DataFrame:
         """Observe clean objectives with scale-relative additive Gaussian noise.
 
-        ``sigma=0`` is exactly the identity observation.  For ``sigma>0``, each
-        objective j receives ``sigma * std(Z_j) * epsilon_j``.  Sampling and
-        observation use separate RNGs.  An explicit ``standard_noise`` matrix
+        ``sigma=0`` is exactly the identity observation. For ``sigma>0``, each
+        objective j receives ``sigma * std(Z_j) * epsilon_j``. Sampling and
+        observation use separate RNGs. An explicit ``standard_noise`` matrix
         can be supplied so robustness studies scale the same realization across
         several sigma values.
         """
@@ -407,19 +407,20 @@ def _eval_mop_f(X: pd.DataFrame) -> pd.DataFrame:
     return _objective_frame(transforms(L) + transforms(b))
 
 
+# Canonical public order: regular diagnostics first, known adversarial limits last.
 PROBLEMS = (
     DiagnosticProblem(DIAGNOSTIC_BY_ID["independence"], _sample_case1, _eval_case1),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["total_redundancy"], _sample_normal_1, _eval_case2),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["blocks_4x5"], _sample_normal_4, _eval_case3),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["blocks_2x10"], _sample_normal_2, _eval_case4),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["transitive_chain"], _sample_case5, _eval_case5),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["mixed_independent_and_blocks"], _sample_case6, _eval_case6),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["antagonistic_linear_groups"], _sample_normal_1, _eval_case7),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["monotonic_redundancy"], _sample_uniform_1, _eval_mop_a),
+    DiagnosticProblem(DIAGNOSTIC_BY_ID["antagonistic_linear_groups"], _sample_normal_1, _eval_case7),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["tradeoff_redundancies"], _sample_uniform_ab, _eval_mop_b),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["nonlinear_blocks_4x5"], _sample_mop_c, _eval_mop_c),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["antagonistic_nonlinear_groups"], _sample_uniform_1, _eval_mop_d),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["overlapping_factors"], _sample_uniform_ab, _eval_mop_e),
+    DiagnosticProblem(DIAGNOSTIC_BY_ID["transitive_chain"], _sample_case5, _eval_case5),
     DiagnosticProblem(DIAGNOSTIC_BY_ID["regime_switching"], _sample_uniform_ab, _eval_mop_f),
 )
 

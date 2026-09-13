@@ -59,7 +59,7 @@ def diagnostic_truth(problem, Z: pd.DataFrame) -> dict:
     """Build truth from the theoretical problem declaration and its clean Z."""
     scenario = problem.scenario
     truth = {
-        "name": scenario.historical_name,
+        "name": scenario.name,
         "problem_id": problem.id,
         "latent_expected": scenario.latent_expected,
         "structural_expected": scenario.structural_expected,
