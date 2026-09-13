@@ -5,23 +5,26 @@
 
 ## Context
 
-MISDA needs scientific validation against synthetic or otherwise declared truth without contaminating the inference path. Benchmark declarations may describe expected dimensions, structural/generating units, connected components, graphs, Pareto sets, and known diagnostic-backed limitations.
+MISDA needs scientific validation against synthetic or otherwise declared truth without contaminating the inference path. Benchmark declarations may describe expected dimensions, generating families, structural units, connected components, graphs, Pareto sets, and known diagnostic-backed limitations.
 
 ## Decision
 
 Benchmarking is strictly downstream of discovery/evaluation. It compares declared truth with already computed outputs and never feeds truth back into the method.
 
-The benchmark may compare, when declared:
+The benchmark may compare or report, when declared:
 
 - latent dimension;
 - structural dimension;
-- structural/generating blocks;
-- connected components;
+- generating families (`families_expected`);
+- structural units (`blocks_expected`);
+- connected components (`components_expected`);
 - graph structure;
 - Pareto indices/evidence;
 - other explicitly declared reference quantities.
 
-Dimension declarations and component declarations are distinct. `blocks_expected` and `components_expected` are also distinct and must not be inferred from one another.
+Generating families, structural units, and connected components are distinct concepts. None may be inferred from another merely because their partitions happen to coincide in a particular diagnostic. In particular, `families_expected` describes the theoretical generating organization, `blocks_expected` declares an unambiguous structural-unit partition when one exists, and `components_expected` declares expected graph connectivity when independently justified.
+
+Dimension declarations are likewise distinct from all three partitions. A generating family count, structural-unit count, or component count must not be substituted for latent or structural dimension.
 
 Dimension accuracy includes absolute error, relative error where defined, and exact-match status.
 
@@ -46,6 +49,7 @@ Strict acceptance fails on unexpected declaration mismatches and must identify c
 ## Invariants
 
 - benchmark truth is read only by benchmark code;
+- generating families, structural units, connected components, and dimensions remain separately declared concepts;
 - expected dimension is never treated as expected component count;
 - undeclared truth yields an explicit N/A state;
 - known-failure exemptions are field-specific and diagnostic-backed;
@@ -53,12 +57,12 @@ Strict acceptance fails on unexpected declaration mismatches and must identify c
 
 ## Current implementation
 
-The benchmark infrastructure consumes `MISSet`/`Ranking` outputs and stored evidence. The acceptance workflow runs the canonical benchmark in strict mode. Current project acceptance also exercises the static test suite, relevant slow tests, notebooks, the scientific battery, and comparative experiments.
+The benchmark infrastructure consumes `MISSet`/`Ranking` outputs and stored evidence. Controlled diagnostic truth reports generating families for every scenario, structural units only where the diagnostic specification provides an unambiguous partition, and graph components only when explicitly declared. The acceptance workflow runs the canonical benchmark in strict mode. Current project acceptance also exercises the static test suite, relevant slow tests, notebooks, the scientific battery, and comparative experiments.
 
 ## Forbidden shortcuts / regression risks
 
-Do not tune discovery from expected values, silently infer missing declarations, globally waive a failing case because one field is known-problematic, or let quick-mode outcomes replace canonical scientific validation.
+Do not tune discovery from expected values, silently infer missing declarations, treat generating families as structural units, infer components from either family or structural-unit partitions, globally waive a failing case because one field is known-problematic, or let quick-mode outcomes replace canonical scientific validation.
 
 ## Verification
 
-Benchmark tests should deliberately vary declarations while keeping method outputs fixed, exercise N/A behavior, expected-vs-unexpected mismatch classification, and confirm strict-mode failure semantics.
+Benchmark tests should deliberately vary declarations while keeping method outputs fixed, exercise N/A behavior, distinguish generating-family/structural-unit/component semantics (especially Case 5 and MOP-B), exercise expected-vs-unexpected mismatch classification, and confirm strict-mode failure semantics.

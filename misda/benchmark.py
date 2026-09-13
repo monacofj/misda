@@ -348,16 +348,20 @@ class BenchmarkResult:
         analysis = self.result.analysis
         ranking = self.result.structural_ranking
         preferred = ranking.selected
+        families_expected = _normalize_label_blocks(
+            self.truth.get("families_expected"), "families_expected"
+        )
         lines = [f"MISDA benchmark report: {self.name or 'Untitled'}"]
         lines.append("=" * 72)
         lines.append("Declaration")
-        lines.append(f"  Feature        : {self.feature or 'N/A'}")
-        lines.append(f"  Intuition      : {self.intuition or 'N/A'}")
-        lines.append(f"  Expected graph : {self.graph_expected or 'N/A'}")
-        lines.append(f"  Expected blocks: {_format_blocks(self.blocks_expected)}")
-        lines.append(f"  Expected comps.: {_format_blocks(self.components_expected)}")
+        lines.append(f"  Feature             : {self.feature or 'N/A'}")
+        lines.append(f"  Intuition           : {self.intuition or 'N/A'}")
+        lines.append(f"  Expected graph      : {self.graph_expected or 'N/A'}")
+        lines.append(f"  Generating families : {_format_blocks(families_expected)}")
+        lines.append(f"  Structural units    : {_format_blocks(self.blocks_expected)}")
+        lines.append(f"  Expected components : {_format_blocks(self.components_expected)}")
         if self.notes:
-            lines.append(f"  Notes          : {self.notes}")
+            lines.append(f"  Notes               : {self.notes}")
 
         lines.append("Observed analysis")
         lines.append(

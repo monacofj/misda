@@ -18,6 +18,34 @@ def test_pareto_truth_is_available_for_every_clean_diagnostic_problem():
         assert all(0 <= index < 48 for index in truth["pareto_expected"])
 
 
+def test_generating_families_are_declared_for_every_diagnostic_problem():
+    for problem in PROBLEMS:
+        dataset = problem.generate(N=24, seed=123, sigma=0.0)
+        truth = diagnostic_truth(problem, dataset.Z)
+        assert [len(group) for group in truth["families_expected"]] == list(
+            problem.scenario.family_sizes
+        )
+
+
+def test_case5_family_and_structural_units_are_distinct_declarations():
+    problem = PROBLEM_BY_ID["transitive_chain"]
+    dataset = problem.generate(N=32, seed=123, sigma=0.0)
+    truth = diagnostic_truth(problem, dataset.Z)
+
+    assert [len(group) for group in truth["families_expected"]] == [20]
+    assert [len(group) for group in truth["blocks_expected"]] == [1] * 20
+    assert truth["expected_mismatches"]["selected_structural_units"] == "TRANSITIVE_CHAINING"
+
+
+def test_mop_b_families_do_not_become_structural_units():
+    problem = PROBLEM_BY_ID["tradeoff_redundancies"]
+    dataset = problem.generate(N=32, seed=123, sigma=0.0)
+    truth = diagnostic_truth(problem, dataset.Z)
+
+    assert [len(group) for group in truth["families_expected"]] == [7, 7, 6]
+    assert "blocks_expected" not in truth
+
+
 def test_pareto_truth_does_not_change_when_observation_noise_changes():
     problem = PROBLEM_BY_ID["monotonic_redundancy"]
     clean = problem.generate(N=64, seed=123, sigma=0.0, observation_seed=1)

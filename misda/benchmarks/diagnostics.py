@@ -3,13 +3,13 @@
 The historical ``Case``/``MOP`` split is retained only in generator names while
 R5 migrates the implementation. This module provides one conceptual catalogue:
 each scenario declares its generating variables, clean problem map, observation
-model, truth dimensions, legacy generating-family partition, and diagnostic
-tags.
+model, truth dimensions, legacy generating-family partition, optional structural
+units, and diagnostic tags.
 
 Generating families are descriptive groupings and are deliberately not used to
-infer structural dimension. Case 5 (one cumulative family but structural truth
-20) and MOP-B (three functional families but structural truth 2) make this
-distinction explicit.
+infer structural dimension or structural units. Case 5 (one cumulative family
+but 20 structural units) and MOP-B (three functional families but no unambiguous
+structural partition) make this distinction explicit.
 
 No truth in this catalogue is inferred from observed data or MISDA output.
 """
@@ -52,6 +52,7 @@ class DiagnosticScenario:
     structural_expected: int
     family_sizes: tuple[int, ...]
     tags: frozenset[str]
+    structural_unit_sizes: tuple[int, ...] | None = None
 
     def validate_legacy_contract(self, *, N: int = 32, seed: int = 123) -> None:
         """Check legacy output against the explicit scenario declaration."""
@@ -67,6 +68,15 @@ class DiagnosticScenario:
         observed_sizes = tuple(len(block) for block in truth["blocks_expected"])
         if observed_sizes != self.family_sizes:
             raise AssertionError(f"{self.id}: generating-family declaration mismatch")
+        if self.structural_unit_sizes is not None:
+            if sum(self.structural_unit_sizes) != frame.shape[1]:
+                raise AssertionError(
+                    f"{self.id}: structural units must partition all objectives"
+                )
+            if len(self.structural_unit_sizes) != self.structural_expected:
+                raise AssertionError(
+                    f"{self.id}: structural-unit count must match structural truth"
+                )
 
 
 DIAGNOSTIC_SCENARIOS = (
@@ -80,6 +90,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=20,
         structural_expected=20,
         family_sizes=(1,) * 20,
+        structural_unit_sizes=(1,) * 20,
         tags=frozenset({"independence", "linear"}),
     ),
     DiagnosticScenario(
@@ -92,6 +103,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=1,
         structural_expected=1,
         family_sizes=(20,),
+        structural_unit_sizes=(20,),
         tags=frozenset({"total_redundancy", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -104,6 +116,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=4,
         structural_expected=4,
         family_sizes=(5, 5, 5, 5),
+        structural_unit_sizes=(5, 5, 5, 5),
         tags=frozenset({"block_redundancy", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -116,6 +129,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=2,
         structural_expected=2,
         family_sizes=(10, 10),
+        structural_unit_sizes=(10, 10),
         tags=frozenset({"block_redundancy", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -131,6 +145,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=20,
         structural_expected=20,
         family_sizes=(20,),
+        structural_unit_sizes=(1,) * 20,
         tags=frozenset({"transitive_chaining", "linear", "known_failure_mode"}),
     ),
     DiagnosticScenario(
@@ -143,6 +158,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=12,
         structural_expected=12,
         family_sizes=(1,) * 10 + (5, 5),
+        structural_unit_sizes=(1,) * 10 + (5, 5),
         tags=frozenset({"mixed_structure", "block_redundancy", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -155,6 +171,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=1,
         structural_expected=2,
         family_sizes=(10, 10),
+        structural_unit_sizes=(10, 10),
         tags=frozenset({"antagonistic_conflict", "linear", "noisy_observation"}),
     ),
     DiagnosticScenario(
@@ -167,6 +184,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=1,
         structural_expected=1,
         family_sizes=(20,),
+        structural_unit_sizes=(20,),
         tags=frozenset({"total_redundancy", "nonlinear", "monotonic"}),
     ),
     DiagnosticScenario(
@@ -179,6 +197,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=2,
         structural_expected=2,
         family_sizes=(7, 7, 6),
+        structural_unit_sizes=None,
         tags=frozenset({"tradeoff", "nonlinear", "family_redundancy"}),
     ),
     DiagnosticScenario(
@@ -191,6 +210,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=4,
         structural_expected=4,
         family_sizes=(5, 5, 5, 5),
+        structural_unit_sizes=(5, 5, 5, 5),
         tags=frozenset({"block_redundancy", "nonlinear"}),
     ),
     DiagnosticScenario(
@@ -203,6 +223,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=1,
         structural_expected=2,
         family_sizes=(10, 10),
+        structural_unit_sizes=(10, 10),
         tags=frozenset({"antagonistic_conflict", "nonlinear", "tradeoff"}),
     ),
     DiagnosticScenario(
@@ -215,6 +236,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=2,
         structural_expected=2,
         family_sizes=(10, 4, 6),
+        structural_unit_sizes=None,
         tags=frozenset({"overlapping_factors", "nonlinear", "partial_redundancy"}),
     ),
     DiagnosticScenario(
@@ -227,6 +249,7 @@ DIAGNOSTIC_SCENARIOS = (
         latent_expected=2,
         structural_expected=2,
         family_sizes=(10, 10),
+        structural_unit_sizes=(10, 10),
         tags=frozenset({"regime_switching", "nonlinear", "known_failure_mode"}),
     ),
 )

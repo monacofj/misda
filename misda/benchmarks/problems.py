@@ -94,15 +94,20 @@ class DiagnosticProblem:
 
     def truth(self) -> dict:
         """Return generator truth; never inspect observed data or MISDA output."""
-        return {
+        truth = {
             "name": self.scenario.historical_name,
             "problem_id": self.id,
             "latent_expected": self.scenario.latent_expected,
             "structural_expected": self.scenario.structural_expected,
-            "blocks_expected": _family_names(self.scenario.family_sizes),
+            "families_expected": _family_names(self.scenario.family_sizes),
             "pareto_expected": None,
             "tags": sorted(self.scenario.tags),
         }
+        if self.scenario.structural_unit_sizes is not None:
+            truth["blocks_expected"] = _family_names(
+                self.scenario.structural_unit_sizes
+            )
+        return truth
 
     def observe(
         self,

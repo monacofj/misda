@@ -34,6 +34,23 @@ def test_report_exposes_observed_evidence_without_external_metric_truth():
     assert "N/A — pareto_expected was not declared" in report
 
 
+def test_report_distinguishes_generating_families_structural_units_and_components():
+    result = _evaluated_result()
+    truth = {
+        "name": "declaration semantics",
+        "structural_expected": 2,
+        "families_expected": [["f1", "f2", "f3", "f4"]],
+        "blocks_expected": [["f1", "f2"], ["f3", "f4"]],
+        "components_expected": [["f1", "f2"], ["f3", "f4"]],
+    }
+    report = misda.benchmark(result, truth).report()
+
+    assert "Generating families : {f1, f2, f3, f4}" in report
+    assert "Structural units    : {f1, f2} | {f3, f4}" in report
+    assert "Expected components : {f1, f2} | {f3, f4}" in report
+    assert "Expected blocks:" not in report
+
+
 def test_report_states_when_candidate_families_were_not_evaluated():
     data = np.eye(6, 4)
     result = misda.discover(data, seed=7)
