@@ -64,13 +64,14 @@ def test_readme_points_to_main_and_executable_benchmarks():
     assert "examples.benchmarks.run_comparison" in text
     assert "examples.benchmarks.run_classical_mops" in text
     assert "examples.benchmarks.run_comparative" not in text
-    assert "examples/diagnostic_clean.ipynb" in text
-    assert "examples/diagnostic_noisy.ipynb" in text
+    assert "examples/benchmark.ipynb" in text
+    assert "examples/benchmark_noisy.ipynb" in text
     assert "examples/diagnostic_robustness.ipynb" in text
     assert "examples/comparison.ipynb" in text
     assert "examples/classical_mops.ipynb" in text
-    assert "blob/main/examples/diagnostic_clean.ipynb" in text
-    assert "examples/benchmark.ipynb" not in text
+    assert "blob/main/examples/benchmark.ipynb" in text
+    assert "examples/diagnostic_clean.ipynb" not in text
+    assert "examples/diagnostic_noisy.ipynb" not in text
     assert "examples/comparative.ipynb" not in text
     assert "@refactor" not in text
     assert "@efficient" not in text
