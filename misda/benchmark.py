@@ -299,13 +299,13 @@ def _candidate_metric_values(result, family, attribute):
 
 def _format_range(values):
     if not values:
-        return "N/A"
-    values = tuple(float(value) for value in values)
-    return (
-        f"min={_format_metric(min(values))}, "
-        f"median={_format_metric(float(np.median(values)))}, "
-        f"max={_format_metric(max(values))}"
-    )
+        minimum = median = maximum = "N/A"
+    else:
+        values = tuple(float(value) for value in values)
+        minimum = _format_metric(min(values))
+        median = _format_metric(float(np.median(values)))
+        maximum = _format_metric(max(values))
+    return f"min={minimum:<8} median={median:<8} max={maximum}"
 
 
 @dataclass(frozen=True)
@@ -398,14 +398,15 @@ class BenchmarkResult:
                 f"worst_r2_se={_format_metric(linear.jackknife.worst_r2_se)}, "
                 f"jackknife_n={linear.jackknife.n_replicates}"
             )
+            lines.append("  Linear across")
             lines.append(
-                "  Linear across  : mean_r2 "
+                "    mean_r2   : "
                 + _format_range(
                     _candidate_metric_values(self.result, "linear", "mean_r2")
                 )
             )
             lines.append(
-                "                   worst_r2 "
+                "    worst_r2  : "
                 + _format_range(
                     _candidate_metric_values(self.result, "linear", "worst_r2")
                 )
@@ -432,9 +433,10 @@ class BenchmarkResult:
                 f"intersection={pareto_observed.intersection_size}, "
                 f"union={pareto_observed.union_size}"
             )
+            lines.append("  Pareto across")
             for attribute in ("retention", "validity", "jaccard"):
                 lines.append(
-                    f"  Pareto across  : {attribute} "
+                    f"    {attribute:<10}: "
                     + _format_range(
                         _candidate_metric_values(
                             self.result, "pareto", attribute
@@ -461,14 +463,26 @@ class BenchmarkResult:
 
         lines.append("Declaration assessment")
         lines.append(f"  Status         : {self.assessment['status']}")
+        structured_types = (list, tuple, dict, set)
         for check in self.assessment.get("checks", ()):
             reason = check.get("reason") or "none"
-            lines.append(
-                "  "
-                f"{check['field']}: status={check['status']}, "
-                f"observed={check.get('observed')}, "
-                f"expected={check.get('expected')}, reason={reason}"
-            )
+            observed = check.get("observed")
+            expected = check.get("expected")
+            if isinstance(observed, structured_types) or isinstance(
+                expected, structured_types
+            ):
+                prefix = f"  {check['field']}: "
+                continuation = " " * len(prefix)
+                lines.append(prefix + f"status={check['status']}")
+                lines.append(continuation + f"observed={observed}")
+                lines.append(continuation + f"expected={expected}")
+                lines.append(continuation + f"reason={reason}")
+            else:
+                lines.append(
+                    "  "
+                    f"{check['field']}: status={check['status']}, "
+                    f"observed={observed}, expected={expected}, reason={reason}"
+                )
 
         lines.append("Dimensional accuracy")
         lines.append(
@@ -488,10 +502,8 @@ class BenchmarkResult:
             f"exact={_format_metric(self.structural_dimension_exact)}"
         )
 
-        lines.append("Structural component reconstruction")
-        if "structural" in self.unavailable_reasons:
-            lines.append("  N/A — " + self.unavailable_reasons["structural"])
-        else:
+        if self.components_expected is not None:
+            lines.append("Structural component reconstruction")
             lines.append(
                 "  Matched Jaccard: "
                 f"{_format_metric(self.structural_jaccard)}; "

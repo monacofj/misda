@@ -134,7 +134,7 @@ def test_benchmark_does_not_trigger_missing_pareto_evaluation():
     assert result.structural_ranking.selected.pareto is None
 
 
-def test_missing_declarations_are_explicit_na():
+def test_missing_declarations_remain_explicit_in_result():
     _data, result = _two_group_result()
     observed = misda.benchmark(result, {"name": "undeclared"})
 
@@ -149,7 +149,8 @@ def test_missing_declarations_are_explicit_na():
         "structural_dimension": "structural_expected was not declared",
     }
     report = observed.report()
-    assert "N/A — components_expected was not declared" in report
+    assert "N/A — components_expected was not declared" not in report
+    assert "Structural component reconstruction" not in report
     assert "N/A — pareto_expected was not declared" in report
 
 

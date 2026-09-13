@@ -22,17 +22,22 @@ def test_report_exposes_observed_evidence_without_external_metric_truth():
     assert "Candidate evaluation evidence" in report
     assert f"Linear scope   : {len(result)}/{len(result)} candidates" in report
     assert "Linear selected: mean_r2=" in report
-    assert "Linear across  : mean_r2 min=" in report
-    assert "worst_r2 min=" in report
+    assert "  Linear across\n" in report
+    assert "    mean_r2   : min=" in report
+    assert "    worst_r2  : min=" in report
     assert f"Pareto scope   : {len(result)}/{len(result)} candidates" in report
     assert "Pareto selected: retention=" in report
     assert "Pareto fronts  : full=" in report
-    assert "Pareto across  : retention min=" in report
-    assert "Pareto across  : validity min=" in report
-    assert "Pareto across  : jaccard min=" in report
+    assert report.count("  Pareto across\n") == 1
+    assert "    retention : min=" in report
+    assert "    validity  : min=" in report
+    assert "    jaccard   : min=" in report
+    assert "median=" in report
+    assert "max=" in report
     assert "Pareto declaration agreement" in report
     assert "N/A — pareto_expected was not declared" in report
     assert "Expected components" not in report
+    assert "Structural component reconstruction" not in report
 
 
 def test_report_distinguishes_generating_families_structural_units_and_components():
@@ -49,7 +54,20 @@ def test_report_distinguishes_generating_families_structural_units_and_component
     assert "Generating families : {f1, f2, f3, f4}" in report
     assert "Structural units    : {f1, f2} | {f3, f4}" in report
     assert "Expected components : {f1, f2} | {f3, f4}" in report
+    assert "Structural component reconstruction" in report
     assert "Expected blocks:" not in report
+
+    lines = report.splitlines()
+    selected_index = next(
+        index
+        for index, line in enumerate(lines)
+        if line.startswith("  selected_structural_units: ")
+    )
+    continuation = " " * len("  selected_structural_units: ")
+    assert "status=" in lines[selected_index]
+    assert lines[selected_index + 1].startswith(continuation + "observed=")
+    assert lines[selected_index + 2].startswith(continuation + "expected=")
+    assert lines[selected_index + 3].startswith(continuation + "reason=")
 
 
 def test_report_states_when_candidate_families_were_not_evaluated():
