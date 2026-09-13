@@ -20,7 +20,7 @@ BANNED_SOURCE = (
     "misda.heavy(",
 )
 
-CLEAN_CASES = (
+BENCHMARK_CASES = (
     ("independence", "Case 1 - Independent objectives"),
     ("total_redundancy", "Case 2 - Complete positive redundancy"),
     ("blocks_4x5", "Case 3 - Four redundant blocks"),
@@ -70,8 +70,17 @@ def _execute_notebook(path, monkeypatch, overrides=None, skip_tags=("setup",)):
     return notebook, namespace
 
 
-def test_diagnostic_clean_notebook_runs_explicit_documented_suite(monkeypatch):
-    path = Path("examples/diagnostic_clean.ipynb")
+def _case_headings(notebook):
+    return [
+        "".join(cell.get("source", [])).splitlines()[0]
+        for cell in notebook["cells"]
+        if cell["cell_type"] == "markdown"
+        and "".join(cell.get("source", [])).startswith("## Case ")
+    ]
+
+
+def test_benchmark_notebook_runs_explicit_documented_suite(monkeypatch):
+    path = Path("examples/benchmark.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
@@ -86,16 +95,10 @@ def test_diagnostic_clean_notebook_runs_explicit_documented_suite(monkeypatch):
     assert 'misda.evaluate(mis_set, metrics=("linear", "pareto"))' in source
     assert "misda.benchmark(mis_set, truth)" in source
     assert "# Adversarial diagnostics" in source
-    assert "diagnostic_summary = misda.compile_benchmark_summary(diagnostic_results)" in source
+    assert "benchmark_summary = misda.compile_benchmark_summary(benchmark_results)" in source
 
-    markdown_headings = [
-        "".join(cell.get("source", [])).splitlines()[0]
-        for cell in notebook["cells"]
-        if cell["cell_type"] == "markdown"
-        and "".join(cell.get("source", [])).startswith("## Case ")
-    ]
-    assert markdown_headings == [f"## {name}" for _, name in CLEAN_CASES]
-    for index, (problem_id, _name) in enumerate(CLEAN_CASES, start=1):
+    assert _case_headings(notebook) == [f"## {name}" for _, name in BENCHMARK_CASES]
+    for index, (problem_id, _name) in enumerate(BENCHMARK_CASES, start=1):
         assert f'case_{index} = run_case("{problem_id}")' in source
 
     _, namespace = _execute_notebook(
@@ -103,30 +106,37 @@ def test_diagnostic_clean_notebook_runs_explicit_documented_suite(monkeypatch):
         monkeypatch,
         overrides={"benchmark-run": {"N": 64}},
     )
-    results = namespace["diagnostic_results"]
-    assert tuple(results) == tuple(problem_id for problem_id, _ in CLEAN_CASES)
+    results = namespace["benchmark_results"]
+    assert tuple(results) == tuple(problem_id for problem_id, _ in BENCHMARK_CASES)
     assert [item["truth"]["name"] for item in results.values()] == [
-        name for _, name in CLEAN_CASES
+        name for _, name in BENCHMARK_CASES
     ]
     assert len(results) == 13
     assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
     assert all(isinstance(item["benchmark_obj"], BenchmarkResult) for item in results.values())
     assert all(item["dataset"].sigma == 0.0 for item in results.values())
     assert all(item["dataset"].Y.equals(item["dataset"].Z) for item in results.values())
-    assert len(namespace["diagnostic_summary"]) == 13
+    assert len(namespace["benchmark_summary"]) == 13
 
 
-def test_diagnostic_noisy_notebook_runs_unified_suite(monkeypatch):
-    path = Path("examples/diagnostic_noisy.ipynb")
+def test_benchmark_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
+    path = Path("examples/benchmark_noisy.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "bench.PROBLEMS" in source
+    assert "for problem in bench.PROBLEMS" not in source
+    assert "bench.PROBLEM_BY_ID" in source
+    assert "def run_case(problem_id)" in source
     assert "OBSERVATION_SEED = 456" in source
     assert "SIGMA = 0.10" in source
     assert "observation_seed=OBSERVATION_SEED" in source
     assert "bench.diagnostic_truth(problem, dataset.Z)" in source
+    assert "# Adversarial diagnostics" in source
+    assert "noisy_summary = misda.compile_benchmark_summary(noisy_results)" in source
+    assert _case_headings(notebook) == [f"## {name}" for _, name in BENCHMARK_CASES]
+    for index, (problem_id, _name) in enumerate(BENCHMARK_CASES, start=1):
+        assert f'case_{index} = run_case("{problem_id}")' in source
 
     _, namespace = _execute_notebook(
         path,
@@ -134,11 +144,18 @@ def test_diagnostic_noisy_notebook_runs_unified_suite(monkeypatch):
         overrides={"benchmark-run": {"N": 64}},
     )
     results = namespace["noisy_results"]
+    assert tuple(results) == tuple(problem_id for problem_id, _ in BENCHMARK_CASES)
+    assert [item["truth"]["name"] for item in results.values()] == [
+        name for _, name in BENCHMARK_CASES
+    ]
     assert len(results) == 13
+    assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
+    assert all(isinstance(item["benchmark_obj"], BenchmarkResult) for item in results.values())
     assert all(item["dataset"].sigma == pytest.approx(0.10) for item in results.values())
     assert all(item["dataset"].sample_seed == 123 for item in results.values())
     assert all(item["dataset"].observation_seed == 456 for item in results.values())
     assert all(not item["dataset"].Y.equals(item["dataset"].Z) for item in results.values())
+    assert len(namespace["noisy_summary"]) == 13
 
 
 def test_diagnostic_robustness_notebook_runs_lightweight_controlled_sweep(monkeypatch):
@@ -147,6 +164,7 @@ def test_diagnostic_robustness_notebook_runs_lightweight_controlled_sweep(monkey
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
+    assert "benchmark_noisy.ipynb" in source
     assert "PROBLEM_IDS" in source
     assert "SIGMAS = (0.00, 0.05, 0.10, 0.20, 0.40)" in source
     assert "REPLICATE_SEEDS = (101, 202, 303, 404, 505)" in source
