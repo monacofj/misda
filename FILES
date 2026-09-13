@@ -55,12 +55,13 @@ misda/benchmarks/
 2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
 ------------------------------------------------
 
-examples/diagnostic_clean.ipynb
-    Unified 13-problem controlled diagnostic suite under exact observation Y=Z.
+examples/benchmark.ipynb
+    Canonical 13-case controlled benchmark under exact observation Y=Z, with
+    one documented section per case and a final suite summary.
 
-examples/diagnostic_noisy.ipynb
-    The same controlled diagnostic suite under a fixed scale-relative noisy
-    observation regime; truth remains defined on clean Z.
+examples/benchmark_noisy.ipynb
+    The same 13-case benchmark under a fixed scale-relative noisy observation
+    regime, with per-case interpretation of what the added noise tests.
 
 examples/diagnostic_robustness.ipynb
     Focused multi-sigma/multi-replicate observation-noise robustness study using
