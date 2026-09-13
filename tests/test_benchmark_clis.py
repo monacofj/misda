@@ -235,7 +235,7 @@ def test_cli_never_passes_case_declarations_into_discover(monkeypatch):
     assert len(artifact["cases"]) == 1
     assert observed_kwargs == [
         {
-            "name": "Case 2 - Total redundancy",
+            "name": "Case 2 - Complete positive redundancy",
             "seed": 123,
         }
     ]
@@ -276,4 +276,4 @@ def test_comparison_runner_uses_clean_diagnostic_truth(monkeypatch):
     assert artifact["suite"] == "diagnostic_comparison"
     assert artifact["parameters"]["sigma"] == 0.0
     assert len(artifact["cases"]) == 1
-    assert observed == [{"name": "Case 2 - Total redundancy", "seed": 123}]
+    assert observed == [{"name": "Case 2 - Complete positive redundancy", "seed": 123}]
