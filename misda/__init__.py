@@ -38,11 +38,10 @@ from .benchmark import (
     BenchmarkCase,
     BenchmarkResult,
     BenchmarkSuite,
-    benchmark,
     compare_results,
-    compile_benchmark_summary,
     serialize_benchmark_result,
 )
+from ._benchmark_observation import benchmark, compile_benchmark_summary
 
 __all__ = [
     "__version__",
