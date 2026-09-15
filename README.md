@@ -222,6 +222,9 @@ Executable benchmark front ends:
 
 ```bash
 python -m benchmarks.run_controlled --output results/controlled.json
+python -m benchmarks.run_controlled_noisy --output results/controlled-noisy.json
+python -m benchmarks.run_sampling_robustness --output results/sampling-robustness.json
+python -m benchmarks.run_noisy_robustness --output results/noisy-robustness.json
 python -m benchmarks.run_comparison --output results/comparison.json
 python -m benchmarks.run_classical --output results/classical.json
 ```
@@ -239,7 +242,10 @@ The fixed-noise controlled notebook uses a scale-relative `sigma=0.10`
 observation regime with a distinct observation seed as a reproducible reference
 condition. It is not a robustness threshold. `sampling_robustness.ipynb`
 varies only the clean sample, whereas `noisy_robustness.ipynb` varies
-observation noise intensity and replicate streams.
+observation noise intensity and replicate streams. The heavy robustness runs
+are kept outside the ordinary acceptance gate; the path-scoped
+`extended benchmark validation` workflow executes them and preserves their JSON
+artifacts when the validation infrastructure changes or when triggered manually.
 
 The method comparison uses clean controlled problems with explicit truth. MISDA's
 latent and structural dimensions remain native MISDA estimands; PCA remains a
@@ -251,6 +257,10 @@ variance cutoff. Direct MISDA/PCA comparison uses the common external
 `classical.ipynb` applies MISDA to reproducible on-front DTLZ2 and DTLZ5
 samples. Their analytical Pareto-manifold geometry is retained as reference
 context, but is not re-labelled as MISDA latent or structural ground truth.
+
+The latest extended validation evidence, including the separation between
+dimensional recovery and Pareto-membership stability, is recorded in
+[docs/validation_results.md](docs/validation_results.md).
 
 ## Development status
 
