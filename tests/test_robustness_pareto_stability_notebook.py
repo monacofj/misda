@@ -1,16 +1,22 @@
-"""Regression checks for Pareto-stability evidence in the noise-robustness notebook."""
+"""Regression checks for Pareto-stability evidence in noisy robustness validation."""
 
 import json
 from pathlib import Path
 
 
-def test_noise_robustness_notebook_tracks_observed_pareto_stability_without_thresholds():
-    notebook = json.loads(Path("benchmarks/noisy_robustness.ipynb").read_text())
-    source = "\n".join(
+def _notebook_source(path):
+    notebook = json.loads(Path(path).read_text(encoding="utf-8"))
+    return "\n".join(
         line
         for cell in notebook["cells"]
         for line in cell.get("source", [])
     )
+
+
+def test_noisy_robustness_frontend_exposes_pareto_decomposition_without_thresholds():
+    notebook_source = _notebook_source("benchmarks/noisy_robustness.ipynb")
+    runner_source = Path("misda/benchmarks/validation.py").read_text(encoding="utf-8")
+    source = notebook_source + "\n" + runner_source
 
     required = (
         "pareto_observation_jaccard",
@@ -25,7 +31,7 @@ def test_noise_robustness_notebook_tracks_observed_pareto_stability_without_thre
     for field in required:
         assert field in source
 
-    assert "mis_set.pareto_stability" in source
-    assert "epsilon_for_candidate(selected_index)" in source
-    assert "does **not** define a pass/fail threshold" in source
-    assert "pass/fail cutoff" in source
+    assert "pareto_stability" in runner_source
+    assert "epsilon_for_candidate(selected_index)" in runner_source
+    assert "does **not** define a pass/fail threshold" in notebook_source
+    assert "no fixed pass/fail cutoff" in notebook_source

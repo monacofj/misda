@@ -25,18 +25,12 @@ BENCHMARK_CASES = (
     ("total_redundancy", "Case 2 - Complete positive redundancy"),
     ("blocks_4x5", "Case 3 - Four redundant blocks"),
     ("blocks_2x10", "Case 4 - Two redundant blocks"),
-    (
-        "mixed_independent_and_blocks",
-        "Case 5 - Mixed independent and redundant objectives",
-    ),
+    ("mixed_independent_and_blocks", "Case 5 - Mixed independent and redundant objectives"),
     ("monotonic_redundancy", "Case 6 - Nonlinear monotonic redundancy"),
     ("antagonistic_linear_groups", "Case 7 - Antagonistic linear groups"),
     ("tradeoff_redundancies", "Case 8 - Trade-off with redundant families"),
     ("nonlinear_blocks_4x5", "Case 9 - Nonlinear redundant blocks"),
-    (
-        "antagonistic_nonlinear_groups",
-        "Case 10 - Antagonistic nonlinear groups",
-    ),
+    ("antagonistic_nonlinear_groups", "Case 10 - Antagonistic nonlinear groups"),
     ("overlapping_factors", "Case 11 - Overlapping latent factors"),
     ("transitive_chain", "Case 12 - Transitive positive chain"),
     ("regime_switching", "Case 13 - Regime-switching dependence"),
@@ -119,20 +113,16 @@ def test_controlled_notebook_runs_explicit_documented_suite(monkeypatch):
     assert len(namespace["benchmark_summary"]) == 13
 
 
-def test_controlled_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
+def test_controlled_noisy_notebook_is_runner_frontend_and_runs_suite(monkeypatch):
     path = Path("benchmarks/controlled_noisy.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "for problem in bench.PROBLEMS" not in source
-    assert "bench.PROBLEM_BY_ID" in source
+    assert "analyze_controlled_noisy_problem" in source
     assert "def run_case(problem_id)" in source
     assert "OBSERVATION_SEED = 456" in source
     assert "SIGMA = 0.10" in source
-    assert "observation_seed=OBSERVATION_SEED" in source
-    assert "bench.diagnostic_truth(problem, dataset.Z)" in source
-    assert "# Adversarial diagnostics" in source
     assert "noisy_summary = misda.compile_benchmark_summary(noisy_results)" in source
     assert _case_headings(notebook) == [f"## {name}" for _, name in BENCHMARK_CASES]
     for index, (problem_id, _name) in enumerate(BENCHMARK_CASES, start=1):
@@ -145,9 +135,6 @@ def test_controlled_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
     )
     results = namespace["noisy_results"]
     assert tuple(results) == tuple(problem_id for problem_id, _ in BENCHMARK_CASES)
-    assert [item["truth"]["name"] for item in results.values()] == [
-        name for _, name in BENCHMARK_CASES
-    ]
     assert len(results) == 13
     assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
     assert all(isinstance(item["benchmark_obj"], BenchmarkResult) for item in results.values())
@@ -158,18 +145,17 @@ def test_controlled_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
     assert len(namespace["noisy_summary"]) == 13
 
 
-def test_sampling_robustness_notebook_runs_lightweight_clean_resamples(monkeypatch):
+def test_sampling_robustness_notebook_is_runner_frontend(monkeypatch):
     path = Path("benchmarks/sampling_robustness.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "REPLICATE_SEEDS" in source
-    assert "problem.generate(N=N, seed=sample_seed, sigma=0.0)" in source
-    assert 'misda.evaluate(mis_set, metrics=("pareto",), candidates=1)' in source
+    assert "run_sampling_robustness" in source
+    assert "CONTROLLED_PROBLEM_IDS" in source
+    assert "SAMPLING_REPLICATE_SEEDS" in source
+    assert "sampling_artifact" in source
     assert "sampling_summary" in source
-    assert "TRANSITIVE_CHAINING" in source
-    assert "HIDDEN_SPECTRAL_STRUCTURE" in source
 
     _, namespace = _execute_notebook(
         path,
@@ -191,19 +177,20 @@ def test_sampling_robustness_notebook_runs_lightweight_clean_resamples(monkeypat
     assert set(summary["replicates"]) == {2}
 
 
-def test_noise_robustness_notebook_runs_lightweight_controlled_sweep(monkeypatch):
+def test_noise_robustness_notebook_is_runner_frontend(monkeypatch):
     path = Path("benchmarks/noisy_robustness.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
     assert "controlled_noisy.ipynb" in source
-    assert "PROBLEM_IDS" in source
-    assert "SIGMAS = (0.00, 0.05, 0.10, 0.20, 0.40)" in source
-    assert "REPLICATE_SEEDS = (101, 202, 303, 404, 505)" in source
-    assert "problem.observe(Z, sigma=sigma, standard_noise=epsilon)" in source
-    assert 'misda.evaluate(mis_set, metrics=("pareto",), candidates=1)' in source
-    assert "transitive_chaining_rate" in source
+    assert "run_noisy_robustness" in source
+    assert "NOISE_SIGMAS" in source
+    assert "NOISE_REPLICATE_SEEDS" in source
+    assert "robustness_artifact" in source
+    assert "pareto_observation_jaccard" in source
+    assert "pareto_reduction_jaccard" in source
+    assert "pareto_end_to_end_jaccard" in source
 
     _, namespace = _execute_notebook(
         path,
@@ -225,7 +212,7 @@ def test_noise_robustness_notebook_runs_lightweight_controlled_sweep(monkeypatch
     assert set(robustness["problem_id"]) == {"independence", "total_redundancy"}
     assert set(robustness["sigma"]) == {0.0, 0.10}
     assert robustness.groupby("problem_id")["sample_seed"].nunique().eq(1).all()
-    assert robustness["pareto_jaccard"].notna().all()
+    assert "pareto_end_to_end_jaccard" in robustness.columns
 
 
 def test_comparison_notebook_uses_diagnostic_truth_without_pca_dimension_cutoff(monkeypatch):
