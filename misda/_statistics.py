@@ -5,7 +5,6 @@
 
 import copy
 import math
-import warnings
 from dataclasses import dataclass, replace
 from enum import Enum, IntEnum
 from numbers import Integral
@@ -45,7 +44,7 @@ class CorrelationStatistics:
 
 @dataclass(frozen=True)
 class NullAlphaEstimate:
-    """Sequential estimate of the expected maximum positive null correlation."""
+    """Permutation estimate of the positive null envelope and diagnostic metadata."""
 
     r_null: float
     se_mc: float
@@ -260,6 +259,104 @@ def _null_estimate_snapshot(
     )
 
 
+
+def _null_envelope_snapshot(
+    samples,
+    n_samples,
+    signature: Callable[[float], Any],
+    completed,
+    reason=None,
+) -> NullAlphaEstimate:
+    """Build metadata for a fixed-budget empirical null envelope."""
+
+    values = np.asarray(samples, dtype=float)
+    count = len(values)
+    if count:
+        r_null = float(np.max(values))
+        log_alpha_null = positive_correlation_log_p(r_null, n_samples)
+        threshold_signature = signature(log_alpha_null)
+        r_interval = (r_null, r_null)
+        log_alpha_interval = (log_alpha_null, log_alpha_null)
+    else:
+        r_null = math.nan
+        log_alpha_null = math.nan
+        threshold_signature = None
+        r_interval = (math.nan, math.nan)
+        log_alpha_interval = (math.nan, math.nan)
+
+    return NullAlphaEstimate(
+        r_null=r_null,
+        se_mc=math.nan,
+        r_interval=r_interval,
+        log_alpha_null=log_alpha_null,
+        log_alpha_interval=log_alpha_interval,
+        n_permutations=count,
+        converged=bool(completed),
+        lower_r_signature=threshold_signature,
+        upper_r_signature=threshold_signature,
+        samples=tuple(float(value) for value in values),
+        reason=reason,
+    )
+
+
+def estimate_null_envelope_from_maxima(
+    maxima: Iterable[float],
+    *,
+    n_samples: int,
+    signature: Callable[[float], Any],
+    cancel_requested: Optional[Callable[[int], bool]] = None,
+) -> NullAlphaEstimate:
+    """Estimate the empirical upper null envelope from exactly ``N`` maxima.
+
+    Each null permutation contributes the maximum positive pairwise correlation.
+    The estimator consumes exactly ``n_samples`` such maxima and uses their
+    maximum as ``r_null``. The legacy Monte-Carlo standard-error metadata is
+    therefore not applicable and is reported as ``NaN``.
+    """
+
+    if (
+        isinstance(n_samples, (bool, np.bool_))
+        or not isinstance(n_samples, Integral)
+        or int(n_samples) < 4
+    ):
+        raise ValueError("n_samples must be an integer greater than or equal to 4.")
+    if not callable(signature):
+        raise TypeError("signature must be callable.")
+    if cancel_requested is not None and not callable(cancel_requested):
+        raise TypeError("cancel_requested must be callable or None.")
+
+    samples = []
+    for maximum in maxima:
+        value = float(maximum)
+        if not np.isfinite(value) or not 0.0 <= value <= 1.0:
+            raise ValueError("null maxima must be finite values in [0, 1].")
+        samples.append(value)
+
+        if len(samples) >= int(n_samples):
+            return _null_envelope_snapshot(
+                samples,
+                int(n_samples),
+                signature,
+                completed=True,
+            )
+        if cancel_requested is not None and cancel_requested(len(samples)):
+            return _null_envelope_snapshot(
+                samples,
+                int(n_samples),
+                signature,
+                completed=False,
+                reason="CANCELLED",
+            )
+
+    return _null_envelope_snapshot(
+        samples,
+        int(n_samples),
+        signature,
+        completed=False,
+        reason="SEQUENCE_EXHAUSTED",
+    )
+
+
 def estimate_null_from_maxima(
     maxima: Iterable[float],
     *,
@@ -355,7 +452,7 @@ def estimate_null_positive_correlation(
     seed: int = 0,
     cancel_requested: Optional[Callable[[int], bool]] = None,
 ) -> NullAlphaEstimate:
-    """Estimate the expected maximum positive correlation under permutation."""
+    """Estimate the empirical upper envelope of positive null correlation."""
 
     if not isinstance(normalized, NormalizedInput):
         raise TypeError("normalized must be a NormalizedInput instance.")
@@ -395,20 +492,12 @@ def estimate_null_positive_correlation(
                 values = corr[triu_idx]
                 yield float(max(0.0, np.max(values, initial=0.0)))
 
-    result = estimate_null_from_maxima(
+    result = estimate_null_envelope_from_maxima(
         maxima(),
         n_samples=normalized.n_samples,
         signature=signature,
         cancel_requested=cancel_requested,
-        max_permutations=10 * normalized.n_samples,
     )
-    if not result.converged and result.reason == "MAX_PERMUTATIONS_REACHED":
-        warnings.warn(
-            "Structural alpha_null estimation did not converge by B_max=10N; "
-            "returning the current null estimate with converged=False.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
     return replace(
         result,
         seed=seed,

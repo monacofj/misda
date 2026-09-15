@@ -2,6 +2,7 @@
 
 import itertools
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -24,21 +25,25 @@ def test_controlled_null_sequence_stops_exactly_at_explicit_cap():
     assert observed.reason == "MAX_PERMUTATIONS_REACHED"
 
 
-def test_public_null_estimator_warns_once_at_10n_cap():
+def test_public_null_estimator_uses_fixed_n_envelope_without_cap_warning():
     rng = np.random.default_rng(91)
     normalized = _validation.normalize_input_matrix(rng.normal(size=(8, 3)))
 
-    with pytest.warns(RuntimeWarning, match=r"B_max=10N") as recorded:
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
         observed = _statistics.estimate_null_positive_correlation(
             normalized,
-            signature=lambda _log_alpha: object(),
+            signature=lambda log_alpha: log_alpha,
             seed=123,
         )
 
-    assert len(recorded) == 1
-    assert not observed.converged
-    assert observed.n_permutations == 80
-    assert observed.reason == "MAX_PERMUTATIONS_REACHED"
+    assert recorded == []
+    assert observed.converged
+    assert observed.n_permutations == normalized.n_samples
+    assert observed.reason is None
+    assert observed.r_null == max(observed.samples)
+    assert np.isnan(observed.se_mc)
+    assert observed.r_interval == pytest.approx((observed.r_null, observed.r_null))
 
 
 def test_cancellation_remains_distinct_from_autonomous_cap():

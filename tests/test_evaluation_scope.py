@@ -7,9 +7,11 @@ import misda
 import misda.api as api
 
 
-def _independent_data(seed=123, n=24, m=4):
-    rng = np.random.default_rng(seed)
-    return rng.normal(size=(n, m))
+def _two_candidate_data(n=24):
+    """Return a deterministic graph with exactly two maximal independent sets."""
+
+    x = np.arange(n, dtype=float) - (n - 1) / 2.0
+    return np.column_stack([x, 2.0 * x, x * x])
 
 
 def _fake_linear(data, selected_indices, labels):
@@ -30,8 +32,8 @@ def _fake_linear(data, selected_indices, labels):
 
 
 def test_evaluation_scope_accumulates_across_calls(monkeypatch):
-    result = misda.discover(_independent_data(), seed=17)
-    assert len(result) >= 2
+    result = misda.discover(_two_candidate_data(), seed=17)
+    assert len(result) == 2
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", _fake_linear)
 
     misda.evaluate(result, metrics=("linear",), candidates=[0])
@@ -43,7 +45,8 @@ def test_evaluation_scope_accumulates_across_calls(monkeypatch):
 
 
 def test_scope_note_disappears_after_family_is_complete(monkeypatch):
-    result = misda.discover(_independent_data(seed=321), seed=19)
+    result = misda.discover(_two_candidate_data(), seed=19)
+    assert len(result) == 2
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", _fake_linear)
 
     misda.evaluate(result, metrics=("linear",), candidates=1)

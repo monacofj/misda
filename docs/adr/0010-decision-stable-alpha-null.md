@@ -1,6 +1,6 @@
 # ADR 0010 — Decision-stable sequential alpha-null estimation
 
-- Status: Accepted
+- Status: Superseded by ADR 0015
 - Recorded: 2026-09-11 (retrospective)
 
 ## Context
