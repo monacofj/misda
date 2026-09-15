@@ -29,5 +29,6 @@ Each record may contain: Context, Definitions, Decision, Formal specification, R
 - [0012 — Reproducibility and stochastic computation](0012-reproducibility-and-stochastic-computation.md)
 - [0013 — Benchmark and validation contract](0013-benchmark-and-validation-contract.md)
 - [0014 — Public diagnostics and reporting semantics](0014-public-diagnostics-and-reporting-semantics.md)
+- [0015 — Empirical null envelope for alpha-null estimation](0015-empirical-null-envelope-alpha-null.md)
 
-All records below are retrospective unless explicitly stated otherwise. They document the current MISDA design as of 2026-09-11.
+All records below are retrospective unless explicitly stated otherwise. They document the current MISDA design, with later records superseding earlier decisions where explicitly stated.

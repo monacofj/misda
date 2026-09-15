@@ -232,5 +232,9 @@ def test_entirely_constant_input_has_zero_null_reference():
     assert observed.converged
     assert observed.n_permutations == 5
     assert observed.r_null == 0.0
-    assert observed.se_mc == 0.0
+    assert np.isnan(observed.se_mc)
+    assert observed.r_interval == (0.0, 0.0)
+    assert observed.log_alpha_interval == pytest.approx(
+        (math.log(0.5), math.log(0.5))
+    )
     assert observed.log_alpha_null == pytest.approx(math.log(0.5))
