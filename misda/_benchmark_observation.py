@@ -74,6 +74,31 @@ def _format_metric(value):
     return str(value)
 
 
+def _stability_lines(result):
+    diagnostics = getattr(result, "pareto_stability", None)
+    if diagnostics is None:
+        return []
+    ranking = result.structural_ranking
+    selected_index = ranking.indices[0] if ranking.indices else None
+    selected_epsilon = (
+        diagnostics.epsilon_for_candidate(selected_index)
+        if selected_index is not None
+        else None
+    )
+    return [
+        "  Observed fraction: "
+        f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
+        f"({_format_metric(diagnostics.observed_front_fraction)})",
+        "  Pareto epsilon+ : "
+        f"{_format_metric(selected_epsilon)} "
+        "(range-normalized P_R -> P_Y)",
+        "  Dominance margin: "
+        f"min={_format_metric(diagnostics.dominance_margin_min)}, "
+        f"median={_format_metric(diagnostics.dominance_margin_median)}, "
+        f"max={_format_metric(diagnostics.dominance_margin_max)}",
+    ]
+
+
 @dataclass(frozen=True)
 class ObservationBenchmarkResult(_BaseBenchmarkResult):
     """Benchmark result extended with ``P_Y`` versus ``P_Z`` evidence."""
@@ -94,10 +119,11 @@ class ObservationBenchmarkResult(_BaseBenchmarkResult):
         # P_R vs P_Y, without changing any existing metric semantics.
         for index, line in enumerate(lines):
             if line.startswith("  Pareto selected: "):
-                lines.insert(
-                    index + 1,
+                insertion = [
                     "  Pareto basis   : reduced P_R vs observed full P_Y",
-                )
+                    *_stability_lines(self.result),
+                ]
+                lines[index + 1:index + 1] = insertion
                 break
 
         marker = "Pareto declaration agreement"
@@ -184,6 +210,11 @@ def compile_benchmark_summary(results_dict, sort_by=None):
     truth_size = []
     observed_size = []
     reduced_size = []
+    observed_fraction = []
+    additive_epsilon = []
+    dominance_margin_min = []
+    dominance_margin_median = []
+    dominance_margin_max = []
 
     for case_name in frame["Case"]:
         item = results_dict[case_name]
@@ -192,6 +223,12 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         observed = benchmark(result, truth)
         selected = result.structural_ranking.selected
         reduced = selected.pareto if selected is not None else None
+        diagnostics = getattr(result, "pareto_stability", None)
+        selected_index = (
+            result.structural_ranking.indices[0]
+            if result.structural_ranking.indices
+            else None
+        )
 
         observation_jaccard.append(observed.observation_pareto_jaccard)
         end_to_end_jaccard.append(observed.pareto_jaccard)
@@ -206,6 +243,23 @@ def compile_benchmark_summary(results_dict, sort_by=None):
             else None
         )
         reduced_size.append(reduced.reduced_front_size if reduced is not None else None)
+        observed_fraction.append(
+            diagnostics.observed_front_fraction if diagnostics is not None else None
+        )
+        additive_epsilon.append(
+            diagnostics.epsilon_for_candidate(selected_index)
+            if diagnostics is not None and selected_index is not None
+            else None
+        )
+        dominance_margin_min.append(
+            diagnostics.dominance_margin_min if diagnostics is not None else None
+        )
+        dominance_margin_median.append(
+            diagnostics.dominance_margin_median if diagnostics is not None else None
+        )
+        dominance_margin_max.append(
+            diagnostics.dominance_margin_max if diagnostics is not None else None
+        )
 
     # Existing ParetoJaccard is P_R vs P_Y. Keep it for compatibility and add
     # an explicit alias beside the new observation and end-to-end quantities.
@@ -215,6 +269,11 @@ def compile_benchmark_summary(results_dict, sort_by=None):
     frame["ParetoTruthSize"] = truth_size
     frame["ParetoObservedSize"] = observed_size
     frame["ParetoReducedSize"] = reduced_size
+    frame["ParetoObservedFraction"] = observed_fraction
+    frame["ParetoAdditiveEpsilon"] = additive_epsilon
+    frame["ParetoDominanceMarginMin"] = dominance_margin_min
+    frame["ParetoDominanceMarginMedian"] = dominance_margin_median
+    frame["ParetoDominanceMarginMax"] = dominance_margin_max
 
     if sort_by and sort_by in frame.columns:
         frame = frame.sort_values(by=sort_by)
