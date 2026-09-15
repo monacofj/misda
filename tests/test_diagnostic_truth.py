@@ -27,6 +27,18 @@ def test_generating_families_are_declared_for_every_diagnostic_problem():
         )
 
 
+def test_benchmark_declaration_prose_is_complete_and_benchmark_only():
+    fields = ("feature", "intuition", "graph_expected")
+    for problem in PROBLEMS:
+        dataset = problem.generate(N=24, seed=123, sigma=0.0)
+        truth = diagnostic_truth(problem, dataset.Z)
+        for field in fields:
+            assert truth[field].strip(), f"{problem.id}: missing {field}"
+        # Presentation prose belongs to benchmark truth, not the scientific
+        # DiagnosticScenario specification consumed by the problem catalogue.
+        assert all(not hasattr(problem.scenario, field) for field in fields)
+
+
 def test_case5_family_and_structural_units_are_distinct_declarations():
     problem = PROBLEM_BY_ID["transitive_chain"]
     dataset = problem.generate(N=32, seed=123, sigma=0.0)
