@@ -44,6 +44,8 @@ jobs:
           jupyter nbconvert \
             --to notebook \
             --execute examples/diagnostic_robustness.ipynb \
+            --TagRemovePreprocessor.enabled=True \
+            --TagRemovePreprocessor.remove_cell_tags='{"setup"}' \
             --output diagnostic_robustness_executed.ipynb \
             --output-dir /tmp \
             --ExecutePreprocessor.timeout=7200
