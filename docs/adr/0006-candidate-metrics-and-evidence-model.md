@@ -70,9 +70,37 @@ jaccard   = |P intersect P_S| / |P union P_S|.
 
 Exact preservation is the set equality `P = P_S`.
 
+Exact set agreement is intentionally complemented by observed-data stability diagnostics computed only from the supplied matrix `Y`. These diagnostics do not identify measurement noise and do not consume benchmark truth.
+
+The full observed-front fraction is
+
+```text
+front_fraction = |P| / N.
+```
+
+All geometric stability quantities use objective-wise empirical-range normalization. Constant objectives contribute zero normalized distance. This produces unitless values without introducing a user-selected scale or threshold.
+
+For each `b in P`, the dominance margin is the smallest normalized additive worsening of `b` required for another observed row `a` to weakly dominate it:
+
+```text
+margin(b) = min_{a != b} max_j (a_j - b_j),
+```
+
+computed after range normalization and bounded below by zero for floating-point safety. Smaller margins mean that exact Pareto membership is more sensitive to small perturbations of the observed values. MISDA reports the minimum, median, and maximum margin over the observed front.
+
+For a candidate reduced front `P_S`, geometric approximation is measured in the complete normalized objective space by the unary additive epsilon indicator
+
+```text
+epsilon+(P_S, P) = max_{b in P} min_{a in P_S} max_j (a_j - b_j).
+```
+
+Smaller values mean that the reduced-front samples approximate the full observed front more closely in the complete objective space. This quantity is distinct from exact row-identity preservation.
+
+No categorical `good`/`bad` Pareto-stability status or fixed acceptance threshold is part of the method. Such a status would require a separately justified, data-driven decision rule.
+
 ## Rationale
 
-These families answer different questions. Structural metrics describe graph coverage; reconstruction measures information recoverability; Pareto metrics measure preservation of the multiobjective dominance structure. No one family is a substitute for the others.
+These families answer different questions. Structural metrics describe graph coverage; reconstruction measures information recoverability; Pareto set metrics measure exact preservation of the multiobjective dominance structure; observed-data Pareto stability distinguishes exact set changes from geometric approximation and perturbation sensitivity. No one family is a substitute for the others.
 
 Keeping evidence decomposed avoids hiding trade-offs behind an arbitrary composite score.
 
@@ -82,11 +110,16 @@ Keeping evidence decomposed avoids hiding trade-offs behind an arbitrary composi
 - missing/undefined evidence is represented explicitly, not fabricated as a perfect or zero score;
 - linear R2 is not clipped at zero;
 - Pareto evidence compares observed nondominated row sets and currently assumes minimization;
+- Pareto stability diagnostics use only observed `Y`, never benchmark truth;
+- Pareto stability does not claim to identify the source of perturbations as measurement noise;
+- no fixed Pareto-stability acceptance threshold is introduced;
 - nonlinear evidence remains optional because of its computational cost.
 
 ## Current implementation
 
 Structural metrics are computed during discovery in `misda._ranking.compute_mis_metrics()`. Linear, nonlinear, and Pareto families are attached through `evaluate()` only when requested. Public typed domains expose values such as `candidate.structural.neighborhood`, `candidate.linear.mean_r2`, `candidate.nonlinear.mean_r2`, and `candidate.pareto.jaccard`.
+
+When Pareto evaluation is requested, `MISSet.pareto_stability` stores the observed-front fraction, range-normalized dominance-margin summaries, and range-normalized additive epsilon values for evaluated candidates. These diagnostics remain separate from dimensional support.
 
 The current performance-oriented implementation includes thin-QR/PRESS computation for linear reconstruction and lexicographical pruning in Pareto calculations where semantics are preserved.
 
@@ -96,11 +129,11 @@ Numerically equivalent linear algebra, exact nondominance algorithms, caching, v
 
 ## Forbidden shortcuts / regression risks
 
-Do not use candidate metrics to prune discovery, clip negative R2, replace external validation by in-sample fit, silently evaluate only a subset while presenting the family as complete, or use benchmark truth as candidate evidence.
+Do not use candidate metrics to prune discovery, clip negative R2, replace external validation by in-sample fit, silently evaluate only a subset while presenting the family as complete, use benchmark truth as candidate evidence, infer that perturbation sensitivity proves measurement noise, or collapse Pareto stability into an arbitrary thresholded score.
 
 ## Verification
 
-Tests should compare metric values against independently computed small examples, exercise undefined cases, confirm untruncated negative R2, and check Pareto sets by direct dominance enumeration.
+Tests should compare metric values against independently computed small examples, exercise undefined cases, confirm untruncated negative R2, check Pareto sets by direct dominance enumeration, verify range-normalization invariance under positive affine rescaling, and confirm that Pareto stability can be computed without benchmark truth.
 
 ## References
 
