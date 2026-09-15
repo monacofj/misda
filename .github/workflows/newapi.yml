@@ -39,3 +39,18 @@ jobs:
           name: misda-comparison
           path: /tmp/misda-comparison.json
           if-no-files-found: warn
+      - name: Full robustness scientific sweep
+        run: |
+          jupyter nbconvert \
+            --to notebook \
+            --execute examples/diagnostic_robustness.ipynb \
+            --output diagnostic_robustness_executed.ipynb \
+            --output-dir /tmp \
+            --ExecutePreprocessor.timeout=7200
+      - name: Preserve full robustness sweep
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-robustness-full
+          path: /tmp/diagnostic_robustness_executed.ipynb
+          if-no-files-found: warn
