@@ -5,6 +5,8 @@ on:
     branches: [alpha-null-envelope]
     paths:
       - '.github/workflows/alpha-null-envelope-implementation.yml'
+      - '.github/alpha-null-envelope-apply.py'
+      - 'tests/test_evaluation_scope.py'
 
 permissions:
   contents: write
