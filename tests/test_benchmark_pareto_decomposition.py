@@ -44,6 +44,9 @@ def test_clean_observation_layer_is_identity_when_y_equals_z():
     assert "jaccard=1.0000, exact=yes" in report
     assert "Pareto basis   : reduced P_R vs observed full P_Y" in report
     assert "Pareto basis   : reduced P_R vs clean truth P_Z" in report
+    assert "Observed fraction:" in report
+    assert "Pareto epsilon+ :" in report
+    assert "Dominance margin:" in report
 
 
 def test_noisy_observation_layer_separates_observation_from_reduction():
@@ -88,3 +91,8 @@ def test_summary_exposes_all_three_pareto_stages_without_changing_old_column():
     assert summary.loc[0, "ParetoTruthSize"] == len(z)
     assert summary.loc[0, "ParetoObservedSize"] == len(z)
     assert summary.loc[0, "ParetoReducedSize"] == result.structural_ranking.selected.pareto.reduced_front_size
+    assert summary.loc[0, "ParetoObservedFraction"] == 1.0
+    assert summary.loc[0, "ParetoAdditiveEpsilon"] >= 0.0
+    assert summary.loc[0, "ParetoDominanceMarginMin"] >= 0.0
+    assert summary.loc[0, "ParetoDominanceMarginMedian"] >= 0.0
+    assert summary.loc[0, "ParetoDominanceMarginMax"] >= 0.0
