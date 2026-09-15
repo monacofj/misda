@@ -259,6 +259,13 @@ candidate.pareto.exact_preservation
 candidate.pareto.reduced_front_indices
 ```
 
+Exact membership agreement is deliberately separate from observed-data Pareto
+stability. When Pareto evaluation is requested, `mis_set.pareto_stability`
+reports the observed-front fraction, range-normalized dominance margins, and
+range-normalized additive epsilon from a reduced front to the observed full
+front. These quantities help distinguish a saturated/perturbation-sensitive
+front from a geometrically poor reduction; no fixed pass/fail cutoff is imposed.
+
 Mixed directions are outside the current contract.
 
 ### 7.4 Nonlinear reconstruction
@@ -342,6 +349,9 @@ Repository-level reproducible batteries are available as:
 
 ```bash
 python -m benchmarks.run_controlled --output results/controlled.json
+python -m benchmarks.run_controlled_noisy --output results/controlled-noisy.json
+python -m benchmarks.run_sampling_robustness --output results/sampling-robustness.json
+python -m benchmarks.run_noisy_robustness --output results/noisy-robustness.json
 python -m benchmarks.run_comparison --output results/comparison.json
 python -m benchmarks.run_classical --output results/classical.json
 ```
@@ -358,6 +368,13 @@ Notebook-level validation is organized under `benchmarks/`:
 The comparison battery uses a common external reconstruction metric for direct
 MISDA/PCA comparison while preserving each method's native diagnostics as
 separate estimands.
+
+The ordinary acceptance workflow keeps the clean scientific battery and method
+comparison as routine regression gates. The heavier fixed-noise and robustness
+studies run in the path-scoped/manual `extended benchmark validation` workflow,
+which preserves their JSON artifacts. Current empirical evidence is recorded in
+`docs/validation_results.md`; that file is a reproducibility record, not a
+normative ADR.
 
 ## 10. `alpha_null` empirical null envelope
 
