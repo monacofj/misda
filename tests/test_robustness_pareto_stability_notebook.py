@@ -1,11 +1,11 @@
-"""Regression checks for Pareto-stability evidence in the robustness notebook."""
+"""Regression checks for Pareto-stability evidence in the noise-robustness notebook."""
 
 import json
 from pathlib import Path
 
 
-def test_robustness_notebook_tracks_observed_pareto_stability_without_thresholds():
-    notebook = json.loads(Path("examples/diagnostic_robustness.ipynb").read_text())
+def test_noise_robustness_notebook_tracks_observed_pareto_stability_without_thresholds():
+    notebook = json.loads(Path("benchmarks/noisy_robustness.ipynb").read_text())
     source = "\n".join(
         line
         for cell in notebook["cells"]

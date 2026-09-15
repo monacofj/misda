@@ -341,33 +341,41 @@ evidence; `benchmark()` does not perform hidden candidate evaluation.
 Repository-level reproducible batteries are available as:
 
 ```bash
-python -m examples.benchmarks.run_benchmark --output results/benchmark.json
-python -m examples.benchmarks.run_comparative --output results/comparative.json
+python -m benchmarks.run_controlled --output results/controlled.json
+python -m benchmarks.run_comparison --output results/comparison.json
+python -m benchmarks.run_classical --output results/classical.json
 ```
 
-The comparative battery uses a common external reconstruction metric for direct
+Notebook-level validation is organized under `benchmarks/`:
+
+- `controlled.ipynb`: exact-observation 13-case reference;
+- `controlled_noisy.ipynb`: fixed `sigma=0.10` reference condition;
+- `sampling_robustness.ipynb`: independent clean samples with `sigma=0`;
+- `noisy_robustness.ipynb`: observation-noise sweep across `sigma` and replicate streams;
+- `comparison.ipynb`: MISDA/PCA comparison on controlled truth;
+- `classical.ipynb`: classical DTLZ reference problems.
+
+The comparison battery uses a common external reconstruction metric for direct
 MISDA/PCA comparison while preserving each method's native diagnostics as
 separate estimands.
 
-## 10. `alpha_null` convergence
+## 10. `alpha_null` empirical null envelope
 
-The structural null estimator begins with at least `N` permutations and tracks
-Monte Carlo uncertainty. It compares the discovery signature at the lower and
-upper endpoints of that uncertainty interval:
+The structural null endpoint uses a fixed data-derived permutation budget
+`B=N`. Each independent-column permutation contributes its maximum positive
+pairwise correlation, and the estimator uses the empirical upper envelope:
 
 ```text
-Sigma(alpha) = (
-    structural_dimension,
-    latent_dimension,
-    complete structural_coverage tie-group ordering,
-)
+r_null = max(m_1, ..., m_N)
+log_alpha_null = positive_correlation_log_p(r_null, N)
 ```
 
-The estimate converges when both endpoints yield the same signature. Raw metric
-values and literal graph identity are not required to match if they cannot
-change a discrete discovery output. The autonomous upper limit remains
-`B_max=10N`; reaching it returns the current estimate with explicit
-non-convergence diagnostics.
+The sequential `mean ± MC-SE` stopping rule and its former `10N` cap are no
+longer part of the public estimator. Repeated calls with the same seed are
+reproducible. Legacy uncertainty fields remain available for compatibility, but
+quantities whose former Monte Carlo mean interpretation no longer applies are
+reported without misleading uncertainty semantics. See ADR 0015 for the
+normative decision.
 
 ## 11. Scope and limitations
 

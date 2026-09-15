@@ -1,4 +1,4 @@
-"""Executable checks for the notebook front ends."""
+"""Executable checks for the benchmark notebook front ends."""
 
 import json
 from pathlib import Path
@@ -79,8 +79,8 @@ def _case_headings(notebook):
     ]
 
 
-def test_benchmark_notebook_runs_explicit_documented_suite(monkeypatch):
-    path = Path("examples/benchmark.ipynb")
+def test_controlled_notebook_runs_explicit_documented_suite(monkeypatch):
+    path = Path("benchmarks/controlled.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
@@ -119,8 +119,8 @@ def test_benchmark_notebook_runs_explicit_documented_suite(monkeypatch):
     assert len(namespace["benchmark_summary"]) == 13
 
 
-def test_benchmark_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
-    path = Path("examples/benchmark_noisy.ipynb")
+def test_controlled_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
+    path = Path("benchmarks/controlled_noisy.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
@@ -158,13 +158,46 @@ def test_benchmark_noisy_notebook_runs_explicit_documented_suite(monkeypatch):
     assert len(namespace["noisy_summary"]) == 13
 
 
-def test_diagnostic_robustness_notebook_runs_lightweight_controlled_sweep(monkeypatch):
-    path = Path("examples/diagnostic_robustness.ipynb")
+def test_sampling_robustness_notebook_runs_lightweight_clean_resamples(monkeypatch):
+    path = Path("benchmarks/sampling_robustness.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
     assert all(term not in source for term in BANNED_SOURCE)
-    assert "benchmark_noisy.ipynb" in source
+    assert "REPLICATE_SEEDS" in source
+    assert "problem.generate(N=N, seed=sample_seed, sigma=0.0)" in source
+    assert 'misda.evaluate(mis_set, metrics=("pareto",), candidates=1)' in source
+    assert "sampling_summary" in source
+    assert "TRANSITIVE_CHAINING" in source
+    assert "HIDDEN_SPECTRAL_STRUCTURE" in source
+
+    _, namespace = _execute_notebook(
+        path,
+        monkeypatch,
+        overrides={
+            "sampling-run": {
+                "N": 48,
+                "PROBLEM_IDS": ("independence", "total_redundancy"),
+                "REPLICATE_SEEDS": (101, 202),
+            }
+        },
+    )
+    sampling = namespace["sampling"]
+    summary = namespace["sampling_summary"]
+    assert len(sampling) == 4
+    assert len(summary) == 2
+    assert set(sampling["problem_id"]) == {"independence", "total_redundancy"}
+    assert sampling.groupby("problem_id")["sample_seed"].nunique().eq(2).all()
+    assert set(summary["replicates"]) == {2}
+
+
+def test_noise_robustness_notebook_runs_lightweight_controlled_sweep(monkeypatch):
+    path = Path("benchmarks/noisy_robustness.ipynb")
+    notebook, source = _read_notebook(path)
+
+    assert notebook["nbformat"] == 4
+    assert all(term not in source for term in BANNED_SOURCE)
+    assert "controlled_noisy.ipynb" in source
     assert "PROBLEM_IDS" in source
     assert "SIGMAS = (0.00, 0.05, 0.10, 0.20, 0.40)" in source
     assert "REPLICATE_SEEDS = (101, 202, 303, 404, 505)" in source
@@ -196,7 +229,7 @@ def test_diagnostic_robustness_notebook_runs_lightweight_controlled_sweep(monkey
 
 
 def test_comparison_notebook_uses_diagnostic_truth_without_pca_dimension_cutoff(monkeypatch):
-    path = Path("examples/comparison.ipynb")
+    path = Path("benchmarks/comparison.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4
@@ -238,8 +271,8 @@ def test_comparison_notebook_uses_diagnostic_truth_without_pca_dimension_cutoff(
     assert comparison["pca_at_structural_truth"].notna().all()
 
 
-def test_classical_mops_notebook_keeps_reference_geometry_separate_from_misda_truth(monkeypatch):
-    path = Path("examples/classical_mops.ipynb")
+def test_classical_notebook_keeps_reference_geometry_separate_from_misda_truth(monkeypatch):
+    path = Path("benchmarks/classical.ipynb")
     notebook, source = _read_notebook(path)
 
     assert notebook["nbformat"] == 4

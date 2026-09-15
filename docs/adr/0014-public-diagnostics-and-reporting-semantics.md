@@ -14,7 +14,7 @@ Reports and plots are views over already stored state. They must not rerun scien
 Public output must distinguish at least:
 
 ```text
-discovery / thresholds / convergence
+discovery / thresholds / null-estimator completion
 graph-derived dimensions
 graph topology diagnostics
 dimensional support
@@ -71,9 +71,11 @@ Until a separate data-driven decision rule is justified, reports must present th
 
 If fewer than all candidates are evaluated for a requested metric family, reports must state the effective scope and selection basis. Partial evaluation is a scope fact, not by itself an error.
 
-### Nonconvergence
+### Alpha-null completion and cancellation
 
-If `alpha_null` reaches `B_max` without decision stability, the result must retain `converged=False` and the machine-readable reason and the public call must warn. Reporting must not silently normalize this state into successful convergence.
+ADR 0015 superseded the sequential `alpha_null` convergence rule. The public estimator now completes a fixed `B=N` empirical null-envelope experiment. Normal completion may retain the legacy `converged=True` compatibility field, but reports must not describe that state as convergence of a Monte Carlo mean or interpret retained degenerate intervals as uncertainty intervals.
+
+If estimation is explicitly cancelled before the fixed budget is completed, the stored state must remain visibly incomplete (`converged=False`, `reason="CANCELLED"`). Reporting must not silently normalize cancellation into successful completion.
 
 ### Ranking-selected quantities
 
@@ -87,7 +89,8 @@ A ranking-selected dimension must be labeled as preference-derived and must not 
 - dimensional support and Pareto stability remain separate;
 - Pareto stability uses only observed `Y` outside benchmark-only comparisons;
 - no arbitrary Pareto-stability threshold is presented as a scientific conclusion;
-- partial scope and nonconvergence remain visible;
+- partial scope and explicit cancellation remain visible;
+- legacy `alpha_null` fields are not given obsolete Monte Carlo-mean semantics;
 - scientific ties are not erased by deterministic display ordering;
 - benchmark truth appears only in benchmark reports.
 
@@ -103,8 +106,8 @@ Formatting, plotting library, table layout, color scheme, and rendering medium m
 
 ## Forbidden shortcuts / regression risks
 
-Do not relabel connected components as dimensions, select one tied candidate arbitrarily for scientific support, trigger hidden nonlinear evaluation from `report()`, omit partial-scope notes, suppress `alpha_null` nonconvergence, describe Pareto sensitivity as proof of measurement noise, or turn continuous Pareto-stability diagnostics into fixed-threshold confidence labels without a separately justified data-driven rule.
+Do not relabel connected components as dimensions, select one tied candidate arbitrarily for scientific support, trigger hidden nonlinear evaluation from `report()`, omit partial-scope notes, reinterpret fixed-budget `alpha_null` completion as sequential Monte Carlo convergence, suppress explicit `alpha_null` cancellation, describe Pareto sensitivity as proof of measurement noise, or turn continuous Pareto-stability diagnostics into fixed-threshold confidence labels without a separately justified data-driven rule.
 
 ## Verification
 
-Regression tests should inspect semantic report fields/text for dimension-versus-topology separation, partial scope, support state, Pareto-stability provenance, ranking-selected dimension, and nonconvergence. Plot tests should verify that plotting does not change stored results.
+Regression tests should inspect semantic report fields/text for dimension-versus-topology separation, partial scope, support state, Pareto-stability provenance, ranking-selected dimension, and correct fixed-budget/cancellation semantics for `alpha_null`. Plot tests should verify that plotting does not change stored results.

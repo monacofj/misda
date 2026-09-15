@@ -6,7 +6,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/examples/benchmark.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/monacofj/misda/blob/main/benchmarks/controlled.ipynb)
 [![REUSE status](https://api.reuse.software/badge/github.com/monacofj/misda)](https://api.reuse.software/info/github.com/monacofj/misda)
 
 MISDA is a graph-theoretic method for studying and reducing the objective space
@@ -221,31 +221,34 @@ print(bench.report())
 Executable benchmark front ends:
 
 ```bash
-python -m examples.benchmarks.run_benchmark --output results/diagnostic-clean.json
-python -m examples.benchmarks.run_comparison --output results/comparison.json
-python -m examples.benchmarks.run_classical_mops --output results/classical-mops.json
+python -m benchmarks.run_controlled --output results/controlled.json
+python -m benchmarks.run_comparison --output results/comparison.json
+python -m benchmarks.run_classical --output results/classical.json
 ```
 
-- [Controlled benchmark notebook](examples/benchmark.ipynb)
-- [Noisy controlled benchmark notebook](examples/benchmark_noisy.ipynb)
-- [Diagnostic robustness notebook](examples/diagnostic_robustness.ipynb)
-- [MISDA and PCA comparison notebook](examples/comparison.ipynb)
-- [Classical DTLZ reference notebook](examples/classical_mops.ipynb)
+The repository-level benchmark notebooks are organized by what varies:
 
-The noisy benchmark notebook uses a fixed scale-relative `sigma=0.10`
+- [Controlled benchmark](benchmarks/controlled.ipynb): canonical 13-case clean reference (`Y=Z`).
+- [Controlled benchmark with fixed noise](benchmarks/controlled_noisy.ipynb): the same 13 cases at the reproducible `sigma=0.10` reference condition.
+- [Sampling robustness](benchmarks/sampling_robustness.ipynb): repeated clean samples with `sigma=0`, isolating finite-sample variability.
+- [Noise robustness](benchmarks/noisy_robustness.ipynb): repeated samples and observation streams across a grid of `sigma` values.
+- [MISDA/PCA comparison](benchmarks/comparison.ipynb): clean controlled diagnostics with explicit truth and a common external reconstruction score.
+- [Classical DTLZ reference problems](benchmarks/classical.ipynb): reproducible DTLZ2/DTLZ5 Pareto-front samples with analytical front geometry retained only as reference context.
+
+The fixed-noise controlled notebook uses a scale-relative `sigma=0.10`
 observation regime with a distinct observation seed as a reproducible reference
-condition. It is not a robustness threshold. `diagnostic_robustness.ipynb`
-studies degradation separately by varying sigma and replicate seeds while
-reusing the same clean sample and standardized perturbation within each curve.
+condition. It is not a robustness threshold. `sampling_robustness.ipynb`
+varies only the clean sample, whereas `noisy_robustness.ipynb` varies
+observation noise intensity and replicate streams.
 
-The method comparison uses clean diagnostic problems with explicit truth. MISDA's
+The method comparison uses clean controlled problems with explicit truth. MISDA's
 latent and structural dimensions remain native MISDA estimands; PCA remains a
 linear reconstruction curve unless a component-selection protocol is explicitly
 defined. The comparison therefore does not impose an arbitrary explained-
 variance cutoff. Direct MISDA/PCA comparison uses the common external
 `global_standardized_external_r2` metric at explicitly named dimensions.
 
-`classical_mops.ipynb` applies MISDA to reproducible on-front DTLZ2 and DTLZ5
+`classical.ipynb` applies MISDA to reproducible on-front DTLZ2 and DTLZ5
 samples. Their analytical Pareto-manifold geometry is retained as reference
 context, but is not re-labelled as MISDA latent or structural ground truth.
 

@@ -23,8 +23,8 @@ misda/_graph.py
     MIS enumeration.
 
 misda/_statistics.py
-    Correlation statistics, alpha_onset/alpha_null estimation, Monte Carlo
-    stopping, and aggressiveness interpolation.
+    Correlation statistics, alpha_onset/alpha_null estimation, empirical null
+    envelope calibration, and aggressiveness interpolation.
 
 misda/_support.py
     Data-driven dimensional-support diagnostics:
@@ -52,43 +52,54 @@ misda/benchmarks/
     generators, reproducible classical DTLZ references, and comparison helpers.
 
 
-2. NOTEBOOKS & BENCHMARK FRONT ENDS (examples/)
-------------------------------------------------
+2. BENCHMARK NOTEBOOKS & FRONT ENDS (benchmarks/)
+--------------------------------------------------
 
-examples/benchmark.ipynb
+benchmarks/controlled.ipynb
     Canonical 13-case controlled benchmark under exact observation Y=Z, with
     one documented section per case and a final suite summary.
 
-examples/benchmark_noisy.ipynb
+benchmarks/controlled_noisy.ipynb
     The same 13-case benchmark under a fixed scale-relative noisy observation
     regime, with per-case interpretation of what the added noise tests.
 
-examples/diagnostic_robustness.ipynb
+benchmarks/sampling_robustness.ipynb
+    Clean sampling study across independent sample seeds with sigma=0,
+    isolating finite-sample variability from observation noise.
+
+benchmarks/noisy_robustness.ipynb
     Focused multi-sigma/multi-replicate observation-noise robustness study using
     a representative subset of controlled diagnostics.
 
-examples/comparison.ipynb
+benchmarks/comparison.ipynb
     MISDA/PCA method comparison on clean controlled diagnostics with explicit
     truth. Native estimands remain distinct; direct comparison uses a common
     external reconstruction score at explicitly named dimensions.
 
-examples/classical_mops.ipynb
+benchmarks/classical.ipynb
     MISDA on reproducible DTLZ2/DTLZ5 Pareto-front samples. Known front geometry
     is reference context, not MISDA latent/structural ground truth.
 
-examples/benchmarks/run_benchmark.py
+benchmarks/run_controlled.py
     Executable clean 13-problem scientific battery.
 
-examples/benchmarks/run_comparison.py
+benchmarks/run_comparison.py
     Executable diagnostic MISDA/PCA comparison battery.
 
-examples/benchmarks/run_classical_mops.py
+benchmarks/run_classical.py
     Executable DTLZ2/DTLZ5 reference-MOP front end.
 
-examples/benchmarks/_baseline.py
+benchmarks/_baseline.py
     Historical baseline comparison helpers used only by regression tests.
 
-examples/benchmarks/r5_baseline.json
+benchmarks/cases.py
+    Compatibility shim exposing the historical controlled generators used by
+    characterization tests.
+
+benchmarks/mop_definitions.py
+    Compatibility shim for the historical MOP generator names.
+
+benchmarks/r5_baseline.json
     Provenance marker for the successful pre-R5 acceptance artifacts.
 
 
@@ -138,4 +149,4 @@ tests/
 
 .github/workflows/newapi.yml
     Acceptance gate for main and new-benchmark, running the full test suite,
-    clean scientific battery, and diagnostic method comparison.
+    controlled clean scientific battery, and diagnostic method comparison.

@@ -31,14 +31,15 @@ def test_active_documentation_describes_new_static_contract(path):
     assert 'method="adaptive"' not in text
 
 
-def test_design_notes_state_current_dimension_semantics_and_null_signature():
+def test_design_notes_state_current_dimension_and_null_envelope_semantics():
     text = Path("docs/design_notes.md").read_text(encoding="utf-8")
 
     assert "structural_dimension = alpha(G+)" in text
     assert "latent_dimension     = alpha(G±)" in text
-    assert "complete structural_coverage tie-group ordering" in text
-    assert "Literal graph equality" in text
-    assert "Raw metric equality" in text
+    assert "B=N" in text
+    assert "r_null = max(m_1, ..., m_N)" in text
+    assert "10N` cap are obsolete" in text
+    assert "ADR 0015" in text
 
 
 @pytest.mark.parametrize("path", (Path("README.md"), Path("docs/userguide.md")))
@@ -60,19 +61,18 @@ def test_python_examples_use_only_new_public_workflow(path):
 def test_readme_points_to_main_and_executable_benchmarks():
     text = Path("README.md").read_text(encoding="utf-8")
 
-    assert "examples.benchmarks.run_benchmark" in text
-    assert "examples.benchmarks.run_comparison" in text
-    assert "examples.benchmarks.run_classical_mops" in text
-    assert "examples.benchmarks.run_comparative" not in text
-    assert "examples/benchmark.ipynb" in text
-    assert "examples/benchmark_noisy.ipynb" in text
-    assert "examples/diagnostic_robustness.ipynb" in text
-    assert "examples/comparison.ipynb" in text
-    assert "examples/classical_mops.ipynb" in text
-    assert "blob/main/examples/benchmark.ipynb" in text
-    assert "examples/diagnostic_clean.ipynb" not in text
-    assert "examples/diagnostic_noisy.ipynb" not in text
-    assert "examples/comparative.ipynb" not in text
+    assert "benchmarks.run_controlled" in text
+    assert "benchmarks.run_comparison" in text
+    assert "benchmarks.run_classical" in text
+    assert "benchmarks/controlled.ipynb" in text
+    assert "benchmarks/controlled_noisy.ipynb" in text
+    assert "benchmarks/sampling_robustness.ipynb" in text
+    assert "benchmarks/noisy_robustness.ipynb" in text
+    assert "benchmarks/comparison.ipynb" in text
+    assert "benchmarks/classical.ipynb" in text
+    assert "blob/main/benchmarks/controlled.ipynb" in text
+    assert "examples/" not in text
+    assert "examples.benchmarks" not in text
     assert "@refactor" not in text
     assert "@efficient" not in text
 

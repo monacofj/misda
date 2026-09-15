@@ -36,35 +36,33 @@ can still contain several mutually independent vertices.
 Constant objectives remain explicit isolated vertices because a constant column
 cannot support a valid pairwise Fisher-z test.
 
-## 2. Statistical thresholds and sequential null estimation
+## 2. Statistical thresholds and empirical null envelope
 
 The static layer stores probability evidence in log space to avoid underflow.
 Two data-derived endpoints delimit the selected threshold:
 
 - `alpha_onset`: first observed positive structural event;
-- `alpha_null`: permutation-null endpoint based on the maximum positive
-  correlation under independently permuted objective columns.
+- `alpha_null`: permutation-null endpoint derived from the empirical upper
+  envelope of maximum positive correlations under independently permuted
+  objective columns.
 
 `aggressiveness` interpolates between these endpoints in log space.
 
-Null estimation begins with at least `N` permutations and is bounded by
-`B_max=10N`. Its stopping criterion is deliberately structural rather than
-numerical. At the lower and upper endpoints of the current Monte Carlo
-uncertainty interval, MISDA compares:
+For a dataset with `N` rows, null estimation uses exactly `B=N` independent-
+column permutations. If `m_b` is the maximum positive pairwise correlation in
+permutation `b`, then
 
 ```text
-Sigma(alpha) = (
-    structural_dimension,
-    latent_dimension,
-    complete structural_coverage tie-group ordering,
-)
+r_null = max(m_1, ..., m_N)
+log_alpha_null = positive_correlation_log_p(r_null, N)
 ```
 
-The estimator stops when the two signatures match. Dimensions alone would be
-too weak because candidate sets/order could still change. Literal graph equality
-would be too strong because an edge can change without changing any public
-discovery conclusion. Raw metric equality would likewise pursue numerical
-precision with no decision consequence.
+The same threshold is shared by `G+` and `G±`. The former sequential
+`mean ± MC-SE` decision-stability rule and its `10N` cap are obsolete under this
+estimator. Legacy convergence/interval fields remain only for API compatibility:
+normal completion means the fixed `N`-permutation envelope was completed, and
+its retained interval fields are degenerate rather than uncertainty intervals.
+ADR 0015 is normative for this behavior.
 
 ## 3. Discovery, evaluation, and ranking are separate operations
 

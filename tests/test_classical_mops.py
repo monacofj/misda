@@ -76,7 +76,7 @@ def test_classical_runner_writes_reference_artifact_without_dimension_truth(tmp_
         [
             sys.executable,
             "-m",
-            "examples.benchmarks.run_classical_mops",
+            "benchmarks.run_classical",
             "--quick",
             "--problem-id",
             "dtlz5",
@@ -116,7 +116,7 @@ def test_unknown_classical_problem_id_is_rejected(tmp_path):
         [
             sys.executable,
             "-m",
-            "examples.benchmarks.run_classical_mops",
+            "benchmarks.run_classical",
             "--quick",
             "--problem-id",
             "not_a_problem",

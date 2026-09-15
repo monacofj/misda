@@ -21,17 +21,17 @@ jobs:
           python -m pip install -e '.[benchmarks]' pytest nbconvert nbformat jupyter
       - name: Full test suite
         run: pytest -q
-      - name: Clean diagnostic scientific battery
-        run: python -m examples.benchmarks.run_benchmark --strict --output /tmp/misda-diagnostic-clean.json
-      - name: Preserve clean diagnostic artifact
+      - name: Controlled clean scientific battery
+        run: python -m benchmarks.run_controlled --strict --output /tmp/misda-controlled.json
+      - name: Preserve controlled artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: misda-diagnostic-clean
-          path: /tmp/misda-diagnostic-clean.json
+          name: misda-controlled
+          path: /tmp/misda-controlled.json
           if-no-files-found: warn
       - name: Diagnostic method comparison
-        run: python -m examples.benchmarks.run_comparison --output /tmp/misda-comparison.json
+        run: python -m benchmarks.run_comparison --output /tmp/misda-comparison.json
       - name: Preserve comparison artifact
         if: always()
         uses: actions/upload-artifact@v4

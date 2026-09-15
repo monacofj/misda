@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from examples.benchmarks._baseline import (
+from benchmarks._baseline import (
     _linear_press_reconstruction,
     _pareto_preservation,
 )
@@ -75,9 +75,9 @@ def test_historical_pareto_helper_keeps_retention_and_validity_distinct():
 @pytest.mark.parametrize(
     "module,selector,case_id,suite",
     [
-        ("examples.benchmarks.run_benchmark", "--case-id", "case_01", "diagnostic_clean"),
+        ("benchmarks.run_controlled", "--case-id", "case_01", "diagnostic_clean"),
         (
-            "examples.benchmarks.run_comparison",
+            "benchmarks.run_comparison",
             "--problem-id",
             "total_redundancy",
             "diagnostic_comparison",
@@ -183,7 +183,7 @@ def test_unknown_case_id_is_rejected(tmp_path):
         [
             sys.executable,
             "-m",
-            "examples.benchmarks.run_benchmark",
+            "benchmarks.run_controlled",
             "--quick",
             "--case-id",
             "not_a_case",
@@ -204,7 +204,7 @@ def test_unknown_comparison_problem_id_is_rejected(tmp_path):
         [
             sys.executable,
             "-m",
-            "examples.benchmarks.run_comparison",
+            "benchmarks.run_comparison",
             "--quick",
             "--problem-id",
             "not_a_problem",
@@ -221,7 +221,7 @@ def test_unknown_comparison_problem_id_is_rejected(tmp_path):
 
 
 def test_cli_never_passes_case_declarations_into_discover(monkeypatch):
-    module = importlib.import_module("examples.benchmarks.run_benchmark")
+    module = importlib.import_module("benchmarks.run_controlled")
     original = module.misda.discover
     observed_kwargs = []
 
@@ -242,7 +242,7 @@ def test_cli_never_passes_case_declarations_into_discover(monkeypatch):
 
 
 def test_benchmark_runner_matches_notebook_reference_scope(monkeypatch):
-    module = importlib.import_module("examples.benchmarks.run_benchmark")
+    module = importlib.import_module("benchmarks.run_controlled")
     assert inspect.signature(module.run_benchmark).parameters["n"].default == 300
 
     original = module.misda.evaluate
@@ -260,7 +260,7 @@ def test_benchmark_runner_matches_notebook_reference_scope(monkeypatch):
 
 
 def test_comparison_runner_uses_clean_diagnostic_truth(monkeypatch):
-    module = importlib.import_module("examples.benchmarks.run_comparison")
+    module = importlib.import_module("benchmarks.run_comparison")
     assert inspect.signature(module.run_comparison).parameters["n"].default == 300
 
     original = module.misda.discover

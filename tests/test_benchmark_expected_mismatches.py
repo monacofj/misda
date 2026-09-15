@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import misda
-from examples.benchmarks.run_benchmark import (
+from benchmarks.run_controlled import (
     enforce_scientific_assessment,
     unexpected_mismatch_case_ids,
     unexpected_mismatch_details,

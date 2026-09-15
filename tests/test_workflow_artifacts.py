@@ -11,11 +11,13 @@ def test_acceptance_workflow_preserves_benchmark_json_artifacts():
     workflow = _workflow_text()
 
     assert "uses: actions/upload-artifact@v4" in workflow
-    assert "name: misda-diagnostic-clean" in workflow
-    assert "path: /tmp/misda-diagnostic-clean.json" in workflow
+    assert "name: misda-controlled" in workflow
+    assert "path: /tmp/misda-controlled.json" in workflow
     assert "name: misda-comparison" in workflow
     assert "path: /tmp/misda-comparison.json" in workflow
-    assert "examples.benchmarks.run_comparison" in workflow
+    assert "benchmarks.run_controlled" in workflow
+    assert "benchmarks.run_comparison" in workflow
+    assert "examples.benchmarks" not in workflow
     assert "misda-comparative" not in workflow
     assert workflow.count("if: always()") >= 2
 

@@ -6,7 +6,7 @@ import inspect
 import numpy as np
 import pytest
 
-from examples.benchmarks.cases import (
+from benchmarks.cases import (
     make_case1_independence,
     make_case2_total_redundancy,
     make_case3_block_structure,
@@ -15,7 +15,7 @@ from examples.benchmarks.cases import (
     make_case6_mixed_structure,
     make_case7_pure_conflict_groups,
 )
-from examples.mop_definitions import (
+from benchmarks.mop_definitions import (
     mopA_monotonic_redundancy,
     mopB_tradeoff_with_redundancies,
     mopC_latent_blocks_4x5,
