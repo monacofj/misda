@@ -31,9 +31,9 @@ from .api import (
     Ranking,
     StructuralMetrics,
     discover,
-    evaluate,
     rank,
 )
+from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
 from .benchmark import (
     BenchmarkCase,
     BenchmarkResult,
@@ -53,6 +53,7 @@ __all__ = [
     "NonlinearMetrics",
     "NullReferenceMetrics",
     "ParetoMetrics",
+    "ParetoStabilityDiagnostics",
     "MISCandidate",
     "CandidateSupport",
     "DimensionalSupport",
