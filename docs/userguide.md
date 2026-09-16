@@ -71,17 +71,23 @@ positive-signal onset precedes the null-calibrated endpoint;
 ## 4. The canonical MIS universe
 
 Every maximal independent set of `G+` is retained. `MISSet` has a fixed
-canonical order established by the structural policy `structural_coverage`:
+canonical order established by the structural policy `size_span`:
 
 ```text
-size                  descending
-neighborhood          descending
-avg_external_degree   descending
-span                  descending
+size   descending
+span   descending
 ```
 
+For a maximal independent set `S`, every vertex outside `S` must be adjacent to
+at least one vertex in `S`; otherwise `S` would not be maximal. Therefore
+`neighborhood = n - size`. Also, `avg_external_degree = span / size`. Once
+`size` is fixed, neither quantity adds an independent ranking criterion. These
+metrics remain available for structural description, but the scientific
+ranking key is explicitly `size` followed by `span`.
+
 A deterministic label-based tie-break makes the sequence reproducible but does
-not create a new scientific rank.
+not create a new scientific rank. Equal `size` and `span` therefore define a
+scientific tie group.
 
 ```python
 candidate = mis_set[0]
@@ -106,8 +112,8 @@ Use `rank()` to materialize an ordered view:
 ranking = misda.rank(mis_set)
 ```
 
-The default is `policy="structural_coverage"`. The current release defines no
-alternative policy yet.
+The default is `policy="size_span"`. The current release defines no alternative
+policy yet.
 
 A `Ranking` references the same candidate objects and does not mutate the
 `MISSet`:
@@ -147,9 +153,8 @@ The current mechanisms are:
 - `HIDDEN_SPECTRAL_STRUCTURE`: the first rank-correlation eigenvalue beyond the
   estimated latent signal dimension exceeds its column-permutation null mean.
 
-If several candidates tie at the first `structural_coverage` rank, support is
-evaluated for all of them using the same null permutations. Aggregate states
-are:
+If several candidates tie at the first `size_span` rank, support is evaluated
+for all of them using the same null permutations. Aggregate states are:
 
 ```text
 SUPPORTED             all tied first-rank candidates supported
