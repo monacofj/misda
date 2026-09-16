@@ -311,20 +311,42 @@ null.incidental_reconstruction_rate
 null.mc_se_mean_null_r2
 ```
 
-## 8. Reports and graphs
+## 8. Reports and visualizations
 
 ```python
 print(mis_set.report())
-figure = mis_set.graph_plot(show=False)
+graph = mis_set.graph_plot(show=False)
+front = mis_set.front_plot(show=False)
 ```
 
-The report renders only stored evidence; it does not trigger hidden evaluation.
-`graph_plot()` draws `G+` and highlights the candidate selected by the supplied
-ranking. To visualize another ranking snapshot:
+The report and visualization views consume only stored state; they do not
+trigger hidden candidate evaluation.
+
+Visualizations that depend on one MIS use a common selector:
 
 ```python
-mis_set.graph_plot(ranking=ranking)
+mis_set.graph_plot(ranking="default", level=0, position=0)
+mis_set.front_plot(ranking="default", level=0, position=0)
 ```
+
+`ranking=None` and `ranking="default"` select the current canonical ranking.
+`ranking="size_span"` explicitly pins the named policy, and an existing
+`Ranking` object may be supplied directly. `level` selects a scientific tie
+group; `position` selects one MIS within that group.
+
+`graph_plot()` draws stored `G+` and highlights the selected MIS. `front_plot()`
+requires Pareto evidence already stored for the selected MIS and renders the
+full/reduced empirical-front membership with Plotly. With at least three
+objectives it uses a rotatable 3D scatter; with two objectives it uses a 2D
+scatter. Objective selectors alter only the displayed projection, not Pareto
+membership.
+
+Inside notebooks, `front_plot(show=True)` displays inline. From a terminal it
+writes a self-contained temporary HTML file and attempts to open it in the
+system browser; if automatic browser launch is unavailable, the retained file
+path is reported. The Plotly `Figure` is returned in all cases.
+
+See `docs/visualization.md` and ADR 0018 for the full visualization contract.
 
 ## 9. Benchmark evaluation
 
