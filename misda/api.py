@@ -35,7 +35,9 @@ from ._support import (
 from ._validation import normalize_input_matrix, validate_aggressiveness
 
 
-STRUCTURAL_COVERAGE = "structural_coverage"
+SIZE_SPAN = "size_span"
+# Backward-compatible import alias. The canonical policy name is SIZE_SPAN.
+STRUCTURAL_COVERAGE = SIZE_SPAN
 PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
 
 
@@ -306,7 +308,7 @@ class MISSet:
         return Ranking(
             self,
             tuple(range(len(self))),
-            policy=STRUCTURAL_COVERAGE,
+            policy=SIZE_SPAN,
             groups=self._rank_groups,
         )
 
@@ -431,8 +433,6 @@ class Ranking:
 def _structural_sort_key(metric):
     return (
         -metric["size"],
-        -metric["neighborhood"],
-        -metric["avg_external_degree"],
         -metric["span"],
         tuple(repr(label) for label in metric["mis_labels"]),
     )
@@ -441,13 +441,11 @@ def _structural_sort_key(metric):
 def _structural_rank_value(metric):
     return (
         metric["size"],
-        metric["neighborhood"],
-        metric["avg_external_degree"],
         metric["span"],
     )
 
 
-def _rank_structural_coverage(structure, labels):
+def _rank_size_span(structure, labels):
     n_objectives = structure.structural_graph.number_of_nodes()
     adjacency = nx.to_numpy_array(
         structure.structural_graph,
@@ -470,9 +468,13 @@ def _rank_structural_coverage(structure, labels):
     return ordered, tuple(tuple(group) for group in groups)
 
 
+# Private compatibility alias for tests/extensions that imported the old helper.
+_rank_structural_coverage = _rank_size_span
+
+
 def _discovery_signature(correlation_statistics, log_alpha):
     structure = build_dependency_graphs(correlation_statistics, log_alpha)
-    ranked, groups = _rank_structural_coverage(
+    ranked, groups = _rank_size_span(
         structure, correlation_statistics.labels
     )
     grouped_mis = tuple(
@@ -554,7 +556,7 @@ def discover(
 
     graph_start = time.perf_counter()
     structure = build_dependency_graphs(correlation_statistics, log_alpha)
-    ranked, groups = _rank_structural_coverage(structure, normalized.labels)
+    ranked, groups = _rank_size_span(structure, normalized.labels)
     candidates = tuple(
         MISCandidate(
             objectives=tuple(item["mis_labels"]),
@@ -728,7 +730,7 @@ def _candidate_indices(mis_set, candidates, metrics):
             raise ValueError("candidates must be non-negative.")
         return (
             tuple(range(min(count, len(mis_set)))),
-            f"first {count} in {STRUCTURAL_COVERAGE} order",
+            f"first {count} in {SIZE_SPAN} order",
         )
     try:
         selected = tuple(int(index) for index in candidates)
@@ -863,7 +865,7 @@ def evaluate(
 
 def rank(
     mis_set,
-    policy=STRUCTURAL_COVERAGE,
+    policy=SIZE_SPAN,
     *,
     candidates="all",
     accept_cost=False,
@@ -872,10 +874,10 @@ def rank(
 
     if not isinstance(mis_set, MISSet):
         raise TypeError("mis_set must be an MISSet.")
-    if policy != STRUCTURAL_COVERAGE:
+    if policy != SIZE_SPAN:
         raise ValueError(
             f"Unsupported ranking policy {policy!r}; currently only "
-            f"{STRUCTURAL_COVERAGE!r} is defined."
+            f"{SIZE_SPAN!r} is defined."
         )
     if not isinstance(accept_cost, (bool, np.bool_)):
         raise TypeError("accept_cost must be a boolean.")
@@ -894,6 +896,6 @@ def rank(
     return Ranking(
         mis_set,
         ordered,
-        policy=STRUCTURAL_COVERAGE,
+        policy=SIZE_SPAN,
         groups=groups,
     )
