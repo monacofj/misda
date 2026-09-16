@@ -77,6 +77,20 @@ def test_membership_gain_radius_breaks_all_current_dominators():
     assert radius == 0.05
 
 
+def test_constant_objective_does_not_force_gain_radius_to_zero():
+    Y = np.array(
+        [
+            [0.0, 0.0, 7.0],
+            [0.1, 1.0, 7.0],
+            [1.0, 0.2, 7.0],
+        ]
+    )
+    normalized = _normalize_by_empirical_range(Y)
+
+    gain = _dominated_membership_gain_radii(normalized, (0,))
+    np.testing.assert_allclose([value for _, value in gain], [0.05, 0.10])
+
+
 def test_range_normalized_diagnostics_are_invariant_to_positive_affine_scaling():
     Y = np.array(
         [
