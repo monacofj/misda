@@ -1,0 +1,6 @@
+# Files whose protective role must not be changed without human review.
+
+.github/       @monacofj
+tests/         @monacofj
+docs/adr/      @monacofj
+pyproject.toml @monacofj
