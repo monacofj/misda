@@ -29,5 +29,6 @@ Each note should make its current status explicit. Useful states are:
 - `2026-09-transitive-positive-chains.md`
 - `2026-09-hidden-structure-under-regime-switching.md`
 - `2026-09-pareto-noise-susceptibility.md`
+- `2026-09-pearson-vs-spearman-investigation.md`
 
 The collection is intentionally selective. Routine implementation debugging, ordinary refactors, and decisions already fully explained by an ADR do not automatically deserve a research note. The criterion is whether preserving the path of investigation can prevent future researchers from repeating a substantive dead end or losing a useful unresolved hypothesis.
