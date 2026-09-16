@@ -14,8 +14,10 @@ The normative alpha-stage public flow is:
 ```python
 mis_set = misda.discover(Y, ...)
 misda.evaluate(mis_set, metrics=(...), candidates=...)
-ranking = misda.rank(mis_set, policy="structural_coverage")
+ranking = misda.rank(mis_set, policy="size_span")
 ```
+
+The canonical ranking policy name is governed by ADR 0017.
 
 ### MISSet
 
