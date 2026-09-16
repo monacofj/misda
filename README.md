@@ -35,7 +35,7 @@ python -m pip install .
 ```
 
 MISDA requires Python 3.8 or newer and depends on NumPy, pandas, SciPy,
-NetworkX, Matplotlib, and scikit-learn.
+NetworkX, Matplotlib, Plotly, and scikit-learn.
 
 ## Quick start
 
@@ -67,7 +67,8 @@ print(structural.selected.objectives)
 print(structural.selected_dimension)
 print(structural.selected.linear.mean_r2)
 
-figure = mis_set.graph_plot(show=False, ranking=structural)
+graph_figure = mis_set.graph_plot(show=False, ranking=structural)
+front_figure = mis_set.front_plot(show=False, ranking=structural)
 ```
 
 `discover()` determines thresholds, builds `G+` and `G±`, estimates dimensions,
@@ -164,6 +165,26 @@ structural.selected_dimension
 
 Under the current complete enumeration and size-first `size_span` policy they
 coincide for the canonical selection, but they are defined independently.
+
+## Visualizations
+
+`MISSet` visualizations use a common ranking selection rule:
+
+```python
+mis_set.graph_plot(ranking="default", level=0, position=0)
+mis_set.front_plot(ranking="default", level=0, position=0)
+```
+
+`level` selects a scientific tie group and `position` selects one MIS within
+that group. `ranking="size_span"` pins the current named policy; a `Ranking`
+instance can also be supplied directly.
+
+`graph_plot()` renders the stored structural graph. `front_plot()` renders
+already evaluated Pareto-preservation state as an interactive Plotly scatter,
+with rotatable 3D projection when at least three objectives are available and
+objective selectors for the displayed axes. It does not trigger hidden Pareto
+evaluation. See [docs/visualization.md](docs/visualization.md) for the complete
+visualization contract and terminal/browser fallback behavior.
 
 ## Dimensional support
 
