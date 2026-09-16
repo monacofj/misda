@@ -96,9 +96,7 @@ def test_path_dimension_is_independence_number_not_component_count():
     relations = [(index, index + 1, 1) for index in range(19)]
     statistics = _statistics_from_relations(relations, 20)
     structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
-    ranked, groups = newapi._rank_structural_coverage(
-        structure, statistics.labels
-    )
+    ranked, groups = newapi._rank_size_span(structure, statistics.labels)
 
     assert structure.structural_component_count == 1
     assert structure.structural_dimension == 10
@@ -121,7 +119,7 @@ def test_two_anticorrelated_positive_cliques_have_structural_two_latent_one():
     relations.extend((left, right, -1) for left in first for right in second)
     statistics = _statistics_from_relations(relations, 20)
     structure = _graph.build_dependency_graphs(statistics, log_alpha=-5.0)
-    ranked, _ = newapi._rank_structural_coverage(structure, statistics.labels)
+    ranked, _ = newapi._rank_size_span(structure, statistics.labels)
 
     assert structure.structural_dimension == 2
     assert structure.latent_dimension == 1
@@ -203,7 +201,7 @@ def test_enumerated_sets_are_unique_maximal_and_deterministic(relations):
         )
 
 
-def test_structural_coverage_groups_equal_scientific_values_and_uses_labels_only_inside_tie(monkeypatch):
+def test_size_span_groups_equal_scientific_values_and_uses_labels_only_inside_tie(monkeypatch):
     class Structure:
         structural_graph = __import__("networkx").empty_graph(4)
 
@@ -222,7 +220,7 @@ def test_structural_coverage_groups_equal_scientific_values_and_uses_labels_only
     monkeypatch.setattr(newapi, "enumerate_structural_mis", lambda structure: [[0, 1], [2, 3]])
     monkeypatch.setattr(newapi, "compute_mis_metrics", lambda *args: measured)
 
-    ranked, groups = newapi._rank_structural_coverage(
+    ranked, groups = newapi._rank_size_span(
         Structure(), ["z", "y", "a", "b"]
     )
 
@@ -243,7 +241,7 @@ def test_discovery_signature_contains_ds_dl_and_tie_groups(monkeypatch):
     monkeypatch.setattr(newapi, "build_dependency_graphs", lambda *args: FakeStructure())
     monkeypatch.setattr(
         newapi,
-        "_rank_structural_coverage",
+        "_rank_size_span",
         lambda *args: (ranked, ((0, 1), (2,))),
     )
 
@@ -268,7 +266,7 @@ def test_discovery_signature_ignores_order_inside_true_tie(monkeypatch):
     ]
     monkeypatch.setattr(
         newapi,
-        "_rank_structural_coverage",
+        "_rank_size_span",
         lambda *args: (first, ((0, 1),)),
     )
     signature_a = newapi._discovery_signature(statistics, -5.0)
@@ -276,7 +274,7 @@ def test_discovery_signature_ignores_order_inside_true_tie(monkeypatch):
     second = list(reversed(first))
     monkeypatch.setattr(
         newapi,
-        "_rank_structural_coverage",
+        "_rank_size_span",
         lambda *args: (second, ((0, 1),)),
     )
     signature_b = newapi._discovery_signature(statistics, -5.0)
