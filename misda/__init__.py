@@ -15,6 +15,19 @@ part of this API.
 """
 
 from ._metadata import __version__
+
+# Experimental branch override: keep the production API and all downstream
+# logic unchanged, but replace the two discovery-stage Pearson statistics with
+# Spearman equivalents.  The production ``main`` branch remains untouched.
+from . import api as _api
+from ._statistics_spearman import (
+    compute_correlation_statistics as _compute_spearman_statistics,
+    estimate_null_positive_correlation as _estimate_spearman_null,
+)
+
+_api.compute_correlation_statistics = _compute_spearman_statistics
+_api.estimate_null_positive_correlation = _estimate_spearman_null
+
 from .api import (
     PARTIALLY_SUPPORTED,
     STRUCTURAL_COVERAGE,
