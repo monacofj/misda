@@ -181,9 +181,12 @@ def run_pareto_response_validation(
     problem_values = tuple(problem_ids)
     if not sigma_values or not replicate_values or not problem_values:
         raise ValueError("sigmas, replicate_seeds, and problem_ids must be non-empty.")
-    unknown = set(problem_values) - set(PROBLEM_BY_ID)
+    unknown = set(problem_values) - set(NOISY_ROBUSTNESS_PROBLEM_IDS)
     if unknown:
-        raise ValueError(f"Unknown problem id(s): {', '.join(sorted(unknown))}")
+        raise ValueError(
+            "Problem id(s) outside the noisy-robustness protocol: "
+            + ", ".join(sorted(unknown))
+        )
 
     model_specs = (
         ("gaussian_iid", "gaussian", 0.0),
@@ -194,7 +197,8 @@ def run_pareto_response_validation(
     )
     records: list[dict] = []
 
-    for problem_position, problem_id in enumerate(problem_values):
+    for problem_id in problem_values:
+        problem_position = NOISY_ROBUSTNESS_PROBLEM_IDS.index(problem_id)
         problem = PROBLEM_BY_ID[problem_id]
         for replicate_seed in replicate_values:
             sample_seed = int(
