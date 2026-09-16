@@ -114,14 +114,20 @@ explicitly.
 
 ## Ranking
 
-The current canonical policy is `structural_coverage`:
+The current canonical policy is `size_span`:
 
 ```text
-size                  descending
-neighborhood          descending
-avg_external_degree   descending
-span                  descending
+size   descending
+span   descending
 ```
+
+For a maximal independent set `S` of `G+`, every vertex outside `S` must be
+adjacent to at least one vertex in `S`; otherwise `S` would not be maximal.
+Therefore `neighborhood = n - size`. Also,
+`avg_external_degree = span / size`. Once `size` is fixed, neither quantity
+adds an independent ranking criterion. They remain available as descriptive
+structural diagnostics, but the scientific ranking key is explicitly
+`size` followed by `span`.
 
 Thus:
 
@@ -132,8 +138,11 @@ structural = misda.rank(mis_set)
 is equivalent to:
 
 ```python
-structural = misda.rank(mis_set, policy="structural_coverage")
+structural = misda.rank(mis_set, policy="size_span")
 ```
+
+A deterministic label-based tie-break provides reproducible order inside a
+scientific tie but does not create a new rank group.
 
 A `Ranking` is a view over the same candidates; it does not reorder `mis_set`.
 Slicing returns another ranking view:
@@ -153,9 +162,8 @@ mis_set.analysis.structural_dimension
 structural.selected_dimension
 ```
 
-Under the current complete enumeration and size-first `structural_coverage`
-policy they coincide for the canonical selection, but they are defined
-independently.
+Under the current complete enumeration and size-first `size_span` policy they
+coincide for the canonical selection, but they are defined independently.
 
 ## Dimensional support
 
