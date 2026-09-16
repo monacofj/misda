@@ -138,18 +138,23 @@ def _dominated_membership_gain_radii(normalized, front_indices):
 
     A dominated point ``i`` becomes nondominated only after every current
     dominator ``j`` is prevented from dominating it. For one such ``j``, the
-    cheapest objective on which to reverse the relation has gap
+    cheapest active objective on which to reverse the relation has gap
     ``min_k(Y[i,k] - Y[j,k])``. Improving ``i`` and worsening ``j`` each by
     ``epsilon`` closes that gap at twice the perturbation rate. The pointwise
     gain radius is therefore half the largest such cheapest gap across all
-    current dominators. The value is an infimum; tied coordinates can yield a
-    zero radius.
+    current dominators. The value is an infimum; tied active coordinates can
+    yield a zero radius. Constant objectives are excluded because empirical-
+    range normalization assigns them no perturbation scale.
     """
 
     data = np.asarray(normalized, dtype=float)
     n_rows = data.shape[0]
     front = set(int(index) for index in front_indices)
+    active = np.ptp(data, axis=0) > 0.0
     gains = []
+
+    if not np.any(active):
+        return ()
 
     for index in range(n_rows):
         if index in front:
@@ -169,7 +174,7 @@ def _dominated_membership_gain_radii(normalized, front_indices):
             # indices; this cannot occur when the indices come from ``data``.
             continue
 
-        gaps = current - data[dominator_rows]
+        gaps = current[active] - data[dominator_rows][:, active]
         cheapest_break_by_dominator = np.min(gaps, axis=1)
         radius = 0.5 * float(np.max(cheapest_break_by_dominator))
         gains.append((int(index), max(0.0, radius)))
