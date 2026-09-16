@@ -40,10 +40,19 @@ def _enforce_min_distance(pos, min_dist=0.28, iters=900, jitter=1e-3, seed=7):
     return {n: P[k] for k, n in enumerate(nodes)}
 
 
-def plot_mis_set_graph(mis_set, *, ranking, show=True):
+def plot_mis_set_graph(
+    mis_set,
+    *,
+    ranking,
+    candidate=None,
+    candidate_index=None,
+    level=0,
+    position=0,
+    show=True,
+):
     """Render the stored positive structural graph.
 
-    The candidate selected by ``ranking`` is highlighted in green. Its direct
+    The explicitly selected candidate is highlighted in green. Its direct
     structural neighbors are black. No scientific calculation is performed by
     this view.
     """
@@ -52,7 +61,7 @@ def plot_mis_set_graph(mis_set, *, ranking, show=True):
         raise ValueError("ranking belongs to a different MISSet.")
 
     graph = mis_set.analysis.structural_graph
-    selected = ranking.selected
+    selected = ranking.selected if candidate is None else candidate
     selected_nodes = set(selected.indices if selected is not None else ())
     neighbor_nodes = set()
     for node in selected_nodes:
@@ -143,9 +152,24 @@ def plot_mis_set_graph(mis_set, *, ranking, show=True):
             zorder=10,
         )
 
+    if candidate_index is None and selected is not None:
+        candidate_index = next(
+            (
+                index
+                for index, observed in enumerate(mis_set)
+                if observed is selected
+            ),
+            None,
+        )
+    detail = (
+        f"; level={level}; position={position}; candidate[{candidate_index}]"
+        if candidate_index is not None
+        else ""
+    )
+    selected_dimension = selected.size if selected is not None else None
     ax.set_title(
         "MISDA structural graph — "
-        f"{ranking.policy}; selected dimension={ranking.selected_dimension}"
+        f"{ranking.policy}; selected dimension={selected_dimension}{detail}"
     )
     ax.axis("off")
     fig.tight_layout()
