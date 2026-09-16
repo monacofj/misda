@@ -15,6 +15,6 @@ def test_benchmark_report_surfaces_stored_dimensional_support():
         {"latent_expected": 1, "structural_expected": 2},
     ).report()
 
-    assert f"Dim. support   : {result.support.status}" in report
+    assert f"Dimensional support: {result.support.status}" in report
     for support_result in result.support.results:
         assert result.support.for_candidate(support_result.candidate_index) is support_result
