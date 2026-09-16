@@ -14,7 +14,7 @@ misda/__init__.py
 misda/api.py
     Static discovery/evaluation/ranking implementation and typed result model:
       - MISSet and MISCandidate.
-      - Ranking and the structural_coverage policy.
+      - Ranking and the canonical size_span policy.
       - StructuralMetrics, LinearMetrics, NonlinearMetrics, and ParetoMetrics.
       - DimensionalSupport and CandidateSupport.
 
