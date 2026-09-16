@@ -128,3 +128,55 @@ jobs:
           name: pearson-monotonic
           path: /tmp/pearson-monotonic.json
           if-no-files-found: warn
+
+  monotonic-robustness-spearman:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install Spearman branch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]'
+      - name: Spearman monotonic robustness
+        run: python -m benchmarks.run_monotonic_robustness --label spearman --output /tmp/spearman-monotonic-robustness.json
+      - name: Preserve Spearman robustness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spearman-monotonic-robustness
+          path: /tmp/spearman-monotonic-robustness.json
+          if-no-files-found: warn
+
+  monotonic-robustness-pearson:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: spearman
+          path: experiment
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: baseline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: baseline/pyproject.toml
+      - name: Install Pearson main
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e 'baseline[benchmarks]'
+      - name: Pearson monotonic robustness
+        run: python experiment/benchmarks/run_monotonic_robustness.py --label pearson --output /tmp/pearson-monotonic-robustness.json
+      - name: Preserve Pearson robustness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pearson-monotonic-robustness
+          path: /tmp/pearson-monotonic-robustness.json
+          if-no-files-found: warn
