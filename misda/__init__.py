@@ -87,6 +87,7 @@ _api.discover = discover
 
 from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
 from . import _reporting as _reporting  # installs the public MISSet.report renderer
+from . import _front_plotting as _front_plotting  # installs graph/front plot views
 from .benchmark import (
     BenchmarkCase,
     BenchmarkResult,
