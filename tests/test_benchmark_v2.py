@@ -209,7 +209,7 @@ def test_serializer_records_ranking_not_intrinsic_candidate_rank():
         "structural_dimension": 2,
         "selected_dimension": 2,
     }
-    assert observed["ranking_policy"] == "structural_coverage"
+    assert observed["ranking_policy"] == "size_span"
     assert observed["selected_indices"] == list(result.structural_ranking.selected.indices)
     assert "preferred_mis_size" not in observed["estimated"]
     assert "rank_counts" not in observed
