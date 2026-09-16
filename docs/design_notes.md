@@ -86,17 +86,24 @@ to threshold inference.
 
 ## 4. Canonical structural order
 
-The current natural policy is `structural_coverage`:
+The current natural policy is `size_span`:
 
 ```text
-size                  descending
-neighborhood          descending
-avg_external_degree   descending
-span                  descending
+size   descending
+span   descending
 ```
 
-Labels provide a deterministic final tie-break only. Equal values for the four
-scientific criteria remain one rank group.
+For a maximal independent set `S`, maximality implies that every vertex outside
+`S` is adjacent to at least one selected vertex. Hence
+`neighborhood = n - size`. In addition,
+`avg_external_degree = span / size`. After `size` ties, neither quantity can
+change the ordering independently of `span`.
+
+`neighborhood`, `neighborhood_ratio`, `avg_external_degree`, and
+`avg_internal_degree` remain descriptive structural metrics, not independent
+ranking criteria. Labels provide a deterministic final tie-break only. Equal
+`size` and `span` values remain one scientific rank group. ADR 0017 is normative
+for this policy.
 
 The canonical order makes integer positions stable and useful, but contextual
 rank does not belong to `MISCandidate`. A future policy can rank the same
@@ -161,10 +168,10 @@ beyond the estimated latent signal dimension and subtracts a column-permutation
 null reference. Positive excess indicates organized multivariate structure
 remaining beyond the estimate.
 
-If several candidates tie at first `structural_coverage` rank, all are evaluated
-using shared null permutations. This prevents an arbitrary deterministic
-label-based tie-break from deciding a scientific support status. The aggregate
-state is `SUPPORTED`, `PARTIALLY_SUPPORTED`, or `UNSUPPORTED`, while individual
+If several candidates tie at first `size_span` rank, all are evaluated using
+shared null permutations. This prevents an arbitrary deterministic label-based
+tie-break from deciding a scientific support status. The aggregate state is
+`SUPPORTED`, `PARTIALLY_SUPPORTED`, or `UNSUPPORTED`, while individual
 candidate evidence remains inspectable.
 
 ## 8. Result and reporting boundaries
