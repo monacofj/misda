@@ -122,7 +122,7 @@ def test_benchmark_cli_writes_newapi_json(
     assert isinstance(case["estimated"]["latent_dimension"], int)
     assert isinstance(case["estimated"]["structural_dimension"], int)
     assert case["estimated"]["selected_dimension"] == len(case["selected_indices"])
-    assert case["ranking_policy"] == "structural_coverage"
+    assert case["ranking_policy"] == "size_span"
     assert sum(len(group) for group in case["ranking_groups"]) == case["n_mis"]
     assert set(case["graphs"]["dependence"]) == {"nodes", "edges", "components"}
     assert case["separation_status"] in {
