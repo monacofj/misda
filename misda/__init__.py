@@ -34,6 +34,7 @@ from .api import (
     rank,
 )
 from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
+from . import _reporting as _reporting  # installs the public MISSet.report renderer
 from .benchmark import (
     BenchmarkCase,
     BenchmarkResult,
