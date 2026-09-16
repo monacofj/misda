@@ -30,5 +30,6 @@ Each record may contain: Context, Definitions, Decision, Formal specification, R
 - [0013 — Benchmark and validation contract](0013-benchmark-and-validation-contract.md)
 - [0014 — Public diagnostics and reporting semantics](0014-public-diagnostics-and-reporting-semantics.md)
 - [0015 — Empirical null envelope for alpha-null estimation](0015-empirical-null-envelope-alpha-null.md)
+- [0016 — Public capability non-regression contract](0016-public-capability-non-regression.md)
 
 All records below are retrospective unless explicitly stated otherwise. They document the current MISDA design, with later records superseding earlier decisions where explicitly stated.
