@@ -105,13 +105,15 @@ def build_cases(n=DEFAULT_N, seed=DEFAULT_SEED):
             "structural_expected": 2,
         },
         {
-            "id": "nonmonotonic_quadratic_control",
+            "id": "nonmonotonic_quadratic_limit",
             "description": (
-                "Deterministic but globally non-monotonic relation: y = x^2 on [-1,1]."
+                "Deterministic but globally non-monotonic latent dependence: y = x^2 "
+                "on [-1,1]. Latent truth is one dimension, but there is no global "
+                "positive monotonic redundancy, so structural truth is two."
             ),
             "Y": np.column_stack((x11, x11**2)),
             "focus_pair": (0, 1),
-            "latent_expected": 2,
+            "latent_expected": 1,
             "structural_expected": 2,
         },
         {
