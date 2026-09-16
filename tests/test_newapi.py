@@ -30,6 +30,11 @@ def test_public_surface_is_discover_evaluate_rank():
     assert not hasattr(misda, "heavy")
 
 
+def test_public_ranking_policy_is_size_span():
+    assert misda.SIZE_SPAN == "size_span"
+    assert misda.STRUCTURAL_COVERAGE == misda.SIZE_SPAN
+
+
 def test_discover_has_no_policy_parameter():
     parameters = inspect.signature(misda.discover).parameters
     assert "policy" not in parameters
@@ -41,7 +46,7 @@ def test_discover_returns_canonical_mis_set():
 
     assert isinstance(result, misda.MISSet)
     assert len(result) >= 1
-    assert result.structural_ranking.policy == "structural_coverage"
+    assert result.structural_ranking.policy == "size_span"
     assert result.structural_ranking[0] is result[0]
     assert (
         result.structural_ranking.selected_dimension
