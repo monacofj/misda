@@ -19,7 +19,7 @@ import misda
 
 DEFAULT_N = 300
 DEFAULT_SEED = 123
-EXPONENT_STEEPNESS = 300.0
+EXPONENT_STEEPNESS = 650.0
 
 
 def _edges(graph):
@@ -45,9 +45,10 @@ def build_cases(n=DEFAULT_N, seed=DEFAULT_SEED):
 
     x01 = np.linspace(0.0, 1.0, n)
     x11 = np.linspace(-1.0, 1.0, n)
-    # Algebraically this is exp(300*x) multiplied by the positive constant
-    # exp(-300).  Pearson and Spearman are invariant to that scaling, while the
-    # bounded range (0, 1] avoids contaminating the experiment with overflow.
+    # This is exp(k*x) multiplied by exp(-k).  Pearson and Spearman are
+    # invariant to that positive scaling, while the bounded range (0, 1]
+    # avoids overflow.  k=650 keeps all values representable for N=300 while
+    # making Pearson weak and Spearman exactly monotonic.
     steep = np.exp(EXPONENT_STEEPNESS * (x01 - 1.0))
 
     rng = np.random.default_rng(seed)
@@ -75,7 +76,7 @@ def build_cases(n=DEFAULT_N, seed=DEFAULT_SEED):
             "id": "steep_positive_monotonic",
             "description": (
                 "Strictly increasing but strongly nonlinear redundancy: "
-                "y = exp(300(x-1))."
+                "y = exp(650(x-1))."
             ),
             "Y": np.column_stack((x01, steep)),
             "focus_pair": (0, 1),
@@ -86,7 +87,7 @@ def build_cases(n=DEFAULT_N, seed=DEFAULT_SEED):
             "id": "steep_negative_monotonic",
             "description": (
                 "Strictly decreasing strong nonlinear dependence: "
-                "y = -exp(300(x-1)). It is latent dependence but not positive redundancy."
+                "y = -exp(650(x-1)). It is latent dependence but not positive redundancy."
             ),
             "Y": np.column_stack((x01, -steep)),
             "focus_pair": (0, 1),
