@@ -152,21 +152,14 @@ def plot_mis_set_graph(
             zorder=10,
         )
 
-    if candidate_index is None and selected is not None:
-        candidate_index = next(
-            (
-                index
-                for index, observed in enumerate(mis_set)
-                if observed is selected
-            ),
-            None,
-        )
     detail = (
         f"; level={level}; position={position}; candidate[{candidate_index}]"
         if candidate_index is not None
         else ""
     )
-    selected_dimension = selected.size if selected is not None else None
+    selected_dimension = getattr(selected, "size", None)
+    if selected_dimension is None:
+        selected_dimension = getattr(ranking, "selected_dimension", None)
     ax.set_title(
         "MISDA structural graph — "
         f"{ranking.policy}; selected dimension={selected_dimension}{detail}"
