@@ -48,6 +48,15 @@ class ParetoStabilityDiagnostics:
     observed point to weakly dominate that front point. Smaller values indicate
     more perturbation-sensitive exact Pareto membership.
 
+    ``membership_loss_radius_*`` gives the symmetric range-normalized
+    L-infinity perturbation radius at which a currently nondominated row can
+    become dominated. ``membership_gain_radius_*`` gives the corresponding
+    radius at which a currently dominated row can become nondominated.
+    ``membership_radius`` is the smaller available radius and therefore the
+    infimum perturbation magnitude capable of changing exact Pareto membership.
+    These radii quantify susceptibility only; they do not estimate whether
+    noise exists or how large it is.
+
     ``epsilon_by_candidate`` stores the range-normalized additive epsilon
     approximation error from each evaluated reduced front ``P_R`` to the
     observed full front ``P_Y``, with candidates indexed in canonical MISSet
@@ -61,6 +70,11 @@ class ParetoStabilityDiagnostics:
     dominance_margin_median: Optional[float]
     dominance_margin_max: Optional[float]
     dominance_margin_by_front_index: Tuple[Tuple[int, float], ...]
+    membership_loss_radius_min: Optional[float]
+    membership_gain_radius_min: Optional[float]
+    membership_radius: Optional[float]
+    membership_loss_radius_by_front_index: Tuple[Tuple[int, float], ...]
+    membership_gain_radius_by_dominated_index: Tuple[Tuple[int, float], ...]
     epsilon_by_candidate: Tuple[Optional[float], ...]
     normalization: str = "empirical_range"
 
@@ -106,6 +120,77 @@ def _front_dominance_margins(normalized, front_indices):
     return tuple(margins)
 
 
+def _front_membership_loss_radii(normalized, front_indices):
+    """Return symmetric L-infinity radii for front points to become dominated.
+
+    For front point ``i`` and competitor ``j``, the smallest symmetric
+    entrywise perturbation that can make ``j`` dominate ``i`` is half the
+    largest positive objective gap between them. The pointwise radius is the
+    minimum over competitors.
+    """
+
+    margins = _front_dominance_margins(normalized, front_indices)
+    return tuple((index, 0.5 * margin) for index, margin in margins)
+
+
+def _dominated_membership_gain_radii(normalized, front_indices):
+    """Return symmetric L-infinity radii for dominated points to enter the front.
+
+    A dominated point ``i`` becomes nondominated only after every current
+    dominator ``j`` is prevented from dominating it. For one such ``j``, the
+    cheapest objective on which to reverse the relation has gap
+    ``min_k(Y[i,k] - Y[j,k])``. Improving ``i`` and worsening ``j`` each by
+    ``epsilon`` closes that gap at twice the perturbation rate. The pointwise
+    gain radius is therefore half the largest such cheapest gap across all
+    current dominators. The value is an infimum; tied coordinates can yield a
+    zero radius.
+    """
+
+    data = np.asarray(normalized, dtype=float)
+    n_rows = data.shape[0]
+    front = set(int(index) for index in front_indices)
+    gains = []
+
+    for index in range(n_rows):
+        if index in front:
+            continue
+
+        current = data[index]
+        other_mask = np.arange(n_rows) != index
+        others = data[other_mask]
+        other_rows = np.arange(n_rows)[other_mask]
+        dominates = (
+            (others <= current).all(axis=1)
+            & (others < current).any(axis=1)
+        )
+        dominator_rows = other_rows[dominates]
+        if dominator_rows.size == 0:
+            # Defensive fallback for direct helper use with inconsistent front
+            # indices; this cannot occur when the indices come from ``data``.
+            continue
+
+        gaps = current - data[dominator_rows]
+        cheapest_break_by_dominator = np.min(gaps, axis=1)
+        radius = 0.5 * float(np.max(cheapest_break_by_dominator))
+        gains.append((int(index), max(0.0, radius)))
+
+    return tuple(gains)
+
+
+def _pareto_membership_radii(normalized, front_indices):
+    """Return loss, gain, and overall exact-membership stability radii."""
+
+    loss = _front_membership_loss_radii(normalized, front_indices)
+    gain = _dominated_membership_gain_radii(normalized, front_indices)
+    loss_min = min((value for _, value in loss), default=None)
+    gain_min = min((value for _, value in gain), default=None)
+    available = tuple(
+        value for value in (loss_min, gain_min) if value is not None
+    )
+    radius = min(available) if available else None
+    return loss, gain, loss_min, gain_min, radius
+
+
 def _normalized_additive_epsilon(normalized, approximation_indices, target_indices):
     """Return unary additive epsilon I_eps+(A, B) for minimization.
 
@@ -140,6 +225,9 @@ def compute_pareto_stability(mis_set):
     normalized = _normalize_by_empirical_range(data)
     margins = _front_dominance_margins(normalized, full_indices)
     margin_values = tuple(value for _, value in margins)
+    loss, gain, loss_min, gain_min, membership_radius = (
+        _pareto_membership_radii(normalized, full_indices)
+    )
 
     epsilon = []
     for candidate in mis_set:
@@ -164,6 +252,11 @@ def compute_pareto_stability(mis_set):
         ),
         dominance_margin_max=(max(margin_values) if margin_values else None),
         dominance_margin_by_front_index=margins,
+        membership_loss_radius_min=loss_min,
+        membership_gain_radius_min=gain_min,
+        membership_radius=membership_radius,
+        membership_loss_radius_by_front_index=loss,
+        membership_gain_radius_by_dominated_index=gain,
         epsilon_by_candidate=tuple(epsilon),
     )
 
@@ -192,6 +285,13 @@ def _report(self):
         f"median={_format_metric(diagnostics.dominance_margin_median)}, "
         f"max={_format_metric(diagnostics.dominance_margin_max)} "
         "(smaller = more perturbation-sensitive exact membership)"
+    )
+    lines.append(
+        "  Membership radius: "
+        f"overall={_format_metric(diagnostics.membership_radius)}, "
+        f"loss={_format_metric(diagnostics.membership_loss_radius_min)}, "
+        f"gain={_format_metric(diagnostics.membership_gain_radius_min)} "
+        "(range-normalized symmetric L_inf susceptibility; does not estimate noise)"
     )
     ranking = self.structural_ranking
     selected_index = ranking.indices[0] if ranking.indices else None
