@@ -180,3 +180,55 @@ jobs:
           name: pearson-monotonic-robustness
           path: /tmp/pearson-monotonic-robustness.json
           if-no-files-found: warn
+
+  monotonic-sweep-spearman:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install Spearman branch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]'
+      - name: Spearman monotonic k x noise sweep
+        run: python -m benchmarks.run_monotonic_sweep --label spearman --output /tmp/spearman-monotonic-sweep.json
+      - name: Preserve Spearman sweep artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spearman-monotonic-sweep
+          path: /tmp/spearman-monotonic-sweep.json
+          if-no-files-found: warn
+
+  monotonic-sweep-pearson:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: spearman
+          path: experiment
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: baseline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: baseline/pyproject.toml
+      - name: Install Pearson main
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e 'baseline[benchmarks]'
+      - name: Pearson monotonic k x noise sweep
+        run: python experiment/benchmarks/run_monotonic_sweep.py --label pearson --output /tmp/pearson-monotonic-sweep.json
+      - name: Preserve Pearson sweep artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pearson-monotonic-sweep
+          path: /tmp/pearson-monotonic-sweep.json
+          if-no-files-found: warn
