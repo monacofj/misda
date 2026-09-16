@@ -32,5 +32,6 @@ Each record may contain: Context, Definitions, Decision, Formal specification, R
 - [0015 — Empirical null envelope for alpha-null estimation](0015-empirical-null-envelope-alpha-null.md)
 - [0016 — Public capability non-regression contract](0016-public-capability-non-regression.md)
 - [0017 — Size-span canonical structural ranking](0017-size-span-canonical-ranking.md)
+- [0018 — Ranking-selected visualization views](0018-ranking-selected-visualization-views.md)
 
 All records below are retrospective unless explicitly stated otherwise. They document the current MISDA design, with later records superseding earlier decisions where explicitly stated.
