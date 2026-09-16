@@ -16,17 +16,19 @@ part of this API.
 
 from ._metadata import __version__
 
-# Experimental branch override: keep the production API and all downstream
-# logic unchanged, but replace the two discovery-stage Pearson statistics with
-# Spearman equivalents.  The production ``main`` branch remains untouched.
+# The canonical discovery implementation lives in ``api``.  Correlation
+# selection is injected only at the statistics boundary so Pearson and the
+# experimental Spearman backend share the complete downstream pipeline.
 from . import api as _api
-from ._statistics_spearman import (
-    compute_correlation_statistics as _compute_spearman_statistics,
-    estimate_null_positive_correlation as _estimate_spearman_null,
+from ._correlation_backend import (
+    compute_correlation_statistics as _compute_correlation_statistics,
+    correlation_backend as _correlation_backend,
+    estimate_null_positive_correlation as _estimate_null_positive_correlation,
 )
 
-_api.compute_correlation_statistics = _compute_spearman_statistics
-_api.estimate_null_positive_correlation = _estimate_spearman_null
+_api.compute_correlation_statistics = _compute_correlation_statistics
+_api.estimate_null_positive_correlation = _estimate_null_positive_correlation
+_discover_impl = _api.discover
 
 from .api import (
     PARTIALLY_SUPPORTED,
@@ -42,10 +44,46 @@ from .api import (
     NullReferenceMetrics,
     ParetoMetrics,
     Ranking,
-    StructuralMetrics,
-    discover,
     rank,
 )
+
+
+def discover(
+    Y,
+    *,
+    aggressiveness=1.0,
+    seed=123,
+    name=None,
+    cancel_requested=None,
+    correlation="pearson",
+    experimental=False,
+):
+    """Discover the complete static structural MIS universe.
+
+    Pearson is the canonical MISDA correlation backend.  Spearman is retained
+    for reproducible research and requires the explicit opt-in
+    ``experimental=True``.
+    """
+
+    with _correlation_backend(correlation, experimental) as backend:
+        result = _discover_impl(
+            Y,
+            aggressiveness=aggressiveness,
+            seed=seed,
+            name=name,
+            cancel_requested=cancel_requested,
+        )
+    # MISSet is intentionally a mutable result container for evaluation state;
+    # record the discovery backend so experimental results remain auditable.
+    result.correlation = backend
+    result.experimental = backend != "pearson"
+    return result
+
+
+# Keep ``misda.api.discover`` and ``misda.discover`` consistent for callers
+# that import the implementation module directly.
+_api.discover = discover
+
 from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
 from . import _reporting as _reporting  # installs the public MISSet.report renderer
 from .benchmark import (
