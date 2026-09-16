@@ -261,10 +261,28 @@ candidate.pareto.reduced_front_indices
 
 Exact membership agreement is deliberately separate from observed-data Pareto
 stability. When Pareto evaluation is requested, `mis_set.pareto_stability`
-reports the observed-front fraction, range-normalized dominance margins, and
-range-normalized additive epsilon from a reduced front to the observed full
-front. These quantities help distinguish a saturated/perturbation-sensitive
-front from a geometrically poor reduction; no fixed pass/fail cutoff is imposed.
+reports the observed-front fraction, range-normalized dominance margins, a
+range-normalized exact-membership stability radius, and range-normalized
+additive epsilon from a reduced front to the observed full front.
+
+```python
+stability = mis_set.pareto_stability
+stability.membership_radius
+stability.membership_loss_radius_min
+stability.membership_gain_radius_min
+```
+
+The membership radius is the infimum symmetric entrywise `L_inf` perturbation,
+after empirical-range normalization, capable of changing exact Pareto
+membership. `loss` concerns an observed Pareto row becoming dominated; `gain`
+concerns an observed dominated row becoming nondominated. Smaller values mean
+that a smaller hypothetical perturbation can change membership. This is a
+susceptibility measure only: it does not establish that noise exists, estimate
+noise magnitude, or define a pass/fail threshold.
+
+The stability quantities help distinguish a saturated or
+perturbation-sensitive observed front from a geometrically poor reduction; no
+fixed pass/fail cutoff is imposed.
 
 Mixed directions are outside the current contract.
 
