@@ -1,4 +1,4 @@
-"""Regression tests for rich observed evidence in benchmark reports."""
+"""Regression tests for benchmark report evidence and declarations."""
 
 import numpy as np
 
@@ -13,27 +13,23 @@ def _evaluated_result():
     return result
 
 
-def test_report_exposes_observed_evidence_without_external_metric_truth():
+def _misda_block(report):
+    lines = report.splitlines()
+    start = lines.index("MISDA measures (data-derived)") + 2
+    end = lines.index("Benchmark validation (requires declared truth)")
+    return "\n".join(lines[start:end]).rstrip()
+
+
+def test_report_uses_native_misda_report_without_benchmark_only_expansion():
     result = _evaluated_result()
     observed = misda.benchmark(result, {"name": "observed evidence"})
 
     report = observed.report()
 
-    assert "Candidate evaluation evidence" in report
-    assert f"Linear scope   : {len(result)}/{len(result)} candidates" in report
-    assert "Linear selected: mean_r2=" in report
-    assert "  Linear across\n" in report
-    assert "    mean_r2   : min=" in report
-    assert "    worst_r2  : min=" in report
-    assert f"Pareto scope   : {len(result)}/{len(result)} candidates" in report
-    assert "Pareto selected: retention=" in report
-    assert "Pareto fronts  : full=" in report
-    assert report.count("  Pareto across\n") == 1
-    assert "    retention : min=" in report
-    assert "    validity  : min=" in report
-    assert "    jaccard   : min=" in report
-    assert "median=" in report
-    assert "max=" in report
+    assert _misda_block(report) == result.report()
+    assert "Candidate evaluation evidence" not in report
+    assert "Linear selected:" not in report
+    assert "Pareto selected:" not in report
     assert "Pareto declaration agreement" in report
     assert "N/A — pareto_expected was not declared" in report
     assert "Expected components" not in report
@@ -70,14 +66,15 @@ def test_report_distinguishes_generating_families_structural_units_and_component
     assert lines[selected_index + 3].startswith(continuation + "reason=")
 
 
-def test_report_states_when_candidate_families_were_not_evaluated():
+def test_report_does_not_invent_unevaluated_candidate_metric_sections():
     data = np.eye(6, 4)
     result = misda.discover(data, seed=7)
     observed = misda.benchmark(result, {})
 
     report = observed.report()
 
-    assert "Linear scope   : not evaluated" in report
-    assert "Linear selected: N/A" in report
-    assert "Pareto scope   : not evaluated" in report
-    assert "Pareto selected: N/A" in report
+    assert _misda_block(report) == result.report()
+    assert "Linear scope" not in report
+    assert "Linear selected" not in report
+    assert "Pareto scope" not in report
+    assert "Pareto selected" not in report

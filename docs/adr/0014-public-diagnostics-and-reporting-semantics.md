@@ -92,11 +92,12 @@ A ranking-selected dimension must be labeled as preference-derived and must not 
 - partial scope and explicit cancellation remain visible;
 - legacy `alpha_null` fields are not given obsolete Monte Carlo-mean semantics;
 - scientific ties are not erased by deterministic display ordering;
-- benchmark truth appears only in benchmark reports.
+- benchmark truth appears only in benchmark reports;
+- benchmark reports reuse the native `MISSet.report()` output verbatim for their MISDA-measures block.
 
 ## Current implementation
 
-`MISSet.report()` and graph plotting consume stored analysis, candidates, support, evaluation-scope metadata, rankings, and stored Pareto-stability diagnostics. `graph_plot()` visualizes the already discovered graph state. Benchmark reports add declared-reference comparisons downstream while retaining the observed-data stability block as a truth-independent diagnostic.
+`MISSet.report()` and graph plotting consume stored analysis, candidates, support, evaluation-scope metadata, rankings, and stored Pareto-stability diagnostics. `graph_plot()` visualizes the already discovered graph state. Benchmark reports embed `MISSet.report()` unchanged as their data-derived MISDA block and append declared-reference comparisons downstream in a separate benchmark-validation block.
 
 The current support implementation reuses common permutation work where practical, especially because `HIDDEN_SPECTRAL_STRUCTURE` is global for a fixed latent dimension while `TRANSITIVE_CHAINING` can vary by retained candidate.
 
@@ -106,8 +107,8 @@ Formatting, plotting library, table layout, color scheme, and rendering medium m
 
 ## Forbidden shortcuts / regression risks
 
-Do not relabel connected components as dimensions, select one tied candidate arbitrarily for scientific support, trigger hidden nonlinear evaluation from `report()`, omit partial-scope notes, reinterpret fixed-budget `alpha_null` completion as sequential Monte Carlo convergence, suppress explicit `alpha_null` cancellation, describe Pareto sensitivity as proof of measurement noise, or turn continuous Pareto-stability diagnostics into fixed-threshold confidence labels without a separately justified data-driven rule.
+Do not relabel connected components as dimensions, select one tied candidate arbitrarily for scientific support, trigger hidden nonlinear evaluation from `report()`, omit partial-scope notes, reinterpret fixed-budget `alpha_null` completion as sequential Monte Carlo convergence, suppress explicit `alpha_null` cancellation, describe Pareto sensitivity as proof of measurement noise, independently re-render MISDA measures inside benchmark reporting, or turn continuous Pareto-stability diagnostics into fixed-threshold confidence labels without a separately justified data-driven rule.
 
 ## Verification
 
-Regression tests should inspect semantic report fields/text for dimension-versus-topology separation, partial scope, support state, Pareto-stability provenance, ranking-selected dimension, and correct fixed-budget/cancellation semantics for `alpha_null`. Plot tests should verify that plotting does not change stored results.
+Regression tests should inspect semantic report fields/text for dimension-versus-topology separation, partial scope, support state, Pareto-stability provenance, ranking-selected dimension, exact embedding of `MISSet.report()` inside benchmark output, and correct fixed-budget/cancellation semantics for `alpha_null`. Plot tests should verify that plotting does not change stored results.

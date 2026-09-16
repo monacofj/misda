@@ -74,56 +74,20 @@ def _format_metric(value):
     return str(value)
 
 
-def _stability_lines(result):
-    diagnostics = getattr(result, "pareto_stability", None)
-    if diagnostics is None:
-        return []
-    ranking = result.structural_ranking
-    selected_index = ranking.indices[0] if ranking.indices else None
-    selected_epsilon = (
-        diagnostics.epsilon_for_candidate(selected_index)
-        if selected_index is not None
-        else None
-    )
-    return [
-        "  Observed fraction: "
-        f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
-        f"({_format_metric(diagnostics.observed_front_fraction)})",
-        "  Pareto epsilon+ : "
-        f"{_format_metric(selected_epsilon)} "
-        "(range-normalized P_R -> P_Y)",
-        "  Dominance margin: "
-        f"min={_format_metric(diagnostics.dominance_margin_min)}, "
-        f"median={_format_metric(diagnostics.dominance_margin_median)}, "
-        f"max={_format_metric(diagnostics.dominance_margin_max)}",
-    ]
-
-
-def _separate_report_sections(lines):
-    """Separate data-derived MISDA output from truth-dependent validation."""
+def _benchmark_validation_lines(base_lines):
+    """Extract only truth-dependent material from the legacy base renderer."""
 
     try:
-        observed_index = lines.index("Observed analysis")
-        assessment_index = lines.index("Declaration assessment")
-    except ValueError:
-        return lines
-
-    header = lines[:2]
-    declaration = lines[2:observed_index]
-    misda_measures = lines[observed_index:assessment_index]
-    benchmark_validation = lines[assessment_index:]
-
+        declaration_index = base_lines.index("Declaration")
+        observed_index = base_lines.index("Observed analysis")
+        assessment_index = base_lines.index("Declaration assessment")
+    except ValueError as exc:
+        raise RuntimeError(
+            "benchmark report structure changed; validation extraction must be updated"
+        ) from exc
     return [
-        *header,
-        "",
-        "MISDA measures (data-derived)",
-        "-" * 72,
-        *misda_measures,
-        "",
-        "Benchmark validation (requires declared truth)",
-        "-" * 72,
-        *declaration,
-        *benchmark_validation,
+        *base_lines[declaration_index:observed_index],
+        *base_lines[assessment_index:],
     ]
 
 
@@ -141,19 +105,18 @@ class ObservationBenchmarkResult(_BaseBenchmarkResult):
     observation_pareto_exact: Optional[bool] = None
 
     def report(self):
-        lines = super().report().splitlines()
-        lines = _separate_report_sections(lines)
-
-        # Make explicit that candidate Pareto evidence is the reduction effect
-        # P_R vs P_Y, without changing any existing metric semantics.
-        for index, line in enumerate(lines):
-            if line.startswith("  Pareto selected: "):
-                insertion = [
-                    "  Pareto basis   : reduced P_R vs observed full P_Y",
-                    *_stability_lines(self.result),
-                ]
-                lines[index + 1:index + 1] = insertion
-                break
+        base_lines = super().report().splitlines()
+        lines = [
+            *base_lines[:2],
+            "",
+            "MISDA measures (data-derived)",
+            "-" * 72,
+            *self.result.report().splitlines(),
+            "",
+            "Benchmark validation (requires declared truth)",
+            "-" * 72,
+            *_benchmark_validation_lines(base_lines),
+        ]
 
         marker = "Pareto declaration agreement"
         try:

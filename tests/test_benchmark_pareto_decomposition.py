@@ -16,6 +16,13 @@ def _tradeoff_data(n=12):
     return np.column_stack([x, (n - 1) - x])
 
 
+def _misda_block(report):
+    lines = report.splitlines()
+    start = lines.index("MISDA measures (data-derived)") + 2
+    end = lines.index("Benchmark validation (requires declared truth)")
+    return "\n".join(lines[start:end]).rstrip()
+
+
 def test_public_benchmark_module_uses_observation_aware_wrapper():
     assert misda.benchmark is benchmark_module.benchmark
     assert misda.compile_benchmark_summary is benchmark_module.compile_benchmark_summary
@@ -38,15 +45,18 @@ def test_clean_observation_layer_is_identity_when_y_equals_z():
     assert observed.observation_pareto_spurious == 0
     assert observed.observation_pareto_exact
 
+    native_report = result.report()
     report = observed.report()
+    assert _misda_block(report) == native_report
+    assert "Pareto stability (observed Y only):" in native_report
+    assert "Observed front:" in native_report
+    assert "Additive epsilon+:" in native_report
+    assert "Dominance margin:" in native_report
     assert "Pareto observation agreement (P_Y vs P_Z)" in report
     assert "clean=12, observed=12" in report
     assert "jaccard=1.0000, exact=yes" in report
-    assert "Pareto basis   : reduced P_R vs observed full P_Y" in report
     assert "Pareto basis   : reduced P_R vs clean truth P_Z" in report
-    assert "Observed fraction:" in report
-    assert "Pareto epsilon+ :" in report
-    assert "Dominance margin:" in report
+    assert "Pareto basis   : reduced P_R vs observed full P_Y" not in report
 
 
 def test_noisy_observation_layer_separates_observation_from_reduction():
