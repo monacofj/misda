@@ -49,7 +49,11 @@ misda/_ranking.py
     Structural candidate measurements used by ranking policies.
 
 misda/_plotting.py
-    Graph visualization for MISSet/Ranking objects.
+    Matplotlib structural-graph rendering over already discovered graph state.
+
+misda/_front_plotting.py
+    Ranking-aware visualization selection and interactive Plotly Pareto-front
+    views, including notebook display and terminal/browser HTML fallback.
 
 misda/benchmark.py
     Benchmark declarations, reports, serialization, and regression comparison.
@@ -129,6 +133,10 @@ benchmarks/r5_baseline.json
 
 docs/userguide.md
     User-facing guide for the static public API and benchmark workflow.
+
+docs/visualization.md
+    User-facing contract and examples for ranking-selected graph/front views,
+    Plotly axis selectors, and notebook/terminal display behavior.
 
 docs/design_notes.md
     Design rationale and implementation notes complementary to the ADRs.
