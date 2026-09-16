@@ -18,6 +18,13 @@ misda/api.py
       - StructuralMetrics, LinearMetrics, NonlinearMetrics, and ParetoMetrics.
       - DimensionalSupport and CandidateSupport.
 
+misda/_reporting.py
+    Rich, side-effect-free public MISSet reporting over already stored state:
+      - dimensions, topology, thresholds and null-envelope state.
+      - ranking/tie groups and dimensional-support diagnostics.
+      - representative candidate structural/evaluation evidence.
+      - linear, Pareto, nonlinear/null-reference and Pareto-stability evidence.
+
 misda/_graph.py
     Construction of G+ and G±, independence-number dimensions, and structural
     MIS enumeration.
@@ -120,57 +127,18 @@ benchmarks/r5_baseline.json
 3. DOCUMENTATION
 ----------------
 
-README.md
-    Project overview, installation, new static API quick start, and benchmark
-    front-end commands.
-
 docs/userguide.md
-    Detailed user-facing static API guide.
+    User-facing guide for the static public API and benchmark workflow.
 
 docs/design_notes.md
-    Current implementation semantics and algorithmic notes.
-
-docs/decisions.md
-    Normative decision ledger for scientific and API choices.
-
-docs/validation_results.md
-    Non-normative reproducibility record for the extended clean/noisy/multi-seed
-    validation evidence and Pareto-stability interpretation.
+    Design rationale and implementation notes complementary to the ADRs.
 
 docs/CONTRIBUTING.md
-    Contributor guidelines.
+    Contribution guidance, including public-capability preservation rules.
 
+docs/adr/
+    Architecture Decision Records defining the normative methodological and
+    public-contract invariants of MISDA.
 
-4. PROJECT METADATA
--------------------
-
-pyproject.toml
-    Build configuration, dependencies, package metadata, and pytest settings.
-
-CHANGELOG.md
-    Version history.
-
-AUTHORS.md
-    Project authors and maintainers.
-
-COPYING / LICENSES/
-    GPL-3.0-or-later license material.
-
-REUSE.toml
-    REUSE licensing metadata.
-
-
-5. TESTING AND CI
------------------
-
-tests/
-    Unit, API, benchmark, documentation, notebook, and scientific-contract tests.
-
-.github/workflows/newapi.yml
-    Routine acceptance gate running the full test suite, controlled clean
-    scientific battery, and diagnostic method comparison.
-
-.github/workflows/extended-benchmarks.yml
-    Path-scoped/manual extended validation that smoke-tests the benchmark front
-    ends, then executes fixed-noise controlled, clean sampling-robustness, and
-    observation-noise robustness studies and preserves their JSON artifacts.
+docs/research-notes/
+    Historical research notes retained for provenance but not normative design.
