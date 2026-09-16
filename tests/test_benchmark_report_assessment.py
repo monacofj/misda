@@ -1,7 +1,5 @@
 """Regression tests for notebook-visible benchmark declaration assessment."""
 
-from types import SimpleNamespace
-
 import numpy as np
 
 import misda
@@ -38,10 +36,21 @@ def test_public_benchmark_report_exposes_structured_declaration_checks():
 
 def test_public_benchmark_report_exposes_expected_mismatch_reason():
     result = _result()
-    result.support = SimpleNamespace(
+    support_item = misda.CandidateSupport(
+        candidate_index=0,
         status="UNSUPPORTED",
-        results=(SimpleNamespace(reasons=("HIDDEN_SPECTRAL_STRUCTURE",)),),
+        reasons=("HIDDEN_SPECTRAL_STRUCTURE",),
+        transitivity_observed=0.0,
+        transitivity_null=0.0,
+        transitivity_excess=0.0,
+        spectral_tested_dimension=result.analysis.latent_dimension,
+        spectral_observed_next_eigenvalue=1.0,
+        spectral_null_next_eigenvalue=0.0,
+        spectral_excess=1.0,
+        n_permutations=1,
+        seed=result.seed,
     )
+    result.support = misda.DimensionalSupport((support_item,), tuple(result))
     observed = misda.benchmark(
         result,
         {
