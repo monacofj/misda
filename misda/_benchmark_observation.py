@@ -99,6 +99,34 @@ def _stability_lines(result):
     ]
 
 
+def _separate_report_sections(lines):
+    """Separate data-derived MISDA output from truth-dependent validation."""
+
+    try:
+        observed_index = lines.index("Observed analysis")
+        assessment_index = lines.index("Declaration assessment")
+    except ValueError:
+        return lines
+
+    header = lines[:2]
+    declaration = lines[2:observed_index]
+    misda_measures = lines[observed_index:assessment_index]
+    benchmark_validation = lines[assessment_index:]
+
+    return [
+        *header,
+        "",
+        "MISDA measures (data-derived)",
+        "-" * 72,
+        *misda_measures,
+        "",
+        "Benchmark validation (requires declared truth)",
+        "-" * 72,
+        *declaration,
+        *benchmark_validation,
+    ]
+
+
 @dataclass(frozen=True)
 class ObservationBenchmarkResult(_BaseBenchmarkResult):
     """Benchmark result extended with ``P_Y`` versus ``P_Z`` evidence."""
@@ -114,6 +142,7 @@ class ObservationBenchmarkResult(_BaseBenchmarkResult):
 
     def report(self):
         lines = super().report().splitlines()
+        lines = _separate_report_sections(lines)
 
         # Make explicit that candidate Pareto evidence is the reduction effect
         # P_R vs P_Y, without changing any existing metric semantics.
