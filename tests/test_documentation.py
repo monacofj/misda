@@ -21,7 +21,7 @@ def test_active_documentation_describes_new_static_contract(path):
         "discover",
         "evaluate",
         "rank",
-        "structural_coverage",
+        "size_span",
         "aggressiveness",
     ):
         assert term in text
@@ -40,6 +40,7 @@ def test_design_notes_state_current_dimension_and_null_envelope_semantics():
     assert "r_null = max(m_1, ..., m_N)" in text
     assert "10N` cap are obsolete" in text
     assert "ADR 0015" in text
+    assert "ADR 0017" in text
 
 
 @pytest.mark.parametrize("path", (Path("README.md"), Path("docs/userguide.md")))
