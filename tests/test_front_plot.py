@@ -148,6 +148,31 @@ def test_front_plot_rejects_invalid_level_and_position():
         result.front_plot(show=False, position=2)
 
 
+def test_front_plot_layout_keeps_controls_metadata_and_plot_separate():
+    result = _mis_set()
+    result.name = "Case 1 - Independent objectives"
+    result.pareto_stability = SimpleNamespace(observed_front_indices=(0, 1, 2, 3))
+    result._candidates = (
+        _candidate(("f1", "f2"), (0, 1), (0, 1, 2, 3)),
+        result._candidates[1],
+    )
+
+    fig = result.front_plot(show=False)
+
+    assert tuple(trace.name for trace in fig.data) == ("preserved",)
+    assert fig.layout.height == 720
+    assert fig.layout.legend.orientation == "h"
+    annotations = tuple(item.text for item in fig.layout.annotations)
+    assert any(
+        "Pareto-front preservation — Case 1 - Independent objectives" in text
+        for text in annotations
+    )
+    assert any("MIS dimension 2" in text for text in annotations)
+    assert all("MIS=[" not in text for text in annotations)
+    assert all("candidate[" not in text for text in annotations)
+    assert tuple(menu.y for menu in fig.layout.updatemenus) == (1.055, 1.055, 1.055)
+
+
 def test_terminal_fallback_writes_standalone_html(monkeypatch):
     fig = go.Figure()
     monkeypatch.setattr(_front_plotting, "_in_notebook", lambda: False)
