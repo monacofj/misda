@@ -219,7 +219,10 @@ def _hover_data(indices, status):
 
 
 def _axis_arrays(data, classes, objective_index):
-    return [data[np.asarray(indices, dtype=int), objective_index].tolist() for indices in classes]
+    return [
+        data[np.asarray(indices, dtype=int), objective_index].tolist()
+        for indices in classes
+    ]
 
 
 def _axis_menu(
@@ -256,10 +259,90 @@ def _axis_menu(
         "buttons": buttons,
         "x": x,
         "xanchor": "left",
-        "y": 1.12,
-        "yanchor": "bottom",
-        "pad": {"r": 6, "t": 0},
+        "y": 1.055,
+        "yanchor": "top",
+        "pad": {"r": 8, "t": 0},
     }
+
+
+def _layout_annotations(
+    *,
+    mis_set,
+    resolved,
+    candidate,
+    level,
+    position,
+    pareto,
+    is_3d,
+):
+    title = "Pareto-front preservation"
+    if mis_set.name:
+        title = f"{title} — {mis_set.name}"
+
+    axis_labels = ("X", "Y", "Z") if is_3d else ("X", "Y")
+    axis_x = (0.00, 0.23, 0.46) if is_3d else (0.00, 0.23)
+    annotations = [
+        {
+            "text": f"<b>{title}</b>",
+            "xref": "paper",
+            "yref": "paper",
+            "x": 0.0,
+            "y": 1.145,
+            "xanchor": "left",
+            "yanchor": "bottom",
+            "showarrow": False,
+            "font": {"size": 18},
+        }
+    ]
+    annotations.extend(
+        {
+            "text": f"<b>{axis}</b>",
+            "xref": "paper",
+            "yref": "paper",
+            "x": x,
+            "y": 1.075,
+            "xanchor": "left",
+            "yanchor": "bottom",
+            "showarrow": False,
+            "font": {"size": 12},
+        }
+        for axis, x in zip(axis_labels, axis_x)
+    )
+    annotations.extend(
+        [
+            {
+                "text": (
+                    f"{resolved.policy} · level {int(level)} · position {int(position)} "
+                    f"· MIS dimension {candidate.size}"
+                ),
+                "xref": "paper",
+                "yref": "paper",
+                "x": 0.0,
+                "y": -0.135,
+                "xanchor": "left",
+                "yanchor": "top",
+                "showarrow": False,
+                "font": {"size": 12},
+            },
+            {
+                "text": (
+                    f"full front {pareto.full_front_size} · "
+                    f"reduced front {pareto.reduced_front_size} · "
+                    f"retention {_format_metric(pareto.retention)} · "
+                    f"Jaccard {_format_metric(pareto.jaccard)}"
+                ),
+                "xref": "paper",
+                "yref": "paper",
+                "x": 0.0,
+                "y": -0.185,
+                "xanchor": "left",
+                "yanchor": "top",
+                "showarrow": False,
+                "font": {"size": 12},
+            },
+        ]
+    )
+    return annotations
 
 
 def plot_mis_set_front(
@@ -284,14 +367,19 @@ def plot_mis_set_front(
     if n_objectives < 2:
         raise ValueError("front_plot() requires at least two objectives.")
 
-    classes = _class_indices(mis_set, candidate)
+    all_classes = _class_indices(mis_set, candidate)
+    present = tuple(
+        (spec, indices)
+        for spec, indices in zip(_trace_specs(), all_classes)
+        if indices
+    )
+    classes = tuple(indices for _spec, indices in present)
     is_3d = n_objectives >= 3
     n_axes = 3 if is_3d else 2
     defaults = _default_axes(candidate, n_objectives, n_axes)
-    specs = _trace_specs()
 
     fig = go.Figure()
-    for (status, marker), indices in zip(specs, classes):
+    for (status, marker), indices in present:
         rows = np.asarray(indices, dtype=int)
         customdata = _hover_data(indices, status)
         if is_3d:
@@ -329,18 +417,6 @@ def plot_mis_set_front(
                 )
             )
 
-    pareto = candidate.pareto
-    title = (
-        "MISDA Pareto-front preservation"
-        "<br><sup>"
-        f"ranking={resolved.policy}; level={int(level)}; position={int(position)}; "
-        f"candidate[{candidate_index}]; MIS={list(map(str, candidate.objectives))} · "
-        f"full={pareto.full_front_size}; reduced={pareto.reduced_front_size}; "
-        f"retention={_format_metric(pareto.retention)}; "
-        f"jaccard={_format_metric(pareto.jaccard)}"
-        "</sup>"
-    )
-
     menu_x = _axis_menu(
         axis="x",
         labels=labels,
@@ -349,7 +425,7 @@ def plot_mis_set_front(
         data=data,
         default_index=defaults[0],
         is_3d=is_3d,
-        x=0.00,
+        x=0.025,
     )
     menu_y = _axis_menu(
         axis="y",
@@ -359,7 +435,7 @@ def plot_mis_set_front(
         data=data,
         default_index=defaults[1],
         is_3d=is_3d,
-        x=0.30,
+        x=0.255,
     )
     menus = [menu_x, menu_y]
     if is_3d:
@@ -372,10 +448,11 @@ def plot_mis_set_front(
                 data=data,
                 default_index=defaults[2],
                 is_3d=True,
-                x=0.60,
+                x=0.485,
             )
         )
 
+    pareto = candidate.pareto
     meta = {
         "ranking_policy": resolved.policy,
         "level": int(level),
@@ -384,28 +461,45 @@ def plot_mis_set_front(
         "selected_objectives": [str(label) for label in candidate.objectives],
         "default_axes": [str(labels[index]) for index in defaults],
     }
+    common_layout = {
+        "meta": meta,
+        "updatemenus": menus,
+        "annotations": _layout_annotations(
+            mis_set=mis_set,
+            resolved=resolved,
+            candidate=candidate,
+            level=level,
+            position=position,
+            pareto=pareto,
+            is_3d=is_3d,
+        ),
+        "height": 720,
+        "legend": {
+            "orientation": "h",
+            "yanchor": "top",
+            "y": -0.055,
+            "xanchor": "left",
+            "x": 0.0,
+            "title": {"text": ""},
+        },
+        "margin": {"l": 20, "r": 20, "b": 125, "t": 135},
+    }
     if is_3d:
         fig.update_layout(
-            title={"text": title},
-            meta=meta,
-            updatemenus=menus,
+            **common_layout,
             scene={
+                "domain": {"x": [0.03, 0.97], "y": [0.03, 0.97]},
                 "xaxis": {"title": {"text": str(labels[defaults[0]])}},
                 "yaxis": {"title": {"text": str(labels[defaults[1]])}},
                 "zaxis": {"title": {"text": str(labels[defaults[2]])}},
+                "aspectmode": "cube",
             },
-            legend={"title": {"text": "membership"}},
-            margin={"l": 0, "r": 0, "b": 0, "t": 120},
         )
     else:
         fig.update_layout(
-            title={"text": title},
-            meta=meta,
-            updatemenus=menus,
+            **common_layout,
             xaxis={"title": {"text": str(labels[defaults[0]])}},
             yaxis={"title": {"text": str(labels[defaults[1]])}},
-            legend={"title": {"text": "membership"}},
-            margin={"t": 120},
         )
 
     if show:
