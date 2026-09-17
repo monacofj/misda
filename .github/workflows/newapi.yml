@@ -19,6 +19,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[benchmarks]' pytest nbconvert nbformat jupyter
+      - name: Remote PR package smoke test
+        if: github.event_name == 'pull_request'
+        env:
+          MISDA_REF: ${{ github.head_ref }}
+        run: |
+          python -m pip install --no-deps --target /tmp/misda-remote \
+            "git+https://github.com/monacofj/misda.git@${MISDA_REF}"
+          cd /tmp
+          PYTHONPATH=/tmp/misda-remote python - <<'PY'
+          import misda
+          assert misda.__file__.startswith('/tmp/misda-remote/')
+          assert hasattr(misda.MISSet, 'front_plot')
+          print(misda.__file__)
+          print('MISSet.front_plot: OK')
+          PY
       - name: Public reporting contract
         run: |
           pytest -q \
