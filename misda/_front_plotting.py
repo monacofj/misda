@@ -97,6 +97,19 @@ def _format_metric(value):
     return "N/A" if value is None else f"{float(value):.4f}"
 
 
+def _use_3d_projection(projection, n_objectives):
+    if not isinstance(projection, str):
+        raise TypeError("projection must be 'auto', '2d', or '3d'.")
+    projection = projection.lower()
+    if projection not in {"auto", "2d", "3d"}:
+        raise ValueError("projection must be 'auto', '2d', or '3d'.")
+    if projection == "3d" and n_objectives < 3:
+        raise ValueError("projection='3d' requires at least three objectives.")
+    if projection == "2d":
+        return False
+    return n_objectives >= 3
+
+
 def _in_notebook():
     try:
         from IPython import get_ipython
@@ -108,13 +121,20 @@ def _in_notebook():
     return getattr(shell, "kernel", None) is not None
 
 
-def _show_plotly_figure(fig):
+def _show_plotly_figure(fig, *, renderer=None):
     """Show inline when possible, otherwise open a standalone browser view.
 
-    The terminal fallback deliberately writes a self-contained HTML file. If a
-    browser cannot be opened (for example on a headless machine), the file is
-    retained and its path is reported so the caller still has a usable result.
+    An explicit Plotly renderer is forwarded unchanged. This is useful when a
+    notebook frontend renders Plotly controls but fails to draw a WebGL 3D
+    scene. The terminal fallback deliberately writes a self-contained HTML
+    file. If a browser cannot be opened (for example on a headless machine),
+    the file is retained and its path is reported so the caller still has a
+    usable result.
     """
+
+    if renderer is not None:
+        fig.show(renderer=renderer)
+        return None
 
     if _in_notebook():
         fig.show()
@@ -352,8 +372,17 @@ def plot_mis_set_front(
     level=0,
     position=0,
     show=True,
+    projection="auto",
+    renderer=None,
 ):
-    """Render stored full/reduced Pareto membership as an interactive view."""
+    """Render stored full/reduced Pareto membership as an interactive view.
+
+    projection='auto' uses a rotatable Plotly 3D scene when at least three
+    objectives exist. projection='2d' forces an SVG-backed two-axis view,
+    which also provides a non-WebGL fallback for restrictive notebook
+    frontends. renderer is forwarded to Plotly when automatic display is
+    requested.
+    """
 
     resolved, candidate_index, candidate = resolve_ranking_selection(
         mis_set,
@@ -374,7 +403,7 @@ def plot_mis_set_front(
         if indices
     )
     classes = tuple(indices for _spec, indices in present)
-    is_3d = n_objectives >= 3
+    is_3d = _use_3d_projection(projection, n_objectives)
     n_axes = 3 if is_3d else 2
     defaults = _default_axes(candidate, n_objectives, n_axes)
 
@@ -460,6 +489,7 @@ def plot_mis_set_front(
         "candidate_index": candidate_index,
         "selected_objectives": [str(label) for label in candidate.objectives],
         "default_axes": [str(labels[index]) for index in defaults],
+        "projection": "3d" if is_3d else "2d",
     }
     common_layout = {
         "meta": meta,
@@ -503,7 +533,7 @@ def plot_mis_set_front(
         )
 
     if show:
-        _show_plotly_figure(fig)
+        _show_plotly_figure(fig, renderer=renderer)
     return fig
 
 
@@ -527,7 +557,15 @@ def _graph_plot(self, show=True, ranking=None, level=0, position=0):
     )
 
 
-def _front_plot(self, show=True, ranking=None, level=0, position=0):
+def _front_plot(
+    self,
+    show=True,
+    ranking=None,
+    level=0,
+    position=0,
+    projection="auto",
+    renderer=None,
+):
     """Plot stored Pareto preservation for a ranking-selected MIS."""
 
     return plot_mis_set_front(
@@ -536,6 +574,8 @@ def _front_plot(self, show=True, ranking=None, level=0, position=0):
         level=level,
         position=position,
         show=show,
+        projection=projection,
+        renderer=renderer,
     )
 
 
