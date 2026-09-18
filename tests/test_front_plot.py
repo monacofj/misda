@@ -148,6 +148,39 @@ def test_front_plot_rejects_invalid_level_and_position():
         result.front_plot(show=False, position=2)
 
 
+def test_front_plot_can_force_non_webgl_2d_projection():
+    result = _mis_set()
+
+    fig = result.front_plot(show=False, projection="2d")
+
+    assert fig.layout.meta["projection"] == "2d"
+    assert tuple(trace.type for trace in fig.data) == ("scatter", "scatter", "scatter")
+    assert len(fig.layout.updatemenus) == 2
+    assert fig.layout.xaxis.title.text == "f1"
+    assert fig.layout.yaxis.title.text == "f2"
+
+
+def test_front_plot_rejects_invalid_projection():
+    result = _mis_set()
+
+    with pytest.raises(ValueError, match="projection"):
+        result.front_plot(show=False, projection="4d")
+
+
+def test_front_plot_forwards_explicit_plotly_renderer(monkeypatch):
+    result = _mis_set()
+    observed = {}
+
+    def fake_show(_fig, *, renderer=None):
+        observed["renderer"] = renderer
+
+    monkeypatch.setattr(_front_plotting, "_show_plotly_figure", fake_show)
+
+    result.front_plot(renderer="notebook_connected")
+
+    assert observed["renderer"] == "notebook_connected"
+
+
 def test_front_plot_layout_keeps_controls_metadata_and_plot_separate():
     result = _mis_set()
     result.name = "Case 1 - Independent objectives"

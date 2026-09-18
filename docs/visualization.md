@@ -47,7 +47,7 @@ misda.evaluate(
 mis_set.front_plot(ranking=ranking)
 ```
 
-`front_plot()` renders the empirical Pareto preservation state with Plotly. With at least three original objectives it is a rotatable 3D scatter. For two objectives it falls back to a 2D scatter.
+`front_plot()` renders the empirical Pareto preservation state with Plotly. With at least three original objectives it is a rotatable 3D scatter. For two objectives it falls back to a 2D scatter. The default `projection="auto"` behavior can be overridden with `projection="2d"` or `projection="3d"`; forcing 2D is also the non-WebGL fallback for notebook/browser environments that cannot draw Plotly's 3D scene.
 
 Three membership classes are displayed:
 
@@ -65,9 +65,20 @@ No Pareto surface or mesh is drawn because a three-dimensional projection need n
 
 ## Notebook and terminal behavior
 
-Inside a notebook, `front_plot(show=True)` displays the interactive Plotly figure inline.
+Inside a notebook, `front_plot(show=True)` displays the interactive Plotly figure inline. An explicit Plotly renderer may be selected without changing scientific state:
 
-From a terminal, MISDA writes a self-contained temporary HTML file and attempts to open it in the system browser. If no browser can be opened automatically, MISDA retains the HTML file and reports its path. In every case the Plotly `Figure` is returned, so callers may save or render it explicitly. Use `show=False` to suppress automatic display:
+```python
+mis_set.front_plot(renderer="notebook_connected")
+mis_set.front_plot(renderer="colab")
+```
+
+A renderer can draw the Plotly controls and annotations even when its WebGL layer fails to draw a 3D scene. If that happens, use an environment-appropriate renderer or force the non-WebGL 2D projection:
+
+```python
+mis_set.front_plot(projection="2d")
+```
+
+From a local terminal, `renderer="browser"` can also be used explicitly. Without an explicit renderer, MISDA writes a self-contained temporary HTML file and attempts to open it in the system browser. If no browser can be opened automatically, MISDA retains the HTML file and reports its path. In every case the Plotly `Figure` is returned, so callers may save or render it explicitly. Use `show=False` to suppress automatic display:
 
 ```python
 fig = mis_set.front_plot(show=False)
