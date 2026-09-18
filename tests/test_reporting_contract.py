@@ -33,8 +33,8 @@ def test_report_preserves_rich_public_audit_contract():
         "Structural ranking:",
         "Tie groups",
         "Dimensional support:",
-        "transitivity:",
-        "spectral    :",
+        "Transitivity:",
+        "Spectral:",
         "Evaluation scope:",
         "Candidates:",
         "structural",
@@ -57,6 +57,8 @@ def test_report_preserves_rich_public_audit_contract():
         "intersection_size",
         "union_size",
         "exact_preservation",
+        "Front loss",
+        "Population impact",
     ):
         assert f"{metric}" in report
 
@@ -122,6 +124,49 @@ def test_report_preserves_nonlinear_and_null_reference_evidence():
         "incidental_reconstruction_rate_se",
     ):
         assert metric in report
+
+
+def test_report_compacts_first_rank_dimensional_support():
+    x = np.linspace(-1.0, 1.0, 20)
+    data = np.column_stack([x for _ in range(20)])
+    result = misda.discover(data, seed=19, name="support aggregation")
+    report = result.report()
+
+    start = report.index("Dimensional support:")
+    end = report.index("Evaluation scope:")
+    support_block = report[start:end]
+
+    assert len(result.support.results) == 20
+    assert "First-rank group : 20 candidates" in support_block
+    assert "Supported        : 20/20" in support_block
+    assert "Unsupported      : 0/20" in support_block
+    assert "Transitivity:" in support_block
+    assert "Spectral:" in support_block
+    assert "Null reference:" in support_block
+    assert "candidate[" not in support_block
+
+
+def test_report_exposes_front_loss_and_population_impact():
+    result = _evaluated_result()
+    metrics = misda.ParetoMetrics(
+        retention=1.0 / 3.0,
+        validity=1.0,
+        jaccard=1.0 / 3.0,
+        full_front_size=3,
+        reduced_front_size=1,
+        intersection_size=1,
+        union_size=3,
+        exact_preservation=False,
+        reduced_front_indices=(0,),
+    )
+    object.__setattr__(result[0], "pareto", metrics)
+
+    report = result.report()
+
+    assert "Original front                  : 3/6" in report
+    assert "Preserved front                 : 1/3 (0.3333)" in report
+    assert "Front loss                      : 2/3 (0.6667)" in report
+    assert "Population impact               : 2/6 (0.3333)" in report
 
 
 def test_report_never_runs_hidden_scientific_evaluation(monkeypatch):
