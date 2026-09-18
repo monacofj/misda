@@ -154,6 +154,28 @@ def _format_scalar(value: Any) -> str:
     return str(value)
 
 
+def _format_range(values, *, precision=4):
+    values = tuple(values)
+    if not values:
+        return "N/A"
+    low = min(values)
+    high = max(values)
+    low_text = f"{float(low):.{precision}f}"
+    high_text = f"{float(high):.{precision}f}"
+    if low_text == high_text:
+        return low_text
+    return f"{low_text}–{high_text}"
+
+
+def _format_integer_range(values):
+    values = tuple(int(value) for value in values)
+    if not values:
+        return "N/A"
+    low = min(values)
+    high = max(values)
+    return str(low) if low == high else f"{low}–{high}"
+
+
 def _metric_line(name, value, *, reason=None, indent="      "):
     metadata = METRIC_METADATA[name]
     rendered = _format_value(value, metadata.kind)
@@ -202,21 +224,46 @@ def _reconstruction_lines(metrics, *, indent="      "):
     ]
 
 
-def _pareto_lines(metrics, *, indent="      "):
-    return [
-        _metric_line("pareto_retention", metrics.retention, indent=indent),
-        _metric_line("pareto_validity", metrics.validity, indent=indent),
-        _metric_line("pareto_jaccard", metrics.jaccard, indent=indent),
-        _metric_line("full_front_size", metrics.full_front_size, indent=indent),
-        _metric_line("reduced_front_size", metrics.reduced_front_size, indent=indent),
-        _metric_line("intersection_size", metrics.intersection_size, indent=indent),
-        _metric_line("union_size", metrics.union_size, indent=indent),
-        _metric_line(
-            "exact_preservation",
-            metrics.exact_preservation,
-            indent=indent,
-        ),
+def _pareto_lines(metrics, *, n_observations=None, indent="      "):
+    full = int(metrics.full_front_size)
+    preserved = int(metrics.intersection_size)
+    lost = max(0, full - preserved)
+    retention = metrics.retention
+    front_loss = (lost / full) if full > 0 else None
+    population_impact = (
+        lost / int(n_observations)
+        if n_observations is not None and int(n_observations) > 0
+        else None
+    )
+
+    summary = [
+        f"{indent}{'Original front':<32}: "
+        f"{full}/{n_observations if n_observations is not None else '?'}",
+        f"{indent}{'Preserved front':<32}: "
+        f"{preserved}/{full} ({_format_value(retention)})",
+        f"{indent}{'Front loss':<32}: "
+        f"{lost}/{full} ({_format_value(front_loss)})",
+        f"{indent}{'Population impact':<32}: "
+        f"{lost}/{n_observations if n_observations is not None else '?'} "
+        f"({_format_value(population_impact)})",
     ]
+    summary.extend(
+        [
+            _metric_line("pareto_retention", metrics.retention, indent=indent),
+            _metric_line("pareto_validity", metrics.validity, indent=indent),
+            _metric_line("pareto_jaccard", metrics.jaccard, indent=indent),
+            _metric_line("full_front_size", metrics.full_front_size, indent=indent),
+            _metric_line("reduced_front_size", metrics.reduced_front_size, indent=indent),
+            _metric_line("intersection_size", metrics.intersection_size, indent=indent),
+            _metric_line("union_size", metrics.union_size, indent=indent),
+            _metric_line(
+                "exact_preservation",
+                metrics.exact_preservation,
+                indent=indent,
+            ),
+        ]
+    )
+    return summary
 
 
 def _nonlinear_lines(metrics, *, indent="      "):
@@ -304,7 +351,12 @@ def _candidate_lines(result, candidate_index, group_number):
 
     if candidate.pareto is not None:
         lines.append("    pareto_preservation")
-        lines.extend(_pareto_lines(candidate.pareto))
+        lines.extend(
+            _pareto_lines(
+                candidate.pareto,
+                n_observations=result._data.shape[0],
+            )
+        )
 
     if candidate.nonlinear is not None:
         lines.append("    nonlinear_reconstruction")
@@ -324,28 +376,82 @@ def _support_lines(result):
     if support is None:
         return ["Dimensional support: N/A"]
 
-    lines = [f"Dimensional support: {support.status}"]
-    for item in support.results:
-        reasons = ", ".join(item.reasons) or "none"
-        lines.append(
-            f"  candidate[{item.candidate_index}]: {item.status}; reasons={reasons}"
-        )
-        lines.append(
-            "    transitivity: "
-            f"observed={item.transitivity_observed:.4f}; "
-            f"null={item.transitivity_null:.4f}; "
-            f"excess={item.transitivity_excess:.4f}"
-        )
-        lines.append(
-            "    spectral    : "
-            f"tested_dimension={item.spectral_tested_dimension}; "
-            f"observed_next={item.spectral_observed_next_eigenvalue:.4f}; "
-            f"null_next={item.spectral_null_next_eigenvalue:.4f}; "
-            f"excess={item.spectral_excess:.4f}"
-        )
-        lines.append(
-            f"    permutations: {item.n_permutations}; seed={item.seed}"
-        )
+    items = tuple(support.results)
+    supported = tuple(item for item in items if item.status == "SUPPORTED")
+    unsupported = tuple(item for item in items if item.status == "UNSUPPORTED")
+    explanations = {
+        "SUPPORTED": "no diagnostic contradiction found",
+        "PARTIALLY_SUPPORTED": (
+            "diagnostic contradiction found for some first-rank candidates"
+        ),
+        "UNSUPPORTED": (
+            "diagnostic contradiction found for all first-rank candidates"
+        ),
+    }
+    explanation = explanations.get(support.status, "diagnostic status")
+
+    lines = [
+        f"Dimensional support: {support.status} — {explanation}",
+        f"  First-rank group : {len(items)} candidates",
+        f"  Supported        : {len(supported)}/{len(items)}",
+        f"  Unsupported      : {len(unsupported)}/{len(items)}",
+    ]
+    if not items:
+        return lines
+
+    observed_transitivity = tuple(item.transitivity_observed for item in items)
+    lines.extend(
+        [
+            "  Transitivity:",
+            "    observed         : "
+            f"{_format_range(observed_transitivity)}"
+            + (
+                " for all candidates"
+                if len(set(observed_transitivity)) == 1
+                else ""
+            ),
+            "    null             : "
+            f"{_format_range(item.transitivity_null for item in items)}",
+            "    excess           : "
+            f"{_format_range(item.transitivity_excess for item in items)}",
+            "  Spectral:",
+            "    tested_dimension : "
+            f"{_format_integer_range(item.spectral_tested_dimension for item in items)}",
+            "    observed_next    : "
+            f"{_format_range(item.spectral_observed_next_eigenvalue for item in items)}",
+            "    null_next        : "
+            f"{_format_range(item.spectral_null_next_eigenvalue for item in items)}",
+            "    excess           : "
+            f"{_format_range(item.spectral_excess for item in items)}",
+            "  Null reference:",
+            "    permutations     : "
+            f"{_format_integer_range(item.n_permutations for item in items)}",
+            "    seed             : "
+            f"{_format_integer_range(item.seed for item in items)}",
+        ]
+    )
+
+    reason_counts = {}
+    for item in unsupported:
+        for reason in item.reasons:
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+    if reason_counts:
+        lines.append("  Reasons:")
+        for reason, count in sorted(reason_counts.items()):
+            lines.append(f"    {reason:<24}: {count} candidates")
+
+    if 0 < len(unsupported) < len(items):
+        limit = 10
+        lines.append("  Unsupported candidates:")
+        for item in unsupported[:limit]:
+            reasons = ", ".join(item.reasons) or "none"
+            lines.append(
+                f"    candidate[{item.candidate_index}]: {reasons}"
+            )
+        if len(unsupported) > limit:
+            lines.append(
+                f"    ... and {len(unsupported) - limit} more"
+            )
     return lines
 
 
