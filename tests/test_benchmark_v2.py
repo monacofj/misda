@@ -16,7 +16,8 @@ def _two_group_result():
     x = np.array([-3.0, -2.0, -1.0, 1.0, 2.0, 3.0])
     data = np.column_stack([x, 2.0 * x, -x, -2.0 * x])
     result = misda.discover(data, seed=19, name="two groups")
-    misda.evaluate(result, metrics=("linear", "pareto"), candidates=1)
+    ranking = misda.rank(result)
+    result.evaluate(metrics=("linear", "pareto"), candidates=ranking.mis())
     return data, result
 
 
@@ -81,7 +82,7 @@ def test_benchmark_compares_dimensions_and_partition_to_graph_outputs():
         },
     )
 
-    assert observed.selected_dimension == result.structural_ranking.selected_dimension == 2
+    assert observed.selected_dimension == misda.rank(result).selected_dimension == 2
     assert observed.latent_error == 0
     assert observed.structural_error == 0
     assert observed.latent_exact
@@ -109,7 +110,7 @@ def test_blocks_do_not_implicitly_declare_connected_components():
 
 def test_benchmark_pareto_uses_stored_selected_candidate_evidence_only():
     _data, result = _two_group_result()
-    selected = result.structural_ranking.selected
+    selected = misda.rank(result).mis()
     assert selected.pareto.reduced_front_indices == (0, 1, 2, 3, 4, 5)
 
     observed = misda.benchmark(result, {"pareto_expected": [0, 1, 2, 3]})
@@ -131,7 +132,7 @@ def test_benchmark_does_not_trigger_missing_pareto_evaluation():
     assert observed.unavailable_reasons["pareto"] == (
         "the selected MIS Pareto frontier was not evaluated"
     )
-    assert result.structural_ranking.selected.pareto is None
+    assert misda.rank(result).mis().pareto is None
 
 
 def test_missing_declarations_remain_explicit_in_result():
@@ -210,7 +211,7 @@ def test_serializer_records_ranking_not_intrinsic_candidate_rank():
         "selected_dimension": 2,
     }
     assert observed["ranking_policy"] == "size_span"
-    assert observed["selected_indices"] == list(result.structural_ranking.selected.indices)
+    assert observed["selected_indices"] == list(misda.rank(result).mis().indices)
     assert "preferred_mis_size" not in observed["estimated"]
     assert "rank_counts" not in observed
     assert len(observed["input_sha256"]) == 64
