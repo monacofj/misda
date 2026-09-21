@@ -63,7 +63,7 @@ def plot_mis_set_graph(
         raise ValueError("either ranking or candidate must be provided.")
 
     graph = mis_set.analysis.structural_graph
-    selected = ranking.selected if candidate is None else candidate
+    selected = (ranking.mis() if ranking is not None and len(ranking) else None) if candidate is None else candidate
     selected_nodes = set(selected.indices if selected is not None else ())
     neighbor_nodes = set()
     for node in selected_nodes:
