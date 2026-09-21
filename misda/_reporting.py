@@ -11,7 +11,6 @@ evaluation, ranking, or benchmark validation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import importlib
 import textwrap
 from typing import Any
 
@@ -930,12 +929,6 @@ def _render_complete_report(result, ranking):
     return "\n".join(lines)
 
 
-def render_mis_set_report(result):
-    """Render the legacy-complete report using the canonical structural ranking."""
-
-    return _render_complete_report(result, result.structural_ranking)
-
-
 def render_ranking_report(ranking):
     """Render a complete, self-contained report for one Ranking view."""
 
@@ -1019,11 +1012,3 @@ def render_mis_report(candidate):
     return "\n".join(lines)
 
 
-def _install():
-    """Install the rich renderer as the public ``MISSet.report`` implementation."""
-
-    api_module = importlib.import_module(f"{__package__}.api")
-    api_module.MISSet.report = render_mis_set_report
-
-
-_install()
