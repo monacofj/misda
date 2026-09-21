@@ -298,3 +298,45 @@ def test_classical_notebook_keeps_reference_geometry_separate_from_misda_truth(m
     assert summary["misda_latent"].notna().all()
     assert summary["misda_structural"].notna().all()
     assert summary["pareto_jaccard"].notna().all()
+
+
+def test_optimization_notebook_uses_paired_original_space_protocol():
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, source = _read_notebook(path)
+
+    assert notebook["nbformat"] == 4
+    assert "misda[benchmarks]" in source
+    assert "git+https://github.com/monacofj/moeabench" not in source
+    assert "pip install moeabench" not in source
+
+    assert "class ObjectiveProjectionMOP" in source
+    assert "self.source_mop.evaluation" in source
+    assert 'result["F"] = np.asarray(result["F"], dtype=float)[:, self.objective_indices]' in source
+
+    for problem in ("DTLZ2", "DTLZ5", "DTLZ7", "DPF1", "DPF3", "DPF5"):
+        assert f'"{problem}"' in source
+        assert f'run_optimization_case("{problem}", PROBLEMS["{problem}"])' in source
+
+    assert "M = 10" in source
+    assert "mb.moeas.NSGA3" in source
+    assert "population=POPULATION" in source
+    assert "generations=GENERATIONS" in source
+    assert "seed=MOEA_SEED" in source
+    assert "np.testing.assert_allclose" in source
+
+    assert 'exp[0].history("x")' in source
+    assert "original_mop.evaluation" in source
+    assert "Reduced decision vectors are re-evaluated" in source
+    assert "never feeds back into the Reduced search" in source
+
+    assert "mb.metrics.gdplus" in source
+    assert "mb.metrics.igdplus" in source
+    assert "mb.metrics.hypervolume" in source
+    assert 'scale="abs"' in source
+    assert "initial_data=full_history[0]" in source
+    assert "initial_data=reduced_history[0]" in source
+
+    assert "mb.view.topology" in source
+    assert "mb.view.radar" in source
+    assert "mb.view.history" in source
+    assert "mb.view.perf_history" not in source
