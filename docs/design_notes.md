@@ -69,20 +69,23 @@ ADR 0015 is normative for this behavior.
 The public static flow is:
 
 ```text
-Y -> discover() -> MISSet -> evaluate()
-                         \-> rank()
+Y -> discover() -> MISSet -> MISSet.evaluate()
+                         \-> rank() -> Ranking -> mis()
 ```
 
 `discover()` owns threshold inference, graph construction, graph dimensions,
 complete structural MIS enumeration, structural metrics, canonical ordering,
 and dimensional support.
 
-`evaluate()` adds candidate evidence without changing graphs, dimensions,
-candidate membership, or canonical positions.
+`MISSet.evaluate()` is the preferred user facade for adding candidate evidence
+without changing graphs, dimensions, candidate membership, or canonical
+positions. The equivalent module function `misda.evaluate(mis_set, ...)`
+remains supported.
 
 `rank()` materializes a view over the existing candidate universe. A ranking
 policy is therefore a preference rule over discovered candidates, not an input
-to threshold inference.
+to threshold inference. `Ranking.mis(level, position)` resolves one existing
+MIS object from that view without copying it.
 
 ## 4. Canonical structural order
 
@@ -143,8 +146,9 @@ validity, Jaccard agreement, front sizes, and exact preservation.
 
 Candidate scope belongs to an `evaluate()` call as a whole. Linear/Pareto-only
 calls default to all candidates; a call containing nonlinear evaluation defaults
-to one candidate. Users can select all candidates, a canonical prefix, explicit
-indices, or a `Ranking` slice.
+to one candidate. The preferred user-facing selectors are MIS objects returned
+by `Ranking.mis()`, sequences of such MISs, or Ranking views. Existing
+canonical-prefix and explicit-index selectors remain compatibility paths.
 
 A partial evaluation is scientifically valid but incomplete. Reports therefore
 state partial scope explicitly rather than warning as though an error occurred.
@@ -186,8 +190,11 @@ mis_set.analysis.structural_dimension   graph-derived quantity
 ranking.selected_dimension              preference-derived quantity
 ```
 
-Reports and graph plots are views over stored state; they do not trigger hidden
-evaluation.
+Reports and plots are views over stored state; they do not trigger hidden
+evaluation. `Ranking.report()` is the complete self-contained user report,
+while `Ranking.mis().report()`, `.graph_plot()`, and `.front_plot()`
+inspect one already-selected MIS without assigning intrinsic ranking metadata to
+that MIS. Existing MISSet report/plot entry points remain compatibility paths.
 
 ## 9. External benchmark boundary
 
