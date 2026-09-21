@@ -83,22 +83,12 @@ non-retained objectives.
 No Pareto surface or mesh is drawn because a three-dimensional projection need
 not preserve the geometry or dominance relations of the full objective space.
 
-## Compatibility: MISSet-selected views
+## API boundary
 
-The previous public forms remain supported:
-
-```python
-mis_set.graph_plot(ranking="default", level=0, position=0)
-mis_set.front_plot(ranking="default", level=0, position=0)
-```
-
-`ranking=None` is equivalent to `ranking="default"`.
-`ranking="size_span"` explicitly pins the current named policy, and an
-existing `Ranking` object may also be supplied.
-
-These compatibility views retain ranking metadata in the plot title/layout.
-The preferred MIS-level views omit that contextual metadata because the MIS
-itself does not own an intrinsic rank.
+Visualization is intentionally MIS-only in the alpha API. `MISSet` does not
+provide `graph_plot()` or `front_plot()`. Ranking policy, tie level, and
+position are resolved first by `Ranking.mis()`; the resulting MIS then renders
+its intrinsic stored state.
 
 ## Notebook and terminal behavior
 
