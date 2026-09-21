@@ -77,10 +77,9 @@ Y -> discover() -> MISSet -> MISSet.evaluate()
 complete structural MIS enumeration, structural metrics, canonical ordering,
 and dimensional support.
 
-`MISSet.evaluate()` is the preferred user facade for adding candidate evidence
+`MISSet.evaluate()` is the public facade for adding candidate evidence
 without changing graphs, dimensions, candidate membership, or canonical
-positions. The equivalent module function `misda.evaluate(mis_set, ...)`
-remains supported.
+positions. The module-level evaluation alias was removed during alpha.
 
 `rank()` materializes a view over the existing candidate universe. A ranking
 policy is therefore a preference rule over discovered candidates, not an input
@@ -146,9 +145,9 @@ validity, Jaccard agreement, front sizes, and exact preservation.
 
 Candidate scope belongs to an `evaluate()` call as a whole. Linear/Pareto-only
 calls default to all candidates; a call containing nonlinear evaluation defaults
-to one candidate. The preferred user-facing selectors are MIS objects returned
-by `Ranking.mis()`, sequences of such MISs, or Ranking views. Existing
-canonical-prefix and explicit-index selectors remain compatibility paths.
+to one candidate. The accepted explicit selectors are MIS objects returned by
+`Ranking.mis()`, sequences of such MISs, Ranking views, or `"all"`.
+Canonical-prefix and explicit-index selectors are not part of the alpha API.
 
 A partial evaluation is scientifically valid but incomplete. Reports therefore
 state partial scope explicitly rather than warning as though an error occurred.
@@ -194,7 +193,8 @@ Reports and plots are views over stored state; they do not trigger hidden
 evaluation. `Ranking.report()` is the complete self-contained user report,
 while `Ranking.mis().report()`, `.graph_plot()`, and `.front_plot()`
 inspect one already-selected MIS without assigning intrinsic ranking metadata to
-that MIS. Existing MISSet report/plot entry points remain compatibility paths.
+that MIS. Complete reporting belongs to `Ranking`; plotting belongs to the
+selected MIS.
 
 ## 9. External benchmark boundary
 
