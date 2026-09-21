@@ -312,6 +312,7 @@ def test_optimization_notebook_uses_benchmark_extra_and_original_space_evaluatio
     assert "pip install moeabench" not in source
     assert "class ReducedMop" in source
     assert "assert_paired_initial_decisions" in source
+    assert "sampling=X0.copy()" in source
     assert "original_mop.evaluation" in source
     assert "mb.metrics.gdplus" in source
     assert "mb.metrics.igdplus" in source
@@ -343,8 +344,9 @@ def test_optimization_notebook_uses_benchmark_extra_and_original_space_evaluatio
     namespace["REPEATS"] = 1
     namespace["MOEA_SEED"] = 321
 
-    full_exp = namespace["make_experiment"](base, "Full smoke")
-    reduced_exp = namespace["make_experiment"](reduced, "Reduced smoke")
+    full_exp, reduced_exp = namespace["make_paired_experiments"](
+        base, reduced, "DTLZ2 smoke"
+    )
     namespace["assert_paired_initial_decisions"](full_exp, reduced_exp)
 
     reduced_histories, _ = namespace["full_space_histories"](reduced_exp, base)
