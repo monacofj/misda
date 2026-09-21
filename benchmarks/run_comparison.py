@@ -63,7 +63,7 @@ def run_comparison(
         declaration = BenchmarkCase.from_truth(problem_id, truth)
 
         mis_set = misda.discover(dataset.Y, name=truth["name"], seed=seed)
-        misda.evaluate(mis_set, metrics=("linear",), candidates=1)
+        mis_set.evaluate(metrics=("linear",), candidates=misda.rank(mis_set).mis())
         case = serialize_benchmark_result(
             declaration,
             mis_set,
@@ -71,7 +71,7 @@ def run_comparison(
             seed=seed,
         )
 
-        selected_dimension = int(mis_set.structural_ranking.selected_dimension)
+        selected_dimension = int(misda.rank(mis_set).selected_dimension)
         latent_truth = int(truth["latent_expected"])
         structural_truth = int(truth["structural_expected"])
         pca_external_curve = bench.pca_external_reconstruction_curve(
