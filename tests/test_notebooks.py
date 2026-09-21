@@ -86,7 +86,10 @@ def test_controlled_notebook_runs_explicit_documented_suite(monkeypatch):
     assert "bench.diagnostic_truth(problem, dataset.Z)" in source
     assert "dataset.Y" in source
     assert "misda.discover(" in source
-    assert 'misda.evaluate(mis_set, metrics=("linear", "pareto"))' in source
+    assert 'mis_set.evaluate(metrics=("linear", "pareto"))' in source
+    assert "ranking = misda.rank(mis_set)" in source
+    assert "ranking.mis().graph_plot()" in source
+    assert "ranking.mis().front_plot()" in source
     assert "misda.benchmark(mis_set, truth)" in source
     assert "# Adversarial diagnostics" in source
     assert "benchmark_summary = misda.compile_benchmark_summary(benchmark_results)" in source
@@ -107,6 +110,7 @@ def test_controlled_notebook_runs_explicit_documented_suite(monkeypatch):
     ]
     assert len(results) == 13
     assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
+    assert all(isinstance(item["ranking_obj"], misda.Ranking) for item in results.values())
     assert all(isinstance(item["benchmark_obj"], BenchmarkResult) for item in results.values())
     assert all(item["dataset"].sigma == 0.0 for item in results.values())
     assert all(item["dataset"].Y.equals(item["dataset"].Z) for item in results.values())
