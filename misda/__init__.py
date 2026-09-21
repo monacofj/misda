@@ -3,13 +3,14 @@
 
 """MISDA public API.
 
-The alpha-stage public surface is intentionally small. Static analysis is
-expressed as three separate operations:
+The alpha-stage public surface is intentionally small. Static analysis keeps
+three responsibilities separate:
 
-``discover`` -> structural inference and MIS universe
-``evaluate`` -> candidate-level evidence
-``rank``     -> an ordered view under a named policy
+``discover``        -> structural inference and MIS universe
+``MISSet.evaluate`` -> candidate-level evidence
+``rank``            -> an ordered view whose ``mis()`` selector exposes one MIS
 
+The module-level ``evaluate(mis_set, ...)`` form remains public and equivalent.
 Adaptive analysis and the previous ``analyze``/``heavy`` result model are not
 part of this API.
 """
@@ -86,7 +87,7 @@ def discover(
 _api.discover = discover
 
 from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
-from . import _reporting as _reporting  # installs the public MISSet.report renderer
+from . import _reporting as _reporting  # installs the legacy-complete MISSet report
 from . import _front_plotting as _front_plotting  # installs graph/front plot views
 from .benchmark import (
     BenchmarkCase,
