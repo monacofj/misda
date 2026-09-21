@@ -766,6 +766,16 @@ def _candidate_indices(mis_set, candidates, metrics):
             raise ValueError("MIS does not belong to this MISSet.")
         return (index,), "explicit MIS"
 
+    if (
+        isinstance(candidates, (int, np.integer))
+        and not isinstance(candidates, (bool, np.bool_))
+    ):
+        raise TypeError(
+            "candidate index/prefix selectors are not part of the alpha API; "
+            "pass MIS objects returned by Ranking.mis(), a sequence of MISs, "
+            "a Ranking view, or 'all'."
+        )
+
     try:
         raw_selected = tuple(candidates)
     except TypeError as exc:
