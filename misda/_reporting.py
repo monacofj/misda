@@ -722,11 +722,10 @@ def _evaluation_scope_lines(result):
     return lines
 
 
-def _pareto_stability_lines(result, ranking=None):
+def _pareto_stability_lines(result, ranking):
     diagnostics = getattr(result, "pareto_stability", None)
     if diagnostics is None:
         return []
-    ranking = result.structural_ranking if ranking is None else ranking
     selected_index = ranking.indices[0] if ranking.indices else None
     selected_epsilon = (
         diagnostics.epsilon_for_candidate(selected_index)
