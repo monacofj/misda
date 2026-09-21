@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import importlib
-import textwrap
 from typing import Any
 
 import numpy as np
@@ -29,106 +28,106 @@ class MetricMetadata:
 
 METRIC_METADATA = {
     "mean_r2": MetricMetadata(
-        "mean external R² over eliminated objectives",
-        "average reconstruction quality",
+        "mean external R²",
+        "how well eliminated objectives reconstruct on average",
     ),
     "worst_r2": MetricMetadata(
-        "minimum external R² over eliminated objectives",
-        "weakest reconstructed objective",
+        "minimum external R²",
+        "how well the hardest eliminated objective reconstructs",
     ),
     "mean_r2_se": MetricMetadata(
-        "delete-one jackknife SE of mean R²",
-        "sampling uncertainty of the average",
+        "jackknife SE of mean R²",
+        "sampling uncertainty of average reconstruction",
     ),
     "worst_r2_se": MetricMetadata(
-        "delete-one jackknife SE of worst R²",
-        "sampling uncertainty of the weakest result",
+        "jackknife SE of worst R²",
+        "sampling uncertainty of the weakest reconstruction",
     ),
     "jackknife_n": MetricMetadata(
-        "number of delete-one jackknife replicates",
-        "sampling-uncertainty replication count",
+        "jackknife replicate count",
+        "how many delete-one replicates estimate sampling uncertainty",
         "integer",
     ),
     "pareto_retention": MetricMetadata(
-        "full-front points retained by the reduced front",
-        "coverage of the observed trade-offs",
+        "full-front recall",
+        "how much of the original observed trade-off front survives",
     ),
     "pareto_validity": MetricMetadata(
-        "reduced-front points belonging to the full front",
-        "precision of the reduced trade-offs",
+        "reduced-front precision",
+        "how much of the reduced front belongs to the original front",
     ),
     "pareto_jaccard": MetricMetadata(
-        "Jaccard overlap of full and reduced observed fronts",
-        "overall front agreement",
+        "front Jaccard overlap",
+        "overall agreement between original and reduced observed fronts",
     ),
     "full_front_size": MetricMetadata(
-        "number of observations on the full observed front",
-        "size of the original trade-off set",
+        "full-front size",
+        "how many observations are nondominated before reduction",
         "integer",
     ),
     "reduced_front_size": MetricMetadata(
-        "number of observations on the reduced front",
-        "size of the reduced trade-off set",
+        "reduced-front size",
+        "how many observations are nondominated after reduction",
         "integer",
     ),
     "intersection_size": MetricMetadata(
-        "observations shared by full and reduced fronts",
-        "trade-offs preserved by both views",
+        "front intersection size",
+        "how many trade-off observations both views preserve",
         "integer",
     ),
     "union_size": MetricMetadata(
-        "observations present on either observed front",
-        "combined trade-off coverage",
+        "front union size",
+        "how many trade-off observations appear in either view",
         "integer",
     ),
     "exact_preservation": MetricMetadata(
-        "equality of the observed full and reduced front masks",
-        "whether every observed trade-off is preserved exactly",
+        "front-mask equality",
+        "whether reduction preserves every observed trade-off exactly",
         "boolean",
     ),
     "n_trees": MetricMetadata(
-        "trees used by nonlinear reconstruction",
-        "nonlinear model effort determined by the evaluator",
+        "nonlinear tree count",
+        "how much model effort the nonlinear evaluator used",
         "integer",
     ),
     "converged": MetricMetadata(
-        "whether the evaluator's stopping criterion was met",
-        "whether computational uncertainty is controlled",
+        "stopping criterion met",
+        "whether computational uncertainty was controlled",
         "boolean",
     ),
     "cancelled": MetricMetadata(
-        "whether evaluation was explicitly cancelled",
-        "whether the stored result is intentionally incomplete",
+        "evaluation cancelled",
+        "whether this stored result was intentionally left incomplete",
         "boolean",
     ),
     "mean_null_r2": MetricMetadata(
-        "mean R² under destroyed association",
-        "reconstruction expected from the nonlinear null reference",
+        "null mean R²",
+        "reconstruction expected after destroying association",
     ),
     "above_null_r2": MetricMetadata(
-        "observed nonlinear mean R² minus the null mean",
-        "reconstruction beyond the null reference",
+        "observed-minus-null R²",
+        "reconstruction gained beyond the nonlinear null reference",
     ),
     "incidental_reconstruction_rate": MetricMetadata(
-        "null exceedance frequency for reconstruction quality",
-        "frequency of equally good incidental reconstruction",
+        "null exceedance rate",
+        "how often the null reconstructs at least this well",
     ),
     "n_permutations": MetricMetadata(
-        "permutations used by the nonlinear null reference",
-        "null-reference computational effort",
+        "null permutation count",
+        "how many replicates built the nonlinear null reference",
         "integer",
     ),
     "mc_se_mean_null_r2": MetricMetadata(
-        "Monte Carlo SE of the nonlinear null mean R²",
+        "MC SE of null mean R²",
         "computational uncertainty of the null baseline",
     ),
     "above_null_r2_se": MetricMetadata(
-        "Monte Carlo SE carried by above-null R²",
+        "MC SE of above-null R²",
         "computational uncertainty of the gain over the null",
     ),
     "incidental_reconstruction_rate_se": MetricMetadata(
-        "Monte Carlo SE of the incidental reconstruction rate",
-        "computational uncertainty of the null exceedance frequency",
+        "MC SE of exceedance rate",
+        "computational uncertainty of incidental reconstruction frequency",
     ),
 }
 
@@ -177,9 +176,6 @@ def _format_integer_range(values):
     return str(low) if low == high else f"{low}–{high}"
 
 
-REPORT_WIDTH = 100
-
-
 def _wrapped_annotation(
     label,
     value,
@@ -188,81 +184,41 @@ def _wrapped_annotation(
     *,
     indent="  ",
     label_width=15,
-    value_width=40,
+    value_width=12,
     compact_label=False,
-    width=REPORT_WIDTH,
 ):
-    """Render an aligned value plus technical/intuitive interpretation.
-
-    Short annotations stay on one line. When the complete annotation would
-    exceed the target width, the value remains on the first line and
-    explanatory text continues from the value column. The intuitive gloss,
-    when present, occupies its own parenthesized continuation line.
-    """
+    """Render one annotated report item on exactly one line."""
 
     rendered = str(value)
     if compact_label:
         prefix = f"{indent}{label}: "
     else:
         prefix = f"{indent}{label:<{label_width}}: "
-    value_column = len(prefix)
-
-    one_line = f"{prefix}{rendered:<{value_width}} — {technical}"
+    value_field = f"{rendered:<{value_width}}" if value_width > 0 else rendered
+    line = f"{prefix}{value_field} — {technical}"
     if intuitive:
-        one_line += f" ({intuitive})"
-    if len(one_line) <= width:
-        return one_line
-
-    lines = [f"{prefix}{rendered}"]
-    continuation = " " * value_column
-    technical_prefix = f"{continuation}— "
-    technical_width = max(20, width - len(technical_prefix))
-    technical_parts = textwrap.wrap(
-        technical,
-        width=technical_width,
-        break_long_words=False,
-        break_on_hyphens=False,
-    ) or [""]
-    lines.append(technical_prefix + technical_parts[0])
-    for part in technical_parts[1:]:
-        lines.append(f"{continuation}  {part}")
-
-    if intuitive:
-        intuitive_prefix = f"{continuation}  "
-        intuitive_width = max(20, width - len(intuitive_prefix) - 2)
-        intuitive_parts = textwrap.wrap(
-            intuitive,
-            width=intuitive_width,
-            break_long_words=False,
-            break_on_hyphens=False,
-        ) or [""]
-        if len(intuitive_parts) == 1:
-            lines.append(f"{intuitive_prefix}({intuitive_parts[0]})")
-        else:
-            lines.append(f"{intuitive_prefix}({intuitive_parts[0]}")
-            for part in intuitive_parts[1:-1]:
-                lines.append(f"{intuitive_prefix} {part}")
-            lines.append(f"{intuitive_prefix} {intuitive_parts[-1]})")
-
-    return "\n".join(lines)
+        line += f" ({intuitive})"
+    return line
 
 
 def _explained_line(
     label,
     value,
-    explanation,
+    technical,
+    intuitive=None,
     *,
     indent="  ",
     label_width=15,
-    value_width=40,
+    value_width=12,
     compact_label=False,
 ):
-    """Render a scalar report line with a concise aligned interpretation."""
+    """Render one concise technical definition plus an intuitive gloss."""
 
     return _wrapped_annotation(
         label,
         value,
-        explanation,
+        technical,
+        intuitive,
         indent=indent,
         label_width=label_width,
         value_width=value_width,
@@ -272,8 +228,8 @@ def _explained_line(
 
 def _ranking_policy_explanation(policy):
     if policy == "size_span":
-        return "MIS order: size descending, then span descending"
-    return "named MIS ordering policy"
+        return "larger MISs first, then broader span"
+    return "the named policy determines candidate order"
 
 
 def _metric_line(name, value, *, reason=None, indent="      "):
@@ -289,7 +245,7 @@ def _metric_line(name, value, *, reason=None, indent="      "):
         metadata.intuitive,
         indent=indent,
         label_width=32,
-        value_width=18,
+        value_width=10,
     )
 
 
