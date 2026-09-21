@@ -39,7 +39,7 @@ def test_evaluation_scope_accumulates_across_calls(monkeypatch):
 
     ranking = misda.rank(result)
     result.evaluate(metrics=("linear",), candidates=[ranking.mis(0, 0)])
-    result.evaluate(metrics=("linear",), candidates=[ranking.mis(1, 0)])
+    result.evaluate(metrics=("linear",), candidates=[ranking.mis(0, 1)])
 
     count, basis = result.evaluation_scope("linear")
     assert count == 2
