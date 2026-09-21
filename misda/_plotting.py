@@ -43,28 +43,16 @@ def _enforce_min_distance(pos, min_dist=0.28, iters=900, jitter=1e-3, seed=7):
 def plot_mis_set_graph(
     mis_set,
     *,
-    ranking,
-    candidate=None,
-    candidate_index=None,
-    level=0,
-    position=0,
+    candidate,
     show=True,
 ):
-    """Render the stored positive structural graph.
+    """Render stored G+ for one explicitly selected MIS."""
 
-    The explicitly selected candidate is highlighted in green. Its direct
-    structural neighbors are black. No scientific calculation is performed by
-    this view.
-    """
-
-    if ranking is not None and ranking.mis_set is not mis_set:
-        raise ValueError("ranking belongs to a different MISSet.")
-    if ranking is None and candidate is None:
-        raise ValueError("either ranking or candidate must be provided.")
+    if getattr(candidate, "_mis_set", None) is not mis_set:
+        raise ValueError("MIS belongs to a different MISSet.")
 
     graph = mis_set.analysis.structural_graph
-    selected = (ranking.mis() if ranking is not None and len(ranking) else None) if candidate is None else candidate
-    selected_nodes = set(selected.indices if selected is not None else ())
+    selected_nodes = set(candidate.indices)
     neighbor_nodes = set()
     for node in selected_nodes:
         neighbor_nodes.update(graph.neighbors(node))
@@ -154,22 +142,7 @@ def plot_mis_set_graph(
             zorder=10,
         )
 
-    detail = (
-        f"; level={level}; position={position}; candidate[{candidate_index}]"
-        if candidate_index is not None
-        else ""
-    )
-    selected_dimension = getattr(selected, "size", None)
-    if selected_dimension is None and ranking is not None:
-        selected_dimension = getattr(ranking, "selected_dimension", None)
-    if ranking is None:
-        title = f"MISDA structural graph — MIS dimension={selected_dimension}"
-    else:
-        title = (
-            "MISDA structural graph — "
-            f"{ranking.policy}; selected dimension={selected_dimension}{detail}"
-        )
-    ax.set_title(title)
+    ax.set_title(f"MISDA structural graph — MIS dimension={candidate.size}")
     ax.axis("off")
     fig.tight_layout()
     if show:
@@ -183,7 +156,6 @@ def plot_mis_candidate_graph(candidate, *, show=True):
     mis_set = candidate._owner()
     return plot_mis_set_graph(
         mis_set,
-        ranking=None,
         candidate=candidate,
         show=show,
     )
