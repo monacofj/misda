@@ -85,7 +85,8 @@ def misda_global_standardized_external_r2(data, result: MISSet) -> float:
         raise TypeError("result must be an MISSet returned by discover().")
     if matrix.shape != result._data.shape:
         raise ValueError("data shape must match the completed MISDA result.")
-    preferred = result.structural_ranking.selected
+    ranking = __import__('misda').rank(result)
+    preferred = ranking.mis() if len(ranking) else None
     if preferred is None:
         raise ValueError("result has no selected structural candidate.")
     linear = preferred.linear
