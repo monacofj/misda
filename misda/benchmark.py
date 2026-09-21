@@ -24,7 +24,7 @@ import pandas as pd
 from scipy.optimize import linear_sum_assignment
 
 from ._tolerances import gate_isclose
-from .api import MISSet, STRUCTURAL_COVERAGE
+from .api import MISSet, rank
 
 
 FORMAT_VERSION = 4
@@ -346,8 +346,8 @@ class BenchmarkResult:
 
     def report(self):
         analysis = self.result.analysis
-        ranking = self.result.structural_ranking
-        preferred = ranking.selected
+        ranking = rank(self.result)
+        preferred = ranking.mis() if len(ranking) else None
         families_expected = _normalize_label_blocks(
             self.truth.get("families_expected"), "families_expected"
         )
@@ -547,7 +547,8 @@ def benchmark(result, truth):
     components_expected = _truth_components(truth)
     pareto_expected = _truth_pareto_indices(truth)
     found_blocks = _found_structural_blocks(result)
-    preferred = result.structural_ranking.selected
+    ranking = rank(result)
+    preferred = ranking.mis() if len(ranking) else None
 
     latent = _dimension_metrics(result.analysis.latent_dimension, latent_expected)
     structural_dimension = _dimension_metrics(
