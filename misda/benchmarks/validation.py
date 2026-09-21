@@ -158,12 +158,14 @@ def analyze_controlled_noisy_problem(
     truth = diagnostic_truth(problem, dataset.Z)
     mis_set = misda.discover(dataset.Y, name=truth["name"], seed=seed)
     mis_set.evaluate(metrics=("linear", "pareto"))
+    ranking = misda.rank(mis_set)
     benchmark_result = misda.benchmark(mis_set, truth)
     return {
         "problem": problem,
         "dataset": dataset,
         "truth": truth,
         "result_obj": mis_set,
+        "ranking_obj": ranking,
         "benchmark_obj": benchmark_result,
     }
 
@@ -241,9 +243,10 @@ def run_sampling_robustness(
             dataset = problem.generate(N=n, seed=sample_seed, sigma=0.0)
             truth = diagnostic_truth(problem, dataset.Z)
             mis_set = misda.discover(dataset.Y, name=truth["name"], seed=misda_seed)
+            ranking = misda.rank(mis_set)
             mis_set.evaluate(
                 metrics=("pareto",),
-                candidates=misda.rank(mis_set).mis(),
+                candidates=ranking.mis(),
             )
             benchmark_result = misda.benchmark(mis_set, truth)
             reasons = _support_reasons(mis_set)
@@ -258,7 +261,7 @@ def run_sampling_robustness(
                     "structural_expected": benchmark_result.structural_expected,
                     "structural_observed": int(mis_set.analysis.structural_dimension),
                     "structural_exact": bool(benchmark_result.structural_dimension_exact),
-                    "selected_dimension": int(misda.rank(mis_set).selected_dimension),
+                    "selected_dimension": int(ranking.selected_dimension),
                     "selected_unit_adequacy": benchmark_result.assessment.get(
                         "selected_unit_adequacy"
                     ),
