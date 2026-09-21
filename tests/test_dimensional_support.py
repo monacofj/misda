@@ -123,6 +123,7 @@ def test_discover_attaches_group_support_and_report_renders_it():
         "PARTIALLY_SUPPORTED",
         "UNSUPPORTED",
     }
-    assert len(result.support.results) == len(result.structural_ranking.groups[0])
-    report = result.report()
+    ranking = misda.rank(result)
+    assert len(result.support.results) == len(ranking.groups[0])
+    report = ranking.report()
     assert "Dimensional support:" in report
