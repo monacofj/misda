@@ -55,9 +55,9 @@ with equal `size` and equal `span` belong to the same scientific rank group.
 `misda.rank(mis_set)` is equivalent to
 `misda.rank(mis_set, policy="size_span")`.
 
-The previous exported constant name `STRUCTURAL_COVERAGE` may remain as a
-compatibility alias, but its value resolves to the canonical `size_span` policy.
-The literal policy name `"structural_coverage"` is not normative.
+The canonical public constant is `SIZE_SPAN`. The former
+`STRUCTURAL_COVERAGE` alias and literal policy name `"structural_coverage"`
+are not part of the alpha API; ADR 0020 records their removal.
 
 ## Rationale
 
