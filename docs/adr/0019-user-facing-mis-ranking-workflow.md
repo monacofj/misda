@@ -144,8 +144,8 @@ The object model now mirrors the way a method user thinks about the task:
 discover data -> evaluate discovered MISs -> rank alternatives -> inspect one MIS
 ```
 
-Canonical indices remain useful implementation details and compatibility
-selectors, but users do not need them for the ordinary workflow.
+Canonical indices remain useful implementation details, but they are not
+public evaluation selectors.
 
 ## Verification
 
