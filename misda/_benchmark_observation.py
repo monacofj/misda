@@ -64,6 +64,29 @@ def _set_agreement(predicted_indices, expected_indices):
     }
 
 
+def _decision_space_effect(result, truth):
+    """Return benchmark-only decision-space dimensions for the selected MIS."""
+    dependencies = truth.get("objective_dependencies")
+    original_dimension = truth.get("original_decision_dimension")
+    if dependencies is None or original_dimension is None:
+        return None, None, None
+
+    preferred = result.structural_ranking.selected
+    if preferred is None:
+        return int(original_dimension), None, None
+
+    active = set()
+    for objective in preferred.objectives:
+        if objective not in dependencies:
+            raise ValueError(
+                f"truth['objective_dependencies'] has no declaration for selected "
+                f"objective {objective!r}."
+            )
+        active.update(str(variable) for variable in dependencies[objective])
+    active_variables = tuple(sorted(active))
+    return int(original_dimension), len(active_variables), active_variables
+
+
 def _format_metric(value):
     if value is None:
         return "N/A"
@@ -103,6 +126,9 @@ class ObservationBenchmarkResult(_BaseBenchmarkResult):
     observation_pareto_lost: Optional[int] = None
     observation_pareto_spurious: Optional[int] = None
     observation_pareto_exact: Optional[bool] = None
+    original_decision_dimension: Optional[int] = None
+    active_decision_dimension: Optional[int] = None
+    active_decision_variables: Optional[tuple] = None
 
     def report(self):
         base_lines = super().report().splitlines()
@@ -117,6 +143,26 @@ class ObservationBenchmarkResult(_BaseBenchmarkResult):
             "-" * 72,
             *_benchmark_validation_lines(base_lines),
         ]
+
+        decision_marker = "Declaration assessment"
+        if self.original_decision_dimension is not None:
+            try:
+                decision_index = lines.index(decision_marker)
+            except ValueError:
+                decision_index = len(lines)
+            variables = (
+                ", ".join(self.active_decision_variables)
+                if self.active_decision_variables is not None
+                else "N/A"
+            )
+            lines[decision_index:decision_index] = [
+                "Decision-space effect of selected MIS",
+                "  Original decision dimension : "
+                f"{_format_metric(self.original_decision_dimension)}",
+                "  Active decision dimension   : "
+                f"{_format_metric(self.active_decision_dimension)}",
+                f"  Active decision variables   : {variables}",
+            ]
 
         marker = "Pareto declaration agreement"
         try:
@@ -172,6 +218,10 @@ def benchmark(result, truth):
         "exact": None,
     }
 
+    original_decision_dimension, active_decision_dimension, active_decision_variables = (
+        _decision_space_effect(result, truth)
+    )
+
     if base.pareto_expected is not None:
         observed_mask = get_nondominated_mask_minimize(result._data)
         observed_indices = tuple(int(index) for index in np.flatnonzero(observed_mask))
@@ -187,6 +237,9 @@ def benchmark(result, truth):
         observation_pareto_lost=metrics["lost"],
         observation_pareto_spurious=metrics["spurious"],
         observation_pareto_exact=metrics["exact"],
+        original_decision_dimension=original_decision_dimension,
+        active_decision_dimension=active_decision_dimension,
+        active_decision_variables=active_decision_variables,
     )
 
 
@@ -207,6 +260,8 @@ def compile_benchmark_summary(results_dict, sort_by=None):
     dominance_margin_min = []
     dominance_margin_median = []
     dominance_margin_max = []
+    original_decision_dimension = []
+    active_decision_dimension = []
 
     for case_name in frame["Case"]:
         item = results_dict[case_name]
@@ -252,6 +307,8 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         dominance_margin_max.append(
             diagnostics.dominance_margin_max if diagnostics is not None else None
         )
+        original_decision_dimension.append(observed.original_decision_dimension)
+        active_decision_dimension.append(observed.active_decision_dimension)
 
     # Existing ParetoJaccard is P_R vs P_Y. Keep it for compatibility and add
     # an explicit alias beside the new observation and end-to-end quantities.
@@ -266,6 +323,8 @@ def compile_benchmark_summary(results_dict, sort_by=None):
     frame["ParetoDominanceMarginMin"] = dominance_margin_min
     frame["ParetoDominanceMarginMedian"] = dominance_margin_median
     frame["ParetoDominanceMarginMax"] = dominance_margin_max
+    frame["OriginalDecisionDimension"] = original_decision_dimension
+    frame["ActiveDecisionDimension"] = active_decision_dimension
 
     if sort_by and sort_by in frame.columns:
         frame = frame.sort_values(by=sort_by)
