@@ -10,9 +10,10 @@ three responsibilities separate:
 ``MISSet.evaluate`` -> candidate-level evidence
 ``rank``            -> an ordered view whose ``mis()`` selector exposes one MIS
 
-The module-level ``evaluate(mis_set, ...)`` form remains public and equivalent.
-Adaptive analysis and the previous ``analyze``/``heavy`` result model are not
-part of this API.
+Evaluation is exposed only through ``MISSet.evaluate(...)``. Transitional
+module-level and MISSet reporting/plotting compatibility paths were removed
+during alpha. Adaptive analysis and the previous ``analyze``/``heavy``
+result model are not part of this API.
 """
 
 from ._metadata import __version__
@@ -34,7 +35,6 @@ _discover_impl = _api.discover
 from .api import (
     PARTIALLY_SUPPORTED,
     SIZE_SPAN,
-    STRUCTURAL_COVERAGE,
     CandidateSupport,
     DimensionalSupport,
     DiscoveryAnalysis,
@@ -86,9 +86,8 @@ def discover(
 # that import the implementation module directly.
 _api.discover = discover
 
-from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
-from . import _reporting as _reporting  # installs the legacy-complete MISSet report
-from . import _front_plotting as _front_plotting  # installs graph/front plot views
+from ._pareto_stability import ParetoStabilityDiagnostics
+from . import _pareto_stability as _pareto_stability  # enriches internal evaluation
 from .benchmark import (
     BenchmarkCase,
     BenchmarkResult,
@@ -101,7 +100,6 @@ from ._benchmark_observation import benchmark, compile_benchmark_summary
 __all__ = [
     "__version__",
     "SIZE_SPAN",
-    "STRUCTURAL_COVERAGE",
     "PARTIALLY_SUPPORTED",
     "StructuralMetrics",
     "JackknifeMetrics",
@@ -117,7 +115,6 @@ __all__ = [
     "MISSet",
     "Ranking",
     "discover",
-    "evaluate",
     "rank",
     "BenchmarkCase",
     "BenchmarkResult",
