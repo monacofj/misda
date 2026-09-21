@@ -18,6 +18,11 @@ BANNED_SOURCE = (
     'method="adaptive"',
     "misda.analyze(",
     "misda.heavy(",
+    "misda.evaluate(",
+    ".structural_ranking",
+    "mis_set.report(",
+    "mis_set.graph_plot(",
+    "mis_set.front_plot(",
 )
 
 BENCHMARK_CASES = (
@@ -127,6 +132,7 @@ def test_controlled_noisy_notebook_is_runner_frontend_and_runs_suite(monkeypatch
     assert "def run_case(problem_id)" in source
     assert "OBSERVATION_SEED = 456" in source
     assert "SIGMA = 0.10" in source
+    assert 'item["ranking_obj"].mis().graph_plot()' in source
     assert "noisy_summary = misda.compile_benchmark_summary(noisy_results)" in source
     assert _case_headings(notebook) == [f"## {name}" for _, name in BENCHMARK_CASES]
     for index, (problem_id, _name) in enumerate(BENCHMARK_CASES, start=1):
@@ -141,6 +147,7 @@ def test_controlled_noisy_notebook_is_runner_frontend_and_runs_suite(monkeypatch
     assert tuple(results) == tuple(problem_id for problem_id, _ in BENCHMARK_CASES)
     assert len(results) == 13
     assert all(isinstance(item["result_obj"], misda.MISSet) for item in results.values())
+    assert all(isinstance(item["ranking_obj"], misda.Ranking) for item in results.values())
     assert all(isinstance(item["benchmark_obj"], BenchmarkResult) for item in results.values())
     assert all(item["dataset"].sigma == pytest.approx(0.10) for item in results.values())
     assert all(item["dataset"].sample_seed == 123 for item in results.values())
@@ -229,6 +236,8 @@ def test_comparison_notebook_uses_diagnostic_truth_without_pca_dimension_cutoff(
     assert "bench.PROBLEM_BY_ID" in source
     assert "problem.generate(N=N, seed=SEED, sigma=0.0)" in source
     assert "bench.diagnostic_truth(problem, dataset.Z)" in source
+    assert 'mis_set.evaluate(metrics=("linear",), candidates=structural.mis())' in source
+    assert "structural.mis().graph_plot()" in source
     assert "pca_external_reconstruction_curve" in source
     assert "pca_at_latent_truth" in source
     assert "pca_at_structural_truth" in source
@@ -274,6 +283,9 @@ def test_classical_notebook_keeps_reference_geometry_separate_from_misda_truth(m
     assert "pareto_manifold_dimension" in source
     assert "misda_latent" in source
     assert "misda_structural" in source
+    assert "print(ranking.report())" in source
+    assert "ranking.mis().graph_plot()" in source
+    assert "selected = ranking.mis()" in source
     assert "misda.benchmark(" not in source
     assert "latent_expected" not in source
     assert "structural_expected" not in source
