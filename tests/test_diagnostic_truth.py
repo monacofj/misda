@@ -18,6 +18,23 @@ def test_pareto_truth_is_available_for_every_clean_diagnostic_problem():
         assert all(0 <= index < 48 for index in truth["pareto_expected"])
 
 
+def test_decision_dependencies_are_declared_for_every_diagnostic_problem():
+    for problem in PROBLEMS:
+        dataset = problem.generate(N=24, seed=123, sigma=0.0)
+        truth = diagnostic_truth(problem, dataset.Z)
+        dependencies = truth["objective_dependencies"]
+
+        assert set(dependencies) == set(dataset.Z.columns)
+        declared_variables = {
+            variable
+            for objective_variables in dependencies.values()
+            for variable in objective_variables
+        }
+        assert declared_variables == set(dataset.X.columns)
+        assert truth["original_decision_dimension"] == len(dataset.X.columns)
+        assert truth["original_decision_variables"] == sorted(dataset.X.columns)
+
+
 def test_generating_families_are_declared_for_every_diagnostic_problem():
     for problem in PROBLEMS:
         dataset = problem.generate(N=24, seed=123, sigma=0.0)
@@ -49,6 +66,17 @@ def test_case5_family_and_structural_units_are_distinct_declarations():
     assert truth["expected_mismatches"]["selected_structural_units"] == "TRANSITIVE_CHAINING"
 
 
+def test_transitive_chain_declares_cumulative_decision_dependencies():
+    problem = PROBLEM_BY_ID["transitive_chain"]
+    dataset = problem.generate(N=32, seed=123, sigma=0.0)
+    truth = diagnostic_truth(problem, dataset.Z)
+
+    assert truth["objective_dependencies"]["f1"] == ["x1"]
+    assert truth["objective_dependencies"]["f5"] == [f"x{i}" for i in range(1, 6)]
+    assert truth["objective_dependencies"]["f20"] == [f"x{i}" for i in range(1, 21)]
+    assert truth["original_decision_dimension"] == 20
+
+
 def test_mop_b_families_do_not_become_structural_units():
     problem = PROBLEM_BY_ID["tradeoff_redundancies"]
     dataset = problem.generate(N=32, seed=123, sigma=0.0)
@@ -56,6 +84,21 @@ def test_mop_b_families_do_not_become_structural_units():
 
     assert [len(group) for group in truth["families_expected"]] == [7, 7, 6]
     assert "blocks_expected" not in truth
+
+
+def test_decision_dependency_truth_does_not_change_with_observation_noise():
+    problem = PROBLEM_BY_ID["overlapping_factors"]
+    clean = problem.generate(N=64, seed=123, sigma=0.0, observation_seed=1)
+    noisy = problem.generate(N=64, seed=123, sigma=0.25, observation_seed=999)
+
+    clean_truth = diagnostic_truth(problem, clean.Z)
+    noisy_truth = diagnostic_truth(problem, noisy.Z)
+
+    assert clean_truth["objective_dependencies"] == noisy_truth["objective_dependencies"]
+    assert clean_truth["original_decision_dimension"] == noisy_truth["original_decision_dimension"] == 2
+    assert clean_truth["objective_dependencies"]["f1"] == ["a"]
+    assert clean_truth["objective_dependencies"]["f11"] == ["b"]
+    assert clean_truth["objective_dependencies"]["f15"] == ["a", "b"]
 
 
 def test_pareto_truth_does_not_change_when_observation_noise_changes():
