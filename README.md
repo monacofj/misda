@@ -69,6 +69,11 @@ graph_figure = mis.graph_plot(show=False)
 front_figure = mis.front_plot(show=False)
 ```
 
+`ranking.report()` is self-contained. Compact `— explanation` annotations
+clarify the meaning of dimensions, graph topology, threshold/null calibration,
+ranking ties, support diagnostics, and evaluation summaries without triggering
+hidden computation or removing any evidence.
+
 `discover()` determines thresholds, builds `G+` and `G±`, estimates dimensions,
 enumerates all structural MISs, computes structural metrics, establishes the
 canonical structural order, and evaluates dimensional support. It does not
