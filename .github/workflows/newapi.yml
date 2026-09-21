@@ -47,7 +47,6 @@ jobs:
           print('canonical alpha API present; transitional surface absent')
           PY
       - name: Public reporting contract
-        continue-on-error: true
         run: |
           pytest -q \
             tests/test_reporting_contract.py \
