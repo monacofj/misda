@@ -323,3 +323,48 @@ def test_default_ranking_report_remains_exactly_the_complete_mis_set_report():
     result = _evaluated_result()
 
     assert misda.rank(result).report() == result.report()
+
+
+def test_long_metric_explanations_wrap_from_the_value_column():
+    result = _evaluated_result()
+    report_lines = result.report().splitlines()
+
+    index = next(
+        i for i, line in enumerate(report_lines)
+        if line.lstrip().startswith("mean_r2")
+    )
+    value_column = report_lines[index].index(": ") + 2
+
+    # The long technical/intuitive annotation must not be crammed onto the
+    # value line. Continuations align from the value column.
+    assert "—" not in report_lines[index]
+    assert report_lines[index + 1].index("—") == value_column
+    assert report_lines[index + 2].index("(") == value_column + 2
+    assert "mean external R² over eliminated objectives" in report_lines[index + 1]
+    assert "average reconstruction quality" in report_lines[index + 2]
+
+
+def test_short_explanations_stay_inline_and_long_ones_wrap_cleanly():
+    result = _evaluated_result()
+    report_lines = result.report().splitlines()
+
+    original = next(line for line in report_lines if line.startswith("  Original"))
+    latent_index = next(
+        i for i, line in enumerate(report_lines)
+        if line.startswith("  Latent")
+    )
+
+    assert "— number of input objectives" in original
+    assert "—" not in report_lines[latent_index]
+    latent_value_column = report_lines[latent_index].index(": ") + 2
+    assert report_lines[latent_index + 1].index("—") == latent_value_column
+    assert "independence number of G±" in report_lines[latent_index + 1]
+
+
+def test_wrapped_report_preserves_legacy_pareto_stability_labels():
+    result = _evaluated_result()
+    report = result.report()
+
+    assert "Observed front:" in report
+    assert "Dominance margin:" in report
+    assert "Additive epsilon+:" in report
