@@ -36,7 +36,7 @@ J(A,B) = |A intersect B| / |A union B|.
 
 If a reference quantity was not declared, the report must say that it is unavailable/not declared rather than fabricate an expectation.
 
-Benchmark reports must also preserve the same conceptual boundary visually. The `MISDA measures (data-derived)` block is exactly the native `result.report()` output, embedded verbatim rather than independently re-rendered by benchmark code. Declarations, expected values, errors, exact-match indicators, agreement against declared truth, and all other truth-dependent quantities are grouped under `Benchmark validation (requires declared truth)`. A metric does not become a benchmark metric merely because it is displayed by `bench.report()`; its classification depends on whether its computation requires external truth.
+Benchmark reports must also preserve the same conceptual boundary visually. The `MISDA measures (data-derived)` block is exactly the native `misda.rank(result).report()` output, embedded verbatim rather than independently re-rendered by benchmark code. Declarations, expected values, errors, exact-match indicators, agreement against declared truth, and all other truth-dependent quantities are grouped under `Benchmark validation (requires declared truth)`. A metric does not become a benchmark metric merely because it is displayed by `bench.report()`; its classification depends on whether its computation requires external truth.
 
 ## Expected mismatches
 
@@ -51,7 +51,7 @@ Strict acceptance fails on unexpected declaration mismatches and must identify c
 ## Invariants
 
 - benchmark truth is read only by benchmark code;
-- `MISDA measures (data-derived)` is exactly `result.report()`;
+- `MISDA measures (data-derived)` is exactly `misda.rank(result).report()`;
 - truth-dependent benchmark validation remains visibly separate from the native MISDA report;
 - generating families, structural units, connected components, and dimensions remain separately declared concepts;
 - expected dimension is never treated as expected component count;
@@ -61,7 +61,7 @@ Strict acceptance fails on unexpected declaration mismatches and must identify c
 
 ## Current implementation
 
-The benchmark infrastructure consumes `MISSet`/`Ranking` outputs and stored evidence. Controlled diagnostic truth reports generating families for every scenario, structural units only where the diagnostic specification provides an unambiguous partition, and graph components only when explicitly declared. `bench.report()` embeds `result.report()` unchanged under `MISDA measures (data-derived)` and then appends only benchmark declarations and truth-dependent validation under `Benchmark validation (requires declared truth)`. The acceptance workflow runs the canonical benchmark in strict mode. Current project acceptance also exercises the static test suite, relevant slow tests, notebooks, the scientific battery, and comparative experiments.
+The benchmark infrastructure consumes `MISSet`/`Ranking` outputs and stored evidence. Controlled diagnostic truth reports generating families for every scenario, structural units only where the diagnostic specification provides an unambiguous partition, and graph components only when explicitly declared. `bench.report()` embeds `misda.rank(result).report()` unchanged under `MISDA measures (data-derived)` and then appends only benchmark declarations and truth-dependent validation under `Benchmark validation (requires declared truth)`. The acceptance workflow runs the canonical benchmark in strict mode. Current project acceptance also exercises the static test suite, relevant slow tests, notebooks, the scientific battery, and comparative experiments.
 
 ## Forbidden shortcuts / regression risks
 
@@ -69,4 +69,4 @@ Do not tune discovery from expected values, silently infer missing declarations,
 
 ## Verification
 
-Benchmark tests should deliberately vary declarations while keeping method outputs fixed, exercise N/A behavior, distinguish generating-family/structural-unit/component semantics (especially Case 5 and MOP-B), assert byte-for-byte textual equality between the embedded MISDA block and `result.report()`, exercise expected-vs-unexpected mismatch classification, and confirm strict-mode failure semantics.
+Benchmark tests should deliberately vary declarations while keeping method outputs fixed, exercise N/A behavior, distinguish generating-family/structural-unit/component semantics (especially Case 5 and MOP-B), assert byte-for-byte textual equality between the embedded MISDA block and `misda.rank(result).report()`, exercise expected-vs-unexpected mismatch classification, and confirm strict-mode failure semantics.
