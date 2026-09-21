@@ -245,14 +245,14 @@ def test_benchmark_runner_matches_notebook_reference_scope(monkeypatch):
     module = importlib.import_module("benchmarks.run_controlled")
     assert inspect.signature(module.run_benchmark).parameters["n"].default == 300
 
-    original = module.misda.MISSet.evaluate
+    original = module.misda.evaluate
     observed_kwargs = []
 
-    def capture(self, **kwargs):
+    def capture(result, **kwargs):
         observed_kwargs.append(dict(kwargs))
-        return original(self, **kwargs)
+        return original(result, **kwargs)
 
-    monkeypatch.setattr(module.misda.MISSet, "evaluate", capture)
+    monkeypatch.setattr(module.misda, "evaluate", capture)
     artifact = module.run_benchmark(n=32, case_ids={"case_02"})
 
     assert len(artifact["cases"]) == 1
