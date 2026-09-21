@@ -22,7 +22,7 @@ def _resolve_ranking(mis_set, ranking):
     """Resolve a public ranking selector without changing stored state."""
 
     if ranking is None or ranking == "default":
-        return mis_set.structural_ranking
+        return rank(mis_set)
     if isinstance(ranking, str):
         if ranking != SIZE_SPAN:
             raise ValueError(
