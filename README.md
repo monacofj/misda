@@ -81,8 +81,8 @@ accept a user-selected ranking policy.
 
 `MISSet.evaluate()` enriches already-discovered MISs without changing their
 canonical positions. With no arguments it preserves the established default:
-linear and Pareto evidence for the default candidate scope. The module form
-`misda.evaluate(mis_set, ...)` remains equivalent for compatibility.
+linear and Pareto evidence for the default candidate scope. During alpha,
+evaluation is exposed only through the `MISSet.evaluate(...)` method.
 
 Current metric families are:
 
@@ -195,8 +195,8 @@ ranking.mis(0, 3).front_plot()
 ```
 
 `level` and `position` therefore belong to `Ranking.mis()`, not to the MIS
-itself. Existing `MISSet.graph_plot(...)` and `MISSet.front_plot(...)`
-selection forms remain supported for compatibility.
+itself. Plotting is intentionally MIS-only: select first with `Ranking.mis()`,
+then call `graph_plot()` or `front_plot()` on that MIS.
 
 `graph_plot()` renders the stored structural graph. `front_plot()` renders
 already evaluated Pareto-preservation state as an interactive Plotly scatter,
