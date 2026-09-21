@@ -9,7 +9,7 @@ Candidate evidence has heterogeneous cost. Linear and Pareto evaluation are comp
 
 ## Decision
 
-Evaluation scope is explicit and belongs to one `evaluate()` call as a whole. Supported selectors include all candidates, a canonical prefix, explicit canonical indices, and a `Ranking` slice.
+Evaluation scope is explicit and belongs to one `MISSet.evaluate()` call as a whole. Supported selectors are `"all"`, one MIS object, a sequence of MIS objects, or a `Ranking` view/slice.
 
 Default scope is:
 
@@ -29,7 +29,7 @@ Any scope smaller than the complete candidate universe must remain explicitly re
 
 ## Current implementation
 
-`evaluate(..., candidates=...)` accepts `"all"`, an integer prefix length, explicit indices, or a `Ranking`/slice. Reports retain scope metadata and describe partial evaluation as a scope note rather than an error warning.
+`MISSet.evaluate(..., candidates=...)` accepts `"all"`, an MIS, a sequence of MIS objects, or a `Ranking`/slice. Integer prefix lengths and explicit canonical indices were removed during alpha by ADR 0020. Reports retain scope metadata and describe partial evaluation as a scope note rather than an error warning.
 
 ## Forbidden shortcuts / regression risks
 
