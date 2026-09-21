@@ -118,8 +118,10 @@ def test_front_plot_layout_keeps_controls_metadata_and_plot_separate():
     result = _mis_set()
     result.name = "Case 1 - Independent objectives"
     result.pareto_stability = SimpleNamespace(observed_front_indices=(0, 1, 2, 3))
+    replacement = _candidate(("f1", "f2"), (0, 1), (0, 1, 2, 3))
+    object.__setattr__(replacement, "_mis_set", result)
     result._candidates = (
-        _candidate(("f1", "f2"), (0, 1), (0, 1, 2, 3)),
+        replacement,
         result._candidates[1],
     )
 
