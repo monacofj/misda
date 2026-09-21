@@ -177,13 +177,13 @@ def _class_indices(mis_set, candidate):
     if candidate.pareto is None:
         raise ValueError(
             "front_plot() requires stored Pareto evidence for the selected MIS; "
-            "run misda.evaluate(..., metrics=('pareto',), candidates=...) first."
+            "run mis_set.evaluate(..., metrics=('pareto',), candidates=...) first."
         )
     diagnostics = getattr(mis_set, "pareto_stability", None)
     if diagnostics is None:
         raise ValueError(
             "front_plot() requires stored Pareto stability state; run "
-            "misda.evaluate(..., metrics=('pareto',), candidates=...) first."
+            "mis_set.evaluate(..., metrics=('pareto',), candidates=...) first."
         )
 
     full = set(int(index) for index in diagnostics.observed_front_indices)
@@ -334,6 +334,8 @@ def _layout_annotations(
                 "text": (
                     f"{resolved.policy} · level {int(level)} · position {int(position)} "
                     f"· MIS dimension {candidate.size}"
+                    if resolved is not None
+                    else f"MIS dimension {candidate.size}"
                 ),
                 "xref": "paper",
                 "yref": "paper",
@@ -374,6 +376,7 @@ def plot_mis_set_front(
     show=True,
     projection="auto",
     renderer=None,
+    candidate=None,
 ):
     """Render stored full/reduced Pareto membership as an interactive view.
 
@@ -384,12 +387,25 @@ def plot_mis_set_front(
     requested.
     """
 
-    resolved, candidate_index, candidate = resolve_ranking_selection(
-        mis_set,
-        ranking,
-        level=level,
-        position=position,
-    )
+    if candidate is None:
+        resolved, candidate_index, candidate = resolve_ranking_selection(
+            mis_set,
+            ranking,
+            level=level,
+            position=position,
+        )
+    else:
+        if getattr(candidate, "_mis_set", None) is not mis_set:
+            raise ValueError("candidate belongs to a different MISSet.")
+        resolved = None
+        candidate_index = next(
+            (
+                index
+                for index, observed in enumerate(mis_set)
+                if observed is candidate
+            ),
+            None,
+        )
     data = np.asarray(mis_set._data, dtype=float)
     labels = tuple(mis_set._labels)
     n_objectives = data.shape[1]
@@ -483,14 +499,19 @@ def plot_mis_set_front(
 
     pareto = candidate.pareto
     meta = {
-        "ranking_policy": resolved.policy,
-        "level": int(level),
-        "position": int(position),
-        "candidate_index": candidate_index,
         "selected_objectives": [str(label) for label in candidate.objectives],
         "default_axes": [str(labels[index]) for index in defaults],
         "projection": "3d" if is_3d else "2d",
     }
+    if resolved is not None:
+        meta.update(
+            {
+                "ranking_policy": resolved.policy,
+                "level": int(level),
+                "position": int(position),
+                "candidate_index": candidate_index,
+            }
+        )
     common_layout = {
         "meta": meta,
         "updatemenus": menus,
@@ -573,6 +594,25 @@ def _front_plot(
         ranking=ranking,
         level=level,
         position=position,
+        show=show,
+        projection=projection,
+        renderer=renderer,
+    )
+
+
+def plot_mis_candidate_front(
+    candidate,
+    *,
+    show=True,
+    projection="auto",
+    renderer=None,
+):
+    """Render stored Pareto preservation for one already-selected MIS."""
+
+    mis_set = candidate._owner()
+    return plot_mis_set_front(
+        mis_set,
+        candidate=candidate,
         show=show,
         projection=projection,
         renderer=renderer,
