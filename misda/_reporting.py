@@ -176,6 +176,30 @@ def _format_integer_range(values):
     return str(low) if low == high else f"{low}–{high}"
 
 
+def _explained_line(
+    label,
+    value,
+    explanation,
+    *,
+    indent="  ",
+    label_width=15,
+    value_width=40,
+):
+    """Render a scalar report line with a concise inline interpretation."""
+
+    rendered = str(value)
+    return (
+        f"{indent}{label:<{label_width}}: {rendered:<{value_width}} — "
+        f"{explanation}"
+    )
+
+
+def _ranking_policy_explanation(policy):
+    if policy == "size_span":
+        return "MIS order: size descending, then span descending"
+    return "named MIS ordering policy"
+
+
 def _metric_line(name, value, *, reason=None, indent="      "):
     metadata = METRIC_METADATA[name]
     rendered = _format_value(value, metadata.kind)
@@ -237,15 +261,41 @@ def _pareto_lines(metrics, *, n_observations=None, indent="      "):
     )
 
     summary = [
-        f"{indent}{'Original front':<32}: "
-        f"{full}/{n_observations if n_observations is not None else '?'}",
-        f"{indent}{'Preserved front':<32}: "
-        f"{preserved}/{full} ({_format_value(retention)})",
-        f"{indent}{'Front loss':<32}: "
-        f"{lost}/{full} ({_format_value(front_loss)})",
-        f"{indent}{'Population impact':<32}: "
-        f"{lost}/{n_observations if n_observations is not None else '?'} "
-        f"({_format_value(population_impact)})",
+        _explained_line(
+            "Original front",
+            f"{full}/{n_observations if n_observations is not None else '?'}",
+            "full-space nondominated observations",
+            indent=indent,
+            label_width=32,
+            value_width=20,
+        ),
+        _explained_line(
+            "Preserved front",
+            f"{preserved}/{full} ({_format_value(retention)})",
+            "original-front observations retained after reduction",
+            indent=indent,
+            label_width=32,
+            value_width=20,
+        ),
+        _explained_line(
+            "Front loss",
+            f"{lost}/{full} ({_format_value(front_loss)})",
+            "fraction of the original front lost after reduction",
+            indent=indent,
+            label_width=32,
+            value_width=20,
+        ),
+        _explained_line(
+            "Population impact",
+            (
+                f"{lost}/{n_observations if n_observations is not None else '?'} "
+                f"({_format_value(population_impact)})"
+            ),
+            "lost-front observations relative to the full sample",
+            indent=indent,
+            label_width=32,
+            value_width=20,
+        ),
     ]
     summary.extend(
         [
@@ -338,11 +388,46 @@ def _candidate_lines(result, candidate_index, group_number):
         f"  candidate[{candidate_index}] group={group_number} "
         f"size={candidate.size} objectives={labels}",
         "    structural",
-        f"      neighborhood                    : {structural.neighborhood}",
-        f"      neighborhood_ratio              : {structural.neighborhood_ratio:.4f}",
-        f"      span                            : {structural.span}",
-        f"      avg_external_degree             : {structural.avg_external_degree:.4f}",
-        f"      avg_internal_degree             : {structural.avg_internal_degree:.4f}",
+        _explained_line(
+            "neighborhood",
+            structural.neighborhood,
+            "outside objectives adjacent to this MIS",
+            indent="      ",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "neighborhood_ratio",
+            f"{structural.neighborhood_ratio:.4f}",
+            "fraction of outside objectives covered by this MIS",
+            indent="      ",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "span",
+            structural.span,
+            "G+ edges crossing the retained/eliminated split",
+            indent="      ",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "avg_external_degree",
+            f"{structural.avg_external_degree:.4f}",
+            "mean crossing-edge degree of retained objectives",
+            indent="      ",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "avg_internal_degree",
+            f"{structural.avg_internal_degree:.4f}",
+            "mean G+ degree inside the MIS; zero for an independent set",
+            indent="      ",
+            label_width=32,
+            value_width=18,
+        ),
     ]
 
     if candidate.linear is not None:
@@ -392,42 +477,116 @@ def _support_lines(result):
 
     lines = [
         f"Dimensional support: {support.status} — {explanation}",
-        f"  First-rank group : {len(items)} candidates",
-        f"  Supported        : {len(supported)}/{len(items)}",
-        f"  Unsupported      : {len(unsupported)}/{len(items)}",
+        _explained_line(
+            "First-rank group",
+            f"{len(items)} candidates",
+            "top-tied MISs tested for dimensional support",
+            label_width=17,
+            value_width=18,
+        ),
+        _explained_line(
+            "Supported",
+            f"{len(supported)}/{len(items)}",
+            "candidates with no diagnostic contradiction",
+            label_width=17,
+            value_width=18,
+        ),
+        _explained_line(
+            "Unsupported",
+            f"{len(unsupported)}/{len(items)}",
+            "candidates with at least one diagnostic contradiction",
+            label_width=17,
+            value_width=18,
+        ),
     ]
     if not items:
         return lines
 
     observed_transitivity = tuple(item.transitivity_observed for item in items)
+    observed_transitivity_text = _format_range(observed_transitivity)
+    if len(set(observed_transitivity)) == 1:
+        observed_transitivity_text += " for all candidates"
     lines.extend(
         [
             "  Transitivity:",
-            "    observed         : "
-            f"{_format_range(observed_transitivity)}"
-            + (
-                " for all candidates"
-                if len(set(observed_transitivity)) == 1
-                else ""
+            _explained_line(
+                "observed",
+                observed_transitivity_text,
+                "largest indirect-minus-direct positive association",
+                indent="    ",
+                label_width=17,
+                value_width=24,
             ),
-            "    null             : "
-            f"{_format_range(item.transitivity_null for item in items)}",
-            "    excess           : "
-            f"{_format_range(item.transitivity_excess for item in items)}",
+            _explained_line(
+                "null",
+                _format_range(item.transitivity_null for item in items),
+                "mean column-permutation reference",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
+            _explained_line(
+                "excess",
+                _format_range(item.transitivity_excess for item in items),
+                "observed - null; positive flags transitive chaining",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
             "  Spectral:",
-            "    tested_dimension : "
-            f"{_format_integer_range(item.spectral_tested_dimension for item in items)}",
-            "    observed_next    : "
-            f"{_format_range(item.spectral_observed_next_eigenvalue for item in items)}",
-            "    null_next        : "
-            f"{_format_range(item.spectral_null_next_eigenvalue for item in items)}",
-            "    excess           : "
-            f"{_format_range(item.spectral_excess for item in items)}",
+            _explained_line(
+                "tested_dimension",
+                _format_integer_range(
+                    item.spectral_tested_dimension for item in items
+                ),
+                "latent signal dimension tested",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
+            _explained_line(
+                "observed_next",
+                _format_range(
+                    item.spectral_observed_next_eigenvalue for item in items
+                ),
+                "first rank-correlation eigenvalue beyond tested dimension",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
+            _explained_line(
+                "null_next",
+                _format_range(item.spectral_null_next_eigenvalue for item in items),
+                "mean column-permutation reference for that eigenvalue",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
+            _explained_line(
+                "excess",
+                _format_range(item.spectral_excess for item in items),
+                "observed_next - null_next; positive flags hidden structure",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
             "  Null reference:",
-            "    permutations     : "
-            f"{_format_integer_range(item.n_permutations for item in items)}",
-            "    seed             : "
-            f"{_format_integer_range(item.seed for item in items)}",
+            _explained_line(
+                "permutations",
+                _format_integer_range(item.n_permutations for item in items),
+                "shared column-permutation replicates",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
+            _explained_line(
+                "seed",
+                _format_integer_range(item.seed for item in items),
+                "derived seed shared by first-rank candidates",
+                indent="    ",
+                label_width=17,
+                value_width=24,
+            ),
         ]
     )
 
@@ -465,7 +624,13 @@ def _evaluation_scope_lines(result):
         observed = True
         count, basis = scope
         lines.append(
-            f"  {family:<9}: {count}/{len(result)} candidates ({basis})"
+            _explained_line(
+                family,
+                f"{count}/{len(result)} candidates ({basis})",
+                "stored evaluation coverage for this metric family",
+                label_width=9,
+                value_width=42,
+            )
         )
         if count != len(result):
             lines.append(
@@ -490,17 +655,34 @@ def _pareto_stability_lines(result, ranking=None):
     )
     return [
         "Pareto stability (observed Y only):",
-        "  Observed front: "
-        f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
-        f"(fraction={_format_value(diagnostics.observed_front_fraction)})",
-        "  Dominance margin: "
-        f"min={_format_value(diagnostics.dominance_margin_min)}, "
-        f"median={_format_value(diagnostics.dominance_margin_median)}, "
-        f"max={_format_value(diagnostics.dominance_margin_max)} "
-        "(smaller = more perturbation-sensitive exact membership)",
-        "  Additive epsilon+: "
-        f"{_format_value(selected_epsilon)} "
-        "(range-normalized P_R -> P_Y; smaller = closer full-space approximation)",
+        _explained_line(
+            "Observed front",
+            (
+                f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
+                f"(fraction={_format_value(diagnostics.observed_front_fraction)})"
+            ),
+            "full-space empirical nondominated set",
+            label_width=17,
+            value_width=34,
+        ),
+        _explained_line(
+            "Dominance margin",
+            (
+                f"min={_format_value(diagnostics.dominance_margin_min)}, "
+                f"median={_format_value(diagnostics.dominance_margin_median)}, "
+                f"max={_format_value(diagnostics.dominance_margin_max)}"
+            ),
+            "smaller means more perturbation-sensitive exact membership",
+            label_width=17,
+            value_width=48,
+        ),
+        _explained_line(
+            "Additive epsilon+",
+            _format_value(selected_epsilon),
+            "range-normalized P_R -> P_Y; smaller means closer approximation",
+            label_width=17,
+            value_width=34,
+        ),
     ]
 
 
@@ -512,44 +694,121 @@ def _render_complete_report(result, ranking):
     selected_index = ranking.indices[0] if ranking.indices else None
     selected_dimension = ranking.selected_dimension
 
+    selected_dimension_text = (
+        (
+            f"{selected_dimension} "
+            f"(candidate[{selected_index}] under {ranking.policy})"
+        )
+        if selected_index is not None
+        else "N/A"
+    )
+    selected_candidate_text = (
+        f"candidate[{selected_index}]" if selected_index is not None else "N/A"
+    )
+    dependence_topology = (
+        f"nodes={analysis.dependence_graph.number_of_nodes()}; "
+        f"edges={analysis.dependence_graph.number_of_edges()}; "
+        f"components={len(analysis.latent_components)}"
+    )
+    structural_topology = (
+        f"nodes={analysis.structural_graph.number_of_nodes()}; "
+        f"edges={analysis.structural_graph.number_of_edges()}; "
+        f"components={len(analysis.structural_components)}"
+    )
+
     lines = [f"MISDA report: {result.name or 'Untitled'}", "=" * 72]
     lines.extend(
         [
             "Dimensions:",
-            f"  Original       : {analysis.original_dimension}",
-            f"  Latent         : {analysis.latent_dimension}",
-            f"  Structural     : {analysis.structural_dimension}",
-            "  Selected       : "
-            f"{selected_dimension if selected_dimension is not None else 'N/A'} "
-            f"(candidate[{selected_index}] under {ranking.policy})"
-            if selected_index is not None
-            else "  Selected       : N/A",
+            _explained_line(
+                "Original",
+                analysis.original_dimension,
+                "number of input objectives",
+            ),
+            _explained_line(
+                "Latent",
+                analysis.latent_dimension,
+                "independence number of G± (signed-dependence dimension)",
+            ),
+            _explained_line(
+                "Structural",
+                analysis.structural_dimension,
+                "independence number of G+ (positive-redundancy dimension)",
+            ),
+            _explained_line(
+                "Selected",
+                selected_dimension_text,
+                "dimension of the top-ranked MIS",
+            ),
             "Graph topology:",
-            "  G± dependence  : "
-            f"nodes={analysis.dependence_graph.number_of_nodes()}; "
-            f"edges={analysis.dependence_graph.number_of_edges()}; "
-            f"components={len(analysis.latent_components)}",
-            "  G+ structural  : "
-            f"nodes={analysis.structural_graph.number_of_nodes()}; "
-            f"edges={analysis.structural_graph.number_of_edges()}; "
-            f"components={len(analysis.structural_components)}",
+            _explained_line(
+                "G± dependence",
+                dependence_topology,
+                "signed-dependence graph; component count is topology, not dimension",
+            ),
+            _explained_line(
+                "G+ structural",
+                structural_topology,
+                "positive-redundancy graph; component count is topology, not dimension",
+            ),
             "Threshold calibration:",
-            f"  alpha_onset    : {_format_scalar(analysis.alpha_onset)}",
-            f"  alpha_null     : {_format_scalar(analysis.alpha_null)}",
-            f"  alpha          : {_format_scalar(analysis.alpha)}",
-            f"  aggressiveness : {analysis.aggressiveness:.4f}",
-            f"  separation     : {separation}",
+            _explained_line(
+                "alpha_onset",
+                _format_scalar(analysis.alpha_onset),
+                "observed positive-structure onset",
+            ),
+            _explained_line(
+                "alpha_null",
+                _format_scalar(analysis.alpha_null),
+                "empirical permutation-null envelope endpoint",
+            ),
+            _explained_line(
+                "alpha",
+                _format_scalar(analysis.alpha),
+                "threshold actually used to build G+ and G±",
+            ),
+            _explained_line(
+                "aggressiveness",
+                f"{analysis.aggressiveness:.4f}",
+                "interpolation position: 0=onset, 1=null endpoint",
+            ),
+            _explained_line(
+                "separation",
+                separation,
+                "whether observed onset is strictly separated from the null endpoint",
+            ),
             "Null envelope:",
-            "  completed      : "
-            f"{'yes' if analysis.alpha_null_converged else 'no'}",
-            f"  permutations   : {analysis.alpha_null_permutations}",
-            f"  reason         : {analysis.alpha_null_reason or 'none'}",
+            _explained_line(
+                "completed",
+                "yes" if analysis.alpha_null_converged else "no",
+                "whether the fixed B=N permutation envelope finished",
+            ),
+            _explained_line(
+                "permutations",
+                analysis.alpha_null_permutations,
+                "null permutations actually completed",
+            ),
+            _explained_line(
+                "reason",
+                analysis.alpha_null_reason or "none",
+                "completion or cancellation status of null-envelope calculation",
+            ),
             "Structural ranking:",
-            f"  Policy         : {ranking.policy}",
-            f"  MISs           : {len(ranking)}",
-            f"  Selected       : candidate[{selected_index}]"
-            if selected_index is not None
-            else "  Selected       : N/A",
+            _explained_line(
+                "Policy",
+                ranking.policy,
+                _ranking_policy_explanation(ranking.policy),
+            ),
+            _explained_line(
+                "MISs",
+                len(ranking),
+                "MISs included in this ranking view",
+            ),
+            _explained_line(
+                "Selected",
+                selected_candidate_text,
+                "top MIS under this ranking policy",
+            ),
         ]
     )
 
@@ -557,7 +816,13 @@ def _render_complete_report(result, ranking):
         f"group {position}={len(group)}"
         for position, group in enumerate(ranking.groups, start=1)
     )
-    lines.append(f"  Tie groups     : {tie_counts or 'none'}")
+    lines.append(
+        _explained_line(
+            "Tie groups",
+            tie_counts or "none",
+            "scientific ties under the ranking criteria",
+        )
+    )
     lines.extend(_support_lines(result))
     lines.extend(_evaluation_scope_lines(result))
 
@@ -608,11 +873,41 @@ def render_mis_report(candidate):
         f"Dimension       : {candidate.size}",
         f"Objectives      : {labels}",
         "Structural:",
-        f"  neighborhood                    : {structural.neighborhood}",
-        f"  neighborhood_ratio              : {structural.neighborhood_ratio:.4f}",
-        f"  span                            : {structural.span}",
-        f"  avg_external_degree             : {structural.avg_external_degree:.4f}",
-        f"  avg_internal_degree             : {structural.avg_internal_degree:.4f}",
+        _explained_line(
+            "neighborhood",
+            structural.neighborhood,
+            "outside objectives adjacent to this MIS",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "neighborhood_ratio",
+            f"{structural.neighborhood_ratio:.4f}",
+            "fraction of outside objectives covered by this MIS",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "span",
+            structural.span,
+            "G+ edges crossing the retained/eliminated split",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "avg_external_degree",
+            f"{structural.avg_external_degree:.4f}",
+            "mean crossing-edge degree of retained objectives",
+            label_width=32,
+            value_width=18,
+        ),
+        _explained_line(
+            "avg_internal_degree",
+            f"{structural.avg_internal_degree:.4f}",
+            "mean G+ degree inside the MIS; zero for an independent set",
+            label_width=32,
+            value_width=18,
+        ),
     ]
 
     if candidate.linear is not None:
