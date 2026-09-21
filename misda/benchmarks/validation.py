@@ -157,7 +157,7 @@ def analyze_controlled_noisy_problem(
     )
     truth = diagnostic_truth(problem, dataset.Z)
     mis_set = misda.discover(dataset.Y, name=truth["name"], seed=seed)
-    mis_set.evaluate( metrics=("linear", "pareto"))
+    mis_set.evaluate(metrics=("linear", "pareto"))
     benchmark_result = misda.benchmark(mis_set, truth)
     return {
         "problem": problem,
@@ -241,7 +241,10 @@ def run_sampling_robustness(
             dataset = problem.generate(N=n, seed=sample_seed, sigma=0.0)
             truth = diagnostic_truth(problem, dataset.Z)
             mis_set = misda.discover(dataset.Y, name=truth["name"], seed=misda_seed)
-            mis_set.evaluate( metrics=("pareto",), candidates=1)
+            mis_set.evaluate(
+                metrics=("pareto",),
+                candidates=misda.rank(mis_set).mis(),
+            )
             benchmark_result = misda.benchmark(mis_set, truth)
             reasons = _support_reasons(mis_set)
             records.append(
@@ -337,14 +340,14 @@ def run_noisy_robustness(
             for sigma in sigmas:
                 Y = problem.observe(Z, sigma=sigma, standard_noise=epsilon)
                 mis_set = misda.discover(Y, name=truth["name"], seed=misda_seed)
-                mis_set.evaluate( metrics=("pareto",), candidates=1)
-                benchmark_result = misda.benchmark(mis_set, truth)
-                selected = mis_set.structural_ranking.selected
-                selected_index = (
-                    mis_set.structural_ranking.indices[0]
-                    if mis_set.structural_ranking.indices
-                    else None
+                ranking = misda.rank(mis_set)
+                mis_set.evaluate(
+                    metrics=("pareto",),
+                    candidates=ranking.mis(),
                 )
+                benchmark_result = misda.benchmark(mis_set, truth)
+                selected = ranking.mis()
+                selected_index = ranking.indices[0] if ranking.indices else None
                 pareto_stability = mis_set.pareto_stability
                 reasons = _support_reasons(mis_set)
                 records.append(
