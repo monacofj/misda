@@ -55,20 +55,18 @@ mis_set = misda.discover(
     name="Demo",
 )
 
-misda.evaluate(
-    mis_set,
-    metrics=("linear", "pareto"),
-)
+mis_set.evaluate()
 
-structural = misda.rank(mis_set)
+ranking = misda.rank(mis_set)
+mis = ranking.mis()
 
-print(mis_set.report())
-print(structural.selected.objectives)
-print(structural.selected_dimension)
-print(structural.selected.linear.mean_r2)
+print(ranking.report())
+print(mis.objectives)
+print(ranking.selected_dimension)
+print(mis.linear.mean_r2)
 
-graph_figure = mis_set.graph_plot(show=False, ranking=structural)
-front_figure = mis_set.front_plot(show=False, ranking=structural)
+graph_figure = mis.graph_plot(show=False)
+front_figure = mis.front_plot(show=False)
 ```
 
 `discover()` determines thresholds, builds `G+` and `G±`, estimates dimensions,
@@ -76,8 +74,12 @@ enumerates all structural MISs, computes structural metrics, establishes the
 canonical structural order, and evaluates dimensional support. It does not
 accept a user-selected ranking policy.
 
-`evaluate()` enriches already-discovered candidates without changing their
-canonical positions. Current metric families are:
+`MISSet.evaluate()` enriches already-discovered MISs without changing their
+canonical positions. With no arguments it preserves the established default:
+linear and Pareto evidence for the default candidate scope. The module form
+`misda.evaluate(mis_set, ...)` remains equivalent for compatibility.
+
+Current metric families are:
 
 ```text
 structural
@@ -89,15 +91,15 @@ pareto
 Candidate evidence is exposed through typed domains:
 
 ```python
-candidate = structural.selected
+mis = ranking.mis()
 
-candidate.size
-candidate.structural.neighborhood
-candidate.linear.mean_r2
-candidate.linear.r2("f7")
-candidate.pareto.retention
-candidate.pareto.validity
-candidate.pareto.jaccard
+mis.size
+mis.structural.neighborhood
+mis.linear.mean_r2
+mis.linear.r2("f7")
+mis.pareto.retention
+mis.pareto.validity
+mis.pareto.jaccard
 ```
 
 Linear and Pareto evaluation default to all candidates. A call containing
@@ -105,9 +107,9 @@ Linear and Pareto evaluation default to all candidates. A call containing
 expensive. The scope can always be made explicit:
 
 ```python
-misda.evaluate(mis_set, metrics=("linear",), candidates="all")
-misda.evaluate(mis_set, metrics=("nonlinear",), candidates=1)
-misda.evaluate(mis_set, metrics=("nonlinear",), candidates=structural[:5])
+mis_set.evaluate(metrics=("linear",), candidates="all")
+mis_set.evaluate(metrics=("nonlinear",), candidates=ranking.mis())
+mis_set.evaluate(metrics=("nonlinear",), candidates=ranking[:5])
 ```
 
 Whenever fewer than all candidates are evaluated, reports state that scope
@@ -133,34 +135,42 @@ structural diagnostics, but the scientific ranking key is explicitly
 Thus:
 
 ```python
-structural = misda.rank(mis_set)
+ranking = misda.rank(mis_set)
 ```
 
 is equivalent to:
 
 ```python
-structural = misda.rank(mis_set, policy="size_span")
+ranking = misda.rank(mis_set, policy="size_span")
 ```
 
 A deterministic label-based tie-break provides reproducible order inside a
 scientific tie but does not create a new rank group.
 
-A `Ranking` is a view over the same candidates; it does not reorder `mis_set`.
-Slicing returns another ranking view:
+A `Ranking` is a view over the same MIS objects; it does not reorder
+`mis_set`. Select one MIS by scientific tie level and local position:
 
 ```python
-top10 = structural[:10]
+mis = ranking.mis()                  # level=0, position=0
+alternative = ranking.mis(0, 3)
+alternative = ranking.mis(level=0, position=3)
 ```
 
-Candidate identity remains its fixed position in `mis_set`. Contextual rank is
-not stored on the candidate.
+Slicing still returns another ranking view:
+
+```python
+top10 = ranking[:10]
+```
+
+The selected object is the existing MIS owned by `mis_set`, not a copy.
+Contextual rank, level, and position are not stored on the MIS itself.
 
 The graph-derived structural dimension and a ranking-selected dimension are
 deliberately distinct concepts:
 
 ```python
 mis_set.analysis.structural_dimension
-structural.selected_dimension
+ranking.selected_dimension
 ```
 
 Under the current complete enumeration and size-first `size_span` policy they
@@ -168,16 +178,20 @@ coincide for the canonical selection, but they are defined independently.
 
 ## Visualizations
 
-`MISSet` visualizations use a common ranking selection rule:
+The preferred visualization workflow selects an MIS from a ranking and lets
+that MIS visualize its stored state:
 
 ```python
-mis_set.graph_plot(ranking="default", level=0, position=0)
-mis_set.front_plot(ranking="default", level=0, position=0)
+mis = ranking.mis()
+mis.graph_plot()
+mis.front_plot()
+
+ranking.mis(0, 3).front_plot()
 ```
 
-`level` selects a scientific tie group and `position` selects one MIS within
-that group. `ranking="size_span"` pins the current named policy; a `Ranking`
-instance can also be supplied directly.
+`level` and `position` therefore belong to `Ranking.mis()`, not to the MIS
+itself. Existing `MISSet.graph_plot(...)` and `MISSet.front_plot(...)`
+selection forms remain supported for compatibility.
 
 `graph_plot()` renders the stored structural graph. `front_plot()` renders
 already evaluated Pareto-preservation state as an interactive Plotly scatter,
@@ -215,13 +229,12 @@ Aggregate status is `SUPPORTED`, `PARTIALLY_SUPPORTED`, or `UNSUPPORTED`.
 Nonlinear reconstruction is requested through the same evaluation API:
 
 ```python
-misda.evaluate(
-    mis_set,
+mis_set.evaluate(
     metrics=("nonlinear",),
-    candidates=1,
+    candidates=ranking.mis(),
 )
 
-print(structural.selected.nonlinear.mean_r2)
+print(ranking.mis().nonlinear.mean_r2)
 ```
 
 The nonlinear engine uses nested external leave-one-out Random Forest
@@ -232,7 +245,7 @@ with `null_reference=True`.
 ## Benchmarks
 
 External truth belongs exclusively to benchmark infrastructure. It is never
-passed into `discover()`, `evaluate()`, or `rank()`.
+passed into `discover()`, `MISSet.evaluate()`, or `rank()`.
 
 ```python
 truth = {
