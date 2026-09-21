@@ -154,6 +154,18 @@ def diagnostic_truth(problem, Z: pd.DataFrame) -> dict:
             f"Missing benchmark declaration metadata for problem {problem.id!r}."
         ) from exc
 
+    dependencies = {
+        objective: list(variables)
+        for objective, variables in problem.objective_dependencies.items()
+    }
+    original_decision_variables = sorted(
+        {
+            variable
+            for variables in problem.objective_dependencies.values()
+            for variable in variables
+        }
+    )
+
     truth = {
         "name": scenario.name,
         "problem_id": problem.id,
@@ -161,6 +173,9 @@ def diagnostic_truth(problem, Z: pd.DataFrame) -> dict:
         "structural_expected": scenario.structural_expected,
         "families_expected": _label_groups(scenario.family_sizes),
         "pareto_expected": sampled_pareto_indices(Z),
+        "original_decision_dimension": len(original_decision_variables),
+        "original_decision_variables": original_decision_variables,
+        "objective_dependencies": dependencies,
         "tags": sorted(scenario.tags),
         "expected_mismatches": dict(_EXPECTED_MISMATCHES.get(problem.id, {})),
         "feature": description["feature"],
