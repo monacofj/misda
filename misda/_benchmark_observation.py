@@ -21,6 +21,7 @@ from typing import Optional
 import numpy as np
 
 from ._pareto import get_nondominated_mask_minimize
+from .api import rank
 
 
 _benchmark_module = importlib.import_module(f"{__package__}.benchmark")
@@ -111,7 +112,7 @@ class ObservationBenchmarkResult(_BaseBenchmarkResult):
             "",
             "MISDA measures (data-derived)",
             "-" * 72,
-            *self.result.report().splitlines(),
+            *rank(self.result).report().splitlines(),
             "",
             "Benchmark validation (requires declared truth)",
             "-" * 72,
@@ -213,14 +214,11 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         result = item.get("result_obj") if isinstance(item, dict) else item
         truth = item.get("truth", {}) if isinstance(item, dict) else {}
         observed = benchmark(result, truth)
-        selected = result.structural_ranking.selected
+        ranking = rank(result)
+        selected = ranking.mis() if len(ranking) else None
         reduced = selected.pareto if selected is not None else None
         diagnostics = getattr(result, "pareto_stability", None)
-        selected_index = (
-            result.structural_ranking.indices[0]
-            if result.structural_ranking.indices
-            else None
-        )
+        selected_index = ranking.indices[0] if ranking.indices else None
 
         observation_jaccard.append(observed.observation_pareto_jaccard)
         end_to_end_jaccard.append(observed.pareto_jaccard)
