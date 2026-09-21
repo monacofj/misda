@@ -43,12 +43,25 @@ def _enforce_min_distance(pos, min_dist=0.28, iters=900, jitter=1e-3, seed=7):
 def plot_mis_set_graph(
     mis_set,
     *,
-    candidate,
+    candidate=None,
+    ranking=None,
     show=True,
 ):
-    """Render stored G+ for one explicitly selected MIS."""
+    """Render stored G+ for one selected MIS.
 
-    if getattr(candidate, "_mis_set", None) is not mis_set:
+    The ranking argument remains an internal helper input for regression
+    coverage; the public alpha API selects an MIS first and calls the MIS plot.
+    """
+
+    if candidate is None:
+        if ranking is None:
+            raise ValueError("candidate must be provided.")
+        if getattr(ranking, "mis_set", None) is not mis_set:
+            raise ValueError("ranking belongs to a different MISSet.")
+        candidate = getattr(ranking, "selected", None)
+        if candidate is None:
+            raise ValueError("ranking has no selected MIS.")
+    elif getattr(candidate, "_mis_set", None) is not mis_set:
         raise ValueError("MIS belongs to a different MISSet.")
 
     graph = mis_set.analysis.structural_graph
