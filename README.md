@@ -219,7 +219,7 @@ deterministic tie-break.
 mis_set.support.status
 mis_set.support.supported
 mis_set.support.unsupported
-mis_set.support.for_candidate(0)
+mis_set.support.for_candidate(ranking.mis())
 ```
 
 Aggregate status is `SUPPORTED`, `PARTIALLY_SUPPORTED`, or `UNSUPPORTED`.
