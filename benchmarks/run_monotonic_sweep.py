@@ -109,7 +109,7 @@ def _discover_record(
         ),
         "focus_positive_edge": bool(analysis.structural_graph.has_edge(0, 1)),
         "focus_signed_edge": bool(analysis.dependence_graph.has_edge(0, 1)),
-        "selected_dimension": int(result.structural_ranking.selected_dimension),
+        "selected_dimension": int(misda.rank(result).selected_dimension),
         "separation_status": str(analysis.separation_status.value),
         "support_status": result.support.status,
     }
