@@ -251,3 +251,73 @@ def test_support_exposes_individual_first_rank_candidates():
         observed = result.support.for_candidate(support_result.candidate_index)
         assert observed is support_result
         assert observed.status in {"SUPPORTED", "UNSUPPORTED"}
+
+
+def test_ranking_mis_selects_by_level_and_position_without_indices():
+    x = np.linspace(-1.0, 1.0, 20)
+    data = np.column_stack([x, x, x, x])
+    result = misda.discover(data, seed=43)
+    ranking = misda.rank(result)
+
+    assert len(ranking.groups[0]) == 4
+    assert ranking.mis() is ranking.selected
+    assert ranking.mis(0, 2) is result[ranking.groups[0][2]]
+    assert ranking.mis(level=0, position=3) is result[ranking.groups[0][3]]
+
+    with pytest.raises(IndexError, match="ranking level"):
+        ranking.mis(1, 0)
+    with pytest.raises(IndexError, match="position"):
+        ranking.mis(0, 4)
+    with pytest.raises(TypeError, match="level"):
+        ranking.mis("0", 0)
+
+
+def test_mis_set_evaluate_facade_preserves_default_semantics():
+    result = misda.discover(_two_blocks(n=20), seed=47)
+
+    observed = result.evaluate()
+
+    assert observed is result
+    assert result.evaluation_scope("linear")[0] == len(result)
+    assert result.evaluation_scope("pareto")[0] == len(result)
+    assert all(candidate.linear is not None for candidate in result)
+    assert all(candidate.pareto is not None for candidate in result)
+
+
+def test_evaluate_accepts_one_mis_object_as_scope(monkeypatch):
+    result = misda.discover(_two_blocks(n=20), seed=53)
+    ranking = misda.rank(result)
+    target = ranking.mis()
+    calls = []
+
+    def fake_linear(data, selected_indices, labels):
+        calls.append(tuple(selected_indices))
+        return {
+            "r2_by_objective": {},
+            "r2_reason_by_objective": {},
+            "mean_r2": 0.5,
+            "worst_r2": 0.4,
+            "reason_by_metric": {},
+            "jackknife": {
+                "r2_se_by_objective": {},
+                "mean_r2_se": 0.1,
+                "worst_r2_se": 0.1,
+                "n_replicates": len(data),
+                "reason": None,
+            },
+        }
+
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
+    result.evaluate(metrics=("linear",), candidates=target)
+
+    assert calls == [target.indices]
+    assert target.linear is not None
+    assert result.evaluation_scope("linear") == (1, "explicit MIS")
+
+
+def test_ranking_remains_a_view_not_an_evaluator():
+    result = misda.discover(_two_blocks(), seed=59)
+    ranking = misda.rank(result)
+
+    assert not hasattr(ranking, "evaluate")
+    assert ranking.mis()._mis_set is result
