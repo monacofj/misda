@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import importlib
+import textwrap
 from typing import Any
 
 import numpy as np
@@ -176,6 +177,76 @@ def _format_integer_range(values):
     return str(low) if low == high else f"{low}–{high}"
 
 
+REPORT_WIDTH = 100
+
+
+def _wrapped_annotation(
+    label,
+    value,
+    technical,
+    intuitive=None,
+    *,
+    indent="  ",
+    label_width=15,
+    value_width=40,
+    compact_label=False,
+    width=REPORT_WIDTH,
+):
+    """Render an aligned value plus technical/intuitive interpretation.
+
+    Short annotations stay on one line. When the complete annotation would
+    exceed the target width, the value remains on the first line and
+    explanatory text continues from the value column. The intuitive gloss,
+    when present, occupies its own parenthesized continuation line.
+    """
+
+    rendered = str(value)
+    if compact_label:
+        prefix = f"{indent}{label}: "
+    else:
+        prefix = f"{indent}{label:<{label_width}}: "
+    value_column = len(prefix)
+
+    one_line = f"{prefix}{rendered:<{value_width}} — {technical}"
+    if intuitive:
+        one_line += f" ({intuitive})"
+    if len(one_line) <= width:
+        return one_line
+
+    lines = [f"{prefix}{rendered}"]
+    continuation = " " * value_column
+    technical_prefix = f"{continuation}— "
+    technical_width = max(20, width - len(technical_prefix))
+    technical_parts = textwrap.wrap(
+        technical,
+        width=technical_width,
+        break_long_words=False,
+        break_on_hyphens=False,
+    ) or [""]
+    lines.append(technical_prefix + technical_parts[0])
+    for part in technical_parts[1:]:
+        lines.append(f"{continuation}  {part}")
+
+    if intuitive:
+        intuitive_prefix = f"{continuation}  "
+        intuitive_width = max(20, width - len(intuitive_prefix) - 2)
+        intuitive_parts = textwrap.wrap(
+            intuitive,
+            width=intuitive_width,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [""]
+        if len(intuitive_parts) == 1:
+            lines.append(f"{intuitive_prefix}({intuitive_parts[0]})")
+        else:
+            lines.append(f"{intuitive_prefix}({intuitive_parts[0]}")
+            for part in intuitive_parts[1:-1]:
+                lines.append(f"{intuitive_prefix} {part}")
+            lines.append(f"{intuitive_prefix} {intuitive_parts[-1]})")
+
+    return "\n".join(lines)
+
+
 def _explained_line(
     label,
     value,
@@ -184,13 +255,18 @@ def _explained_line(
     indent="  ",
     label_width=15,
     value_width=40,
+    compact_label=False,
 ):
-    """Render a scalar report line with a concise inline interpretation."""
+    """Render a scalar report line with a concise aligned interpretation."""
 
-    rendered = str(value)
-    return (
-        f"{indent}{label:<{label_width}}: {rendered:<{value_width}} — "
-        f"{explanation}"
+    return _wrapped_annotation(
+        label,
+        value,
+        explanation,
+        indent=indent,
+        label_width=label_width,
+        value_width=value_width,
+        compact_label=compact_label,
     )
 
 
@@ -206,9 +282,14 @@ def _metric_line(name, value, *, reason=None, indent="      "):
     if reason:
         if value is None or name in {"converged", "cancelled"}:
             rendered += f" [{reason}]"
-    return (
-        f"{indent}{name:<32}: {rendered:<18} — "
-        f"{metadata.technical} ({metadata.intuitive})"
+    return _wrapped_annotation(
+        name,
+        rendered,
+        metadata.technical,
+        metadata.intuitive,
+        indent=indent,
+        label_width=32,
+        value_width=18,
     )
 
 
@@ -655,18 +736,34 @@ def _pareto_stability_lines(result, ranking=None):
     )
     return [
         "Pareto stability (observed Y only):",
-        "  Observed front: "
-        f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
-        f"(fraction={_format_value(diagnostics.observed_front_fraction)}) "
-        "— full-space empirical nondominated set",
-        "  Dominance margin: "
-        f"min={_format_value(diagnostics.dominance_margin_min)}, "
-        f"median={_format_value(diagnostics.dominance_margin_median)}, "
-        f"max={_format_value(diagnostics.dominance_margin_max)} "
-        "— smaller means more perturbation-sensitive exact membership",
-        "  Additive epsilon+: "
-        f"{_format_value(selected_epsilon)} "
-        "— range-normalized P_R -> P_Y; smaller means closer approximation",
+        _explained_line(
+            "Observed front",
+            (
+                f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
+                f"(fraction={_format_value(diagnostics.observed_front_fraction)})"
+            ),
+            "full-space empirical nondominated set",
+            compact_label=True,
+            value_width=34,
+        ),
+        _explained_line(
+            "Dominance margin",
+            (
+                f"min={_format_value(diagnostics.dominance_margin_min)}, "
+                f"median={_format_value(diagnostics.dominance_margin_median)}, "
+                f"max={_format_value(diagnostics.dominance_margin_max)}"
+            ),
+            "smaller means more perturbation-sensitive exact membership",
+            compact_label=True,
+            value_width=48,
+        ),
+        _explained_line(
+            "Additive epsilon+",
+            _format_value(selected_epsilon),
+            "range-normalized P_R -> P_Y; smaller means closer approximation",
+            compact_label=True,
+            value_width=34,
+        ),
     ]
 
 
