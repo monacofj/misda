@@ -264,7 +264,8 @@ def test_ranking_mis_selects_by_level_and_position_without_indices():
     ranking = misda.rank(result)
 
     assert len(ranking.groups[0]) == 4
-        assert ranking.mis(0, 2) is result[ranking.groups[0][2]]
+    assert ranking.mis() is result[ranking.groups[0][0]]
+    assert ranking.mis(0, 2) is result[ranking.groups[0][2]]
     assert ranking.mis(level=0, position=3) is result[ranking.groups[0][3]]
 
     with pytest.raises(IndexError, match="ranking level"):
