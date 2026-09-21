@@ -135,7 +135,7 @@ def run_monotonic(n=DEFAULT_N, seed=DEFAULT_SEED):
         Y = case["Y"]
         result = misda.discover(Y, name=case["id"], seed=seed)
         analysis = result.analysis
-        ranking = result.structural_ranking
+        ranking = misda.rank(result)
 
         latent_observed = int(analysis.latent_dimension)
         structural_observed = int(analysis.structural_dimension)
@@ -162,7 +162,7 @@ def run_monotonic(n=DEFAULT_N, seed=DEFAULT_SEED):
                 "g_positive_edges": _edges(analysis.structural_graph),
                 "g_signed_edges": _edges(analysis.dependence_graph),
                 "mis_count": len(result),
-                "selected_objectives": list(ranking.selected.objectives),
+                "selected_objectives": list(ranking.mis().objectives),
                 "selected_dimension": int(ranking.selected_dimension),
                 "separation_status": str(analysis.separation_status.value),
                 "alpha_onset": analysis.alpha_onset,
