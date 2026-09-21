@@ -19,6 +19,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[benchmarks]' pytest nbconvert nbformat jupyter
+      - name: Remote benchmark extra smoke test
+        if: github.event_name == 'pull_request'
+        env:
+          MISDA_REF: ${{ github.head_ref }}
+        run: |
+          python -m venv /tmp/misda-benchmarks-venv
+          /tmp/misda-benchmarks-venv/bin/python -m pip install --upgrade pip
+          /tmp/misda-benchmarks-venv/bin/python -m pip install \
+            "misda[benchmarks] @ git+https://github.com/monacofj/misda.git@${MISDA_REF}"
+          cd /tmp
+          /tmp/misda-benchmarks-venv/bin/python - <<'PY'
+          import misda
+          import moeabench as mb
+          print(misda.__file__)
+          print(mb.__file__)
+          print('MISDA [benchmarks] remote install: OK')
+          PY
       - name: Remote PR package smoke test
         if: github.event_name == 'pull_request'
         env:
