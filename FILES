@@ -19,11 +19,11 @@ misda/api.py
       - DimensionalSupport and CandidateSupport.
 
 misda/_reporting.py
-    Rich, side-effect-free public MISSet reporting over already stored state:
-      - dimensions, topology, thresholds and null-envelope state.
-      - ranking/tie groups and dimensional-support diagnostics.
-      - representative candidate structural/evaluation evidence.
-      - linear, Pareto, nonlinear/null-reference and Pareto-stability evidence.
+    Rich, side-effect-free stored-state reporting:
+      - complete MISSet and Ranking reports with public non-regression coverage.
+      - intrinsic single-MIS reports.
+      - dimensions, topology, thresholds, dimensional support, ranking,
+        linear, Pareto, nonlinear/null-reference and Pareto-stability evidence.
 
 misda/_graph.py
     Construction of G+ and G±, independence-number dimensions, and structural
@@ -52,8 +52,9 @@ misda/_plotting.py
     Matplotlib structural-graph rendering over already discovered graph state.
 
 misda/_front_plotting.py
-    Ranking-aware visualization selection and interactive Plotly Pareto-front
-    views, including notebook display and terminal/browser HTML fallback.
+    Ranking-aware compatibility selection plus intrinsic MIS-level interactive
+    Plotly Pareto-front views, including notebook display and terminal/browser
+    HTML fallback.
 
 misda/benchmark.py
     Benchmark declarations, reports, serialization, and regression comparison.
