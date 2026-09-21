@@ -63,7 +63,7 @@ def test_report_preserves_rich_public_audit_contract():
         assert f"{metric}" in report
 
     assert "external R²" in report
-    assert "average reconstruction quality" in report
+    assert "how well eliminated objectives reconstruct on average" in report
     assert "G± dependence" in report
     assert "G+ structural" in report
     assert "candidate[0]" in report
@@ -259,20 +259,24 @@ def test_report_explains_top_level_fields_without_losing_values():
     report = result.report()
 
     expected_explanations = (
-        "number of input objectives",
-        "independence number of G± (signed-dependence dimension)",
-        "independence number of G+ (positive-redundancy dimension)",
-        "dimension of the top-ranked MIS",
-        "component count is topology, not dimension",
-        "observed positive-structure onset",
-        "empirical permutation-null envelope endpoint",
-        "threshold actually used to build G+ and G±",
-        "interpolation position: 0=onset, 1=null endpoint",
-        "whether observed onset is strictly separated from the null endpoint",
-        "whether the fixed B=N permutation envelope finished",
-        "null permutations actually completed",
-        "MIS order: size descending, then span descending",
-        "scientific ties under the ranking criteria",
+        "observed objective dimension",
+        "how many objectives we started with",
+        "independence number of G±",
+        "how many signed-dependence degrees remain",
+        "independence number of G+",
+        "how many positive-redundancy units remain",
+        "top-ranked MIS size",
+        "components describe connectivity, not dimension",
+        "structure-onset threshold",
+        "permutation-null endpoint",
+        "active dependence threshold",
+        "onset→null interpolation",
+        "onset/null separation status",
+        "null-envelope completion",
+        "completed null permutations",
+        "MIS ordering rule",
+        "larger MISs first, then broader span",
+        "ranking ties",
     )
     for explanation in expected_explanations:
         assert explanation in report
@@ -294,27 +298,27 @@ def test_report_explains_support_and_intrinsic_mis_metrics():
 
     complete = ranking.report()
     for explanation in (
-        "top-tied MISs tested for dimensional support",
-        "candidates with no diagnostic contradiction",
-        "largest indirect-minus-direct positive association",
-        "mean column-permutation reference",
-        "observed - null; positive flags transitive chaining",
-        "first rank-correlation eigenvalue beyond tested dimension",
-        "observed_next - null_next; positive flags hidden structure",
-        "shared column-permutation replicates",
+        "tested top-rank set",
+        "leaders with no diagnostic contradiction",
+        "observed transitivity",
+        "expected value after breaking column association",
+        "positive values flag transitive chaining",
+        "next observed eigenvalue",
+        "positive values flag hidden spectral structure",
+        "shared null replicates",
     ):
         assert explanation in complete
 
     intrinsic = ranking.mis().report()
     for explanation in (
-        "outside objectives adjacent to this MIS",
-        "fraction of outside objectives covered by this MIS",
-        "G+ edges crossing the retained/eliminated split",
-        "mean crossing-edge degree of retained objectives",
-        "mean G+ degree inside the MIS; zero for an independent set",
-        "full-space nondominated observations",
-        "fraction of the original front lost after reduction",
-        "lost-front observations relative to the full sample",
+        "external-neighbor count",
+        "fraction of eliminated objectives adjacent to this MIS",
+        "retained/eliminated edge count",
+        "average eliminated neighbors per retained objective",
+        "should be zero because an MIS is independent",
+        "how many observations are nondominated before reduction",
+        "how much of the original front disappears",
+        "how much of the whole sample is affected",
     ):
         assert explanation in intrinsic
 
@@ -325,40 +329,32 @@ def test_default_ranking_report_remains_exactly_the_complete_mis_set_report():
     assert misda.rank(result).report() == result.report()
 
 
-def test_long_metric_explanations_wrap_from_the_value_column():
+def test_metric_annotations_keep_technical_and_intuitive_text_on_one_line():
     result = _evaluated_result()
     report_lines = result.report().splitlines()
 
-    index = next(
-        i for i, line in enumerate(report_lines)
+    line = next(
+        line for line in report_lines
         if line.lstrip().startswith("mean_r2")
     )
-    value_column = report_lines[index].index(": ") + 2
 
-    # The long technical/intuitive annotation must not be crammed onto the
-    # value line. Continuations align from the value column.
-    assert "—" not in report_lines[index]
-    assert report_lines[index + 1].index("—") == value_column
-    assert report_lines[index + 2].index("(") == value_column + 2
-    assert "mean external R² over eliminated objectives" in report_lines[index + 1]
-    assert "average reconstruction quality" in report_lines[index + 2]
+    assert "— mean external R²" in line
+    assert "(how well eliminated objectives reconstruct on average)" in line
+    assert not any(line.lstrip().startswith("— ") for line in report_lines)
 
 
-def test_short_explanations_stay_inline_and_long_ones_wrap_cleanly():
+def test_top_level_annotations_keep_technical_and_intuitive_text_on_one_line():
     result = _evaluated_result()
     report_lines = result.report().splitlines()
 
     original = next(line for line in report_lines if line.startswith("  Original"))
-    latent_index = next(
-        i for i, line in enumerate(report_lines)
-        if line.startswith("  Latent")
-    )
+    latent = next(line for line in report_lines if line.startswith("  Latent"))
 
-    assert "— number of input objectives" in original
-    assert "—" not in report_lines[latent_index]
-    latent_value_column = report_lines[latent_index].index(": ") + 2
-    assert report_lines[latent_index + 1].index("—") == latent_value_column
-    assert "independence number of G±" in report_lines[latent_index + 1]
+    assert "— observed objective dimension" in original
+    assert "(how many objectives we started with)" in original
+    assert "— independence number of G±" in latent
+    assert "(how many signed-dependence degrees remain)" in latent
+    assert not any(line.lstrip().startswith("— ") for line in report_lines)
 
 
 def test_wrapped_report_preserves_legacy_pareto_stability_labels():
