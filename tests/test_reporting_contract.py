@@ -163,10 +163,11 @@ def test_report_exposes_front_loss_and_population_impact():
 
     report = result.report()
 
-    assert "Original front                  : 3/6" in report
-    assert "Preserved front                 : 1/3 (0.3333)" in report
-    assert "Front loss                      : 2/3 (0.6667)" in report
-    assert "Population impact               : 2/6 (0.3333)" in report
+    lines = report.splitlines()
+    assert any("Original front" in line and ": 3/6" in line for line in lines)
+    assert any("Preserved front" in line and ": 1/3 (0.3333)" in line for line in lines)
+    assert any("Front loss" in line and ": 2/3 (0.6667)" in line for line in lines)
+    assert any("Population impact" in line and ": 2/6 (0.3333)" in line for line in lines)
 
 
 def test_report_never_runs_hidden_scientific_evaluation(monkeypatch):
