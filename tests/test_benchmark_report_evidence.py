@@ -73,7 +73,7 @@ def test_report_does_not_invent_unevaluated_candidate_metric_sections():
 
     report = observed.report()
 
-    assert _misda_block(report) == result.report()
+    assert _misda_block(report) == misda.rank(result).report()
     assert "Linear scope" not in report
     assert "Linear selected" not in report
     assert "Pareto scope" not in report
