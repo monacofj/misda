@@ -12,11 +12,11 @@ def _misda_block(report):
     return "\n".join(lines[start:end]).rstrip()
 
 
-def test_benchmark_report_embeds_ranking_report_verbatim():
+def test_benchmark_report_embeds_result_report_verbatim():
     x = np.array([-3.0, -2.0, -1.0, 1.0, 2.0, 3.0])
     data = np.column_stack([x, 2.0 * x, -x, -2.0 * x])
     result = misda.discover(data, seed=19)
-    result.evaluate(metrics=("linear", "pareto"), candidates="all")
+    misda.evaluate(result, metrics=("linear", "pareto"), candidates="all")
 
     report = misda.benchmark(
         result,
@@ -28,7 +28,7 @@ def test_benchmark_report_embeds_ranking_report_verbatim():
         },
     ).report()
 
-    assert _misda_block(report) == misda.rank(result).report()
+    assert _misda_block(report) == result.report()
 
 
 def test_benchmark_validation_remains_truth_dependent_and_separate():
