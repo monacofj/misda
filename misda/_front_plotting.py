@@ -14,68 +14,6 @@ import webbrowser
 import numpy as np
 import plotly.graph_objects as go
 
-from .api import MISSet, Ranking, SIZE_SPAN, rank
-from ._plotting import plot_mis_set_graph
-
-
-def _resolve_ranking(mis_set, ranking):
-    """Resolve a public ranking selector without changing stored state."""
-
-    if ranking is None or ranking == "default":
-        return rank(mis_set)
-    if isinstance(ranking, str):
-        if ranking != SIZE_SPAN:
-            raise ValueError(
-                f"Unsupported ranking selector {ranking!r}; use 'default', "
-                f"{SIZE_SPAN!r}, or a Ranking instance."
-            )
-        return rank(mis_set, policy=SIZE_SPAN)
-    if isinstance(ranking, Ranking):
-        if ranking.mis_set is not mis_set:
-            raise ValueError("ranking belongs to a different MISSet.")
-        return ranking
-    raise TypeError(
-        "ranking must be None, 'default', 'size_span', or a Ranking instance."
-    )
-
-
-def _nonnegative_index(value, name):
-    if isinstance(value, (bool, np.bool_)) or not isinstance(
-        value, (int, np.integer)
-    ):
-        raise TypeError(f"{name} must be a non-negative integer.")
-    value = int(value)
-    if value < 0:
-        raise ValueError(f"{name} must be a non-negative integer.")
-    return value
-
-
-def resolve_ranking_selection(mis_set, ranking=None, *, level=0, position=0):
-    """Resolve ``ranking -> scientific tie level -> MIS within that level``.
-
-    The returned candidate index is the stable index in the owning ``MISSet``;
-    ``position`` is local to the selected scientific tie group rather than a
-    global position in the Ranking view.
-    """
-
-    if not isinstance(mis_set, MISSet):
-        raise TypeError("mis_set must be an MISSet.")
-    resolved = _resolve_ranking(mis_set, ranking)
-    level = _nonnegative_index(level, "level")
-    position = _nonnegative_index(position, "position")
-
-    if level >= len(resolved.groups):
-        raise IndexError(
-            f"ranking level {level} is out of range for {len(resolved.groups)} levels."
-        )
-    group = resolved.groups[level]
-    if position >= len(group):
-        raise IndexError(
-            f"position {position} is out of range for ranking level {level} "
-            f"with {len(group)} candidates."
-        )
-    candidate_index = int(group[position])
-    return resolved, candidate_index, mis_set[candidate_index]
 
 
 def _objective_menu_label(label, selected):
@@ -288,10 +226,7 @@ def _axis_menu(
 def _layout_annotations(
     *,
     mis_set,
-    resolved,
     candidate,
-    level,
-    position,
     pareto,
     is_3d,
 ):
@@ -331,12 +266,7 @@ def _layout_annotations(
     annotations.extend(
         [
             {
-                "text": (
-                    f"{resolved.policy} · level {int(level)} · position {int(position)} "
-                    f"· MIS dimension {candidate.size}"
-                    if resolved is not None
-                    else f"MIS dimension {candidate.size}"
-                ),
+                "text": f"MIS dimension {candidate.size}",
                 "xref": "paper",
                 "yref": "paper",
                 "x": 0.0,
@@ -370,13 +300,10 @@ def _layout_annotations(
 def plot_mis_set_front(
     mis_set,
     *,
-    ranking=None,
-    level=0,
-    position=0,
+    candidate,
     show=True,
     projection="auto",
     renderer=None,
-    candidate=None,
 ):
     """Render stored full/reduced Pareto membership as an interactive view.
 
@@ -387,25 +314,8 @@ def plot_mis_set_front(
     requested.
     """
 
-    if candidate is None:
-        resolved, candidate_index, candidate = resolve_ranking_selection(
-            mis_set,
-            ranking,
-            level=level,
-            position=position,
-        )
-    else:
-        if getattr(candidate, "_mis_set", None) is not mis_set:
-            raise ValueError("candidate belongs to a different MISSet.")
-        resolved = None
-        candidate_index = next(
-            (
-                index
-                for index, observed in enumerate(mis_set)
-                if observed is candidate
-            ),
-            None,
-        )
+    if getattr(candidate, "_mis_set", None) is not mis_set:
+        raise ValueError("MIS belongs to a different MISSet.")
     data = np.asarray(mis_set._data, dtype=float)
     labels = tuple(mis_set._labels)
     n_objectives = data.shape[1]
@@ -503,24 +413,12 @@ def plot_mis_set_front(
         "default_axes": [str(labels[index]) for index in defaults],
         "projection": "3d" if is_3d else "2d",
     }
-    if resolved is not None:
-        meta.update(
-            {
-                "ranking_policy": resolved.policy,
-                "level": int(level),
-                "position": int(position),
-                "candidate_index": candidate_index,
-            }
-        )
     common_layout = {
         "meta": meta,
         "updatemenus": menus,
         "annotations": _layout_annotations(
             mis_set=mis_set,
-            resolved=resolved,
             candidate=candidate,
-            level=level,
-            position=position,
             pareto=pareto,
             is_3d=is_3d,
         ),
