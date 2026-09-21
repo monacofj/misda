@@ -31,7 +31,8 @@ def test_public_benchmark_module_uses_observation_aware_wrapper():
 def test_clean_observation_layer_is_identity_when_y_equals_z():
     z = _tradeoff_data()
     result = misda.discover(z, seed=17)
-    misda.evaluate(result, metrics=("pareto",), candidates=1)
+    ranking = misda.rank(result)
+    result.evaluate(metrics=("pareto",), candidates=ranking.mis())
     truth = {"name": "clean", "pareto_expected": list(range(len(z)))}
 
     observed = misda.benchmark(result, truth)
@@ -45,7 +46,7 @@ def test_clean_observation_layer_is_identity_when_y_equals_z():
     assert observed.observation_pareto_spurious == 0
     assert observed.observation_pareto_exact
 
-    native_report = result.report()
+    native_report = ranking.report()
     report = observed.report()
     assert _misda_block(report) == native_report
     assert "Pareto stability (observed Y only):" in native_report
@@ -65,7 +66,8 @@ def test_noisy_observation_layer_separates_observation_from_reduction():
     y[5] = (20.0, 20.0)  # observation alone makes the clean point dominated
 
     result = misda.discover(y, seed=17)
-    misda.evaluate(result, metrics=("pareto",), candidates=1)
+    ranking = misda.rank(result)
+    result.evaluate(metrics=("pareto",), candidates=ranking.mis())
     truth = {"name": "observed", "pareto_expected": list(range(len(z)))}
 
     observed = misda.benchmark(result, truth)
@@ -79,7 +81,7 @@ def test_noisy_observation_layer_separates_observation_from_reduction():
     assert observed.observation_pareto_spurious == 0
     assert not observed.observation_pareto_exact
 
-    selected = result.structural_ranking.selected
+    selected = ranking.mis()
     assert selected is not None and selected.pareto is not None
     # Existing candidate Pareto evidence remains P_R vs P_Y.
     assert observed.pareto_jaccard is not None  # existing P_R vs P_Z end-to-end field
@@ -100,7 +102,7 @@ def test_summary_exposes_all_three_pareto_stages_without_changing_old_column():
     assert summary.loc[0, "ParetoReductionJaccard"] == summary.loc[0, "ParetoJaccard"]
     assert summary.loc[0, "ParetoTruthSize"] == len(z)
     assert summary.loc[0, "ParetoObservedSize"] == len(z)
-    assert summary.loc[0, "ParetoReducedSize"] == result.structural_ranking.selected.pareto.reduced_front_size
+    assert summary.loc[0, "ParetoReducedSize"] == ranking.mis().pareto.reduced_front_size
     assert summary.loc[0, "ParetoObservedFraction"] == 1.0
     assert summary.loc[0, "ParetoAdditiveEpsilon"] >= 0.0
     assert summary.loc[0, "ParetoDominanceMarginMin"] >= 0.0
