@@ -1,6 +1,6 @@
 # ADR 0019 — User-facing MIS, ranking, and evaluation workflow
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0020
 - Recorded: 2026-09-20
 
 ## Context
@@ -50,12 +50,6 @@ mis_set.evaluate(metrics=("linear", "pareto"))
 
 Without arguments it preserves the existing evaluator defaults: linear and
 Pareto evidence are evaluated with the existing default candidate scope.
-
-The module function remains public and equivalent for compatibility:
-
-```python
-misda.evaluate(mis_set, metrics=("linear", "pareto"))
-```
 
 Evaluation never belongs to `Ranking`; ranking does not create scientific
 evidence.
@@ -120,20 +114,15 @@ non-regression contract.
 structural metrics, and any stored linear, Pareto, nonlinear, and null-reference
 evidence.
 
-Existing `MISSet.report()` behavior remains available during this transition.
-This ADR does not authorize shrinking or silently deleting report content.
+ADR 0020 completed this transition during alpha: complete reporting now belongs
+only to `Ranking.report()`; MIS-specific reporting belongs to
+`MISCandidate.report()`.
 
-### Compatibility
+### Alpha cleanup
 
-The following existing entry points remain supported:
-
-- `misda.evaluate(mis_set, ...)`;
-- `MISSet.report()`;
-- `MISSet.graph_plot(...)`;
-- `MISSet.front_plot(...)`;
-- integer/index-oriented candidate selectors already accepted by the evaluator.
-
-They are compatibility paths rather than the preferred user-facing workflow.
+The transitional compatibility paths described by the original version of this
+ADR were removed by ADR 0020: module-level evaluation, MISSet report/plot
+methods, `Ranking.selected`, and integer/index evaluation selectors.
 
 ## Invariants
 
@@ -162,10 +151,10 @@ selectors, but users do not need them for the ordinary workflow.
 
 Regression tests must show that:
 
-1. `MISSet.evaluate()` preserves `misda.evaluate()` defaults and state;
+1. `MISSet.evaluate()` preserves evaluator defaults and state;
 2. `Ranking.mis()` resolves tie level and local position without copying;
 3. the evaluator accepts an MIS object directly as candidate scope;
 4. `Ranking.report()` preserves the complete default report contract;
 5. MIS reports and plots consume stored state only;
-6. existing `MISSet` report and visualization entry points keep working;
+6. removed transitional entry points are absent from the public surface;
 7. the full acceptance gate remains green.
