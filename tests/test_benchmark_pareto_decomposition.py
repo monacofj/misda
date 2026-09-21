@@ -90,7 +90,8 @@ def test_noisy_observation_layer_separates_observation_from_reduction():
 def test_summary_exposes_all_three_pareto_stages_without_changing_old_column():
     z = _tradeoff_data()
     result = misda.discover(z, seed=17)
-    misda.evaluate(result, metrics=("pareto",), candidates=1)
+    ranking = misda.rank(result)
+    result.evaluate(metrics=("pareto",), candidates=ranking.mis())
     truth = {"pareto_expected": list(range(len(z)))}
 
     summary = misda.compile_benchmark_summary(
