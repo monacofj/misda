@@ -51,8 +51,10 @@ def test_python_examples_use_only_new_public_workflow(path):
     assert python_blocks
     joined = "\n".join(python_blocks)
     assert "misda.discover(" in joined
-    assert "misda.evaluate(" in joined
+    assert "mis_set.evaluate(" in joined
     assert "misda.rank(" in joined
+    assert "ranking.mis(" in joined
+    assert "misda.evaluate(mis_set" in text
     assert "misda.analyze(" not in joined
     assert "misda.heavy(" not in joined
     assert ".validate(" not in joined
