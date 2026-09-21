@@ -106,8 +106,8 @@ def _mean(records, key):
 
 
 def _pareto_decomposition(mis_set, benchmark_result):
-    ranking = mis_set.structural_ranking
-    selected = ranking.selected
+    ranking = misda.rank(mis_set)
+    selected = ranking.mis() if len(ranking) else None
     selected_index = ranking.indices[0] if ranking.indices else None
     reduction = selected.pareto if selected is not None else None
     stability = mis_set.pareto_stability
@@ -157,7 +157,7 @@ def analyze_controlled_noisy_problem(
     )
     truth = diagnostic_truth(problem, dataset.Z)
     mis_set = misda.discover(dataset.Y, name=truth["name"], seed=seed)
-    misda.evaluate(mis_set, metrics=("linear", "pareto"))
+    mis_set.evaluate( metrics=("linear", "pareto"))
     benchmark_result = misda.benchmark(mis_set, truth)
     return {
         "problem": problem,
@@ -241,7 +241,7 @@ def run_sampling_robustness(
             dataset = problem.generate(N=n, seed=sample_seed, sigma=0.0)
             truth = diagnostic_truth(problem, dataset.Z)
             mis_set = misda.discover(dataset.Y, name=truth["name"], seed=misda_seed)
-            misda.evaluate(mis_set, metrics=("pareto",), candidates=1)
+            mis_set.evaluate( metrics=("pareto",), candidates=1)
             benchmark_result = misda.benchmark(mis_set, truth)
             reasons = _support_reasons(mis_set)
             records.append(
@@ -255,7 +255,7 @@ def run_sampling_robustness(
                     "structural_expected": benchmark_result.structural_expected,
                     "structural_observed": int(mis_set.analysis.structural_dimension),
                     "structural_exact": bool(benchmark_result.structural_dimension_exact),
-                    "selected_dimension": int(mis_set.structural_ranking.selected_dimension),
+                    "selected_dimension": int(misda.rank(mis_set).selected_dimension),
                     "selected_unit_adequacy": benchmark_result.assessment.get(
                         "selected_unit_adequacy"
                     ),
@@ -337,7 +337,7 @@ def run_noisy_robustness(
             for sigma in sigmas:
                 Y = problem.observe(Z, sigma=sigma, standard_noise=epsilon)
                 mis_set = misda.discover(Y, name=truth["name"], seed=misda_seed)
-                misda.evaluate(mis_set, metrics=("pareto",), candidates=1)
+                mis_set.evaluate( metrics=("pareto",), candidates=1)
                 benchmark_result = misda.benchmark(mis_set, truth)
                 selected = mis_set.structural_ranking.selected
                 selected_index = (
@@ -362,7 +362,7 @@ def run_noisy_robustness(
                             benchmark_result.structural_dimension_exact
                         ),
                         "selected_dimension": int(
-                            mis_set.structural_ranking.selected_dimension
+                            misda.rank(mis_set).selected_dimension
                         ),
                         "selected_unit_adequacy": benchmark_result.assessment.get(
                             "selected_unit_adequacy"
