@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 import misda
@@ -298,3 +299,55 @@ def test_classical_notebook_keeps_reference_geometry_separate_from_misda_truth(m
     assert summary["misda_latent"].notna().all()
     assert summary["misda_structural"].notna().all()
     assert summary["pareto_jaccard"].notna().all()
+
+
+def test_optimization_notebook_uses_benchmark_extra_and_original_space_evaluation(monkeypatch):
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, source = _read_notebook(path)
+
+    assert notebook["nbformat"] == 4
+    assert all(term not in source for term in BANNED_SOURCE)
+    assert "misda[benchmarks]" in source
+    assert "import moeabench as mb" in source
+    assert "pip install moeabench" not in source
+    assert "class ReducedMop" in source
+    assert "assert_paired_initial_decisions" in source
+    assert "original_mop.evaluation" in source
+    assert "mb.metrics.gdplus" in source
+    assert "mb.metrics.igdplus" in source
+    assert "mb.metrics.hv" in source
+    assert "mb.view.topology" in source
+    assert "mb.view.radar" in source
+    assert "mb.view.history" in source
+    assert "initial_data=initial" in source
+
+    for problem in ("DTLZ2", "DTLZ5", "DTLZ7", "DPF1", "DPF3", "DPF5"):
+        assert f'"{problem}"' in source
+        assert f'run_problem("{problem}")' in source
+
+    _, namespace = _execute_notebook(
+        path,
+        monkeypatch,
+        skip_tags=("setup", "optimization-run", "optimization-summary"),
+    )
+
+    base = namespace["PROBLEM_FACTORIES"]["DTLZ2"]()
+    reduced = namespace["ReducedMop"](base, (0, 1))
+    X = namespace["sample_decisions"](base, 12, 99)
+    full_F = np.asarray(base.evaluation(X)["F"])
+    reduced_F = np.asarray(reduced.evaluation(X)["F"])
+    np.testing.assert_allclose(reduced_F, full_F[:, [0, 1]])
+
+    namespace["POPULATION"] = 12
+    namespace["GENERATIONS"] = 2
+    namespace["REPEATS"] = 1
+    namespace["MOEA_SEED"] = 321
+
+    full_exp = namespace["make_experiment"](base, "Full smoke")
+    reduced_exp = namespace["make_experiment"](reduced, "Reduced smoke")
+    namespace["assert_paired_initial_decisions"](full_exp, reduced_exp)
+
+    reduced_histories, _ = namespace["full_space_histories"](reduced_exp, base)
+    assert len(reduced_histories) == 1
+    assert len(reduced_histories[0]) == 2
+    assert all(front.shape[1] == base.M for front in reduced_histories[0])
