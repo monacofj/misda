@@ -345,15 +345,6 @@ class MISSet:
     def __getitem__(self, key):
         return self._candidates[key]
 
-    @property
-    def structural_ranking(self):
-        return Ranking(
-            self,
-            tuple(range(len(self))),
-            policy=SIZE_SPAN,
-            groups=self._rank_groups,
-        )
-
     def evaluate(
         self,
         *,
