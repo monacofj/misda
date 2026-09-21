@@ -13,7 +13,7 @@ The normative alpha-stage public flow is:
 
 ```python
 mis_set = misda.discover(Y, ...)
-misda.evaluate(mis_set, metrics=(...), candidates=...)
+mis_set.evaluate(metrics=(...), candidates=...)
 ranking = misda.rank(mis_set, policy="size_span")
 ```
 
@@ -45,6 +45,7 @@ These quantities are deliberately distinct.
 - `discover()` does not accept ranking policy;
 - `evaluate()` does not change candidate membership, graphs, dimensions, or canonical order;
 - `rank()` does not reorder or mutate the owning `MISSet`;
+- canonical indices remain internal/stable implementation identities rather than public evaluation selectors;
 - integer ranking access returns underlying candidates; slicing returns a ranking view;
 - candidate canonical positions remain stable for the life of the `MISSet`;
 - selected dimension belongs to `Ranking`, not `MISSet`.
@@ -66,3 +67,11 @@ Do not reintroduce discovery-time ranking policy, intrinsic candidate rank, a `r
 ## Verification
 
 API contract tests should cover ownership, indexing/slicing semantics, object identity, immutability of canonical positions, and absence of discovery mutation after evaluation/ranking.
+
+
+## Alpha API cleanup
+
+ADR 0020 removes transitional compatibility entry points that were retained
+temporarily while the object model stabilized. The normative public path is now
+`MISSet.evaluate()`, `Ranking.report()`, and MIS-level
+`report()/graph_plot()/front_plot()`.
