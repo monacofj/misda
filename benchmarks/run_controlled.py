@@ -63,8 +63,7 @@ def run_benchmark(
                 name=truth["name"],
                 seed=seed,
             )
-            misda.evaluate(
-                mis_set,
+            mis_set.evaluate(
                 metrics=("linear", "pareto"),
             )
             case = serialize_benchmark_result(
