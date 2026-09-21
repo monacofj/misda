@@ -12,7 +12,7 @@ import pytest
 
 import misda
 from misda import _front_plotting
-from misda.api import MISCandidate, MISSet, ParetoMetrics, Ranking, StructuralMetrics
+from misda.api import MISCandidate, MISSet, ParetoMetrics, StructuralMetrics
 
 
 def _candidate(objectives, indices, reduced):
@@ -73,85 +73,18 @@ def _mis_set():
     return result
 
 
-def test_front_plot_uses_level_and_position_inside_tie_group():
-    result = _mis_set()
-
-    fig = result.front_plot(show=False, level=0, position=1)
-
-    assert isinstance(fig, go.Figure)
-    assert fig.layout.meta["ranking_policy"] == "size_span"
-    assert fig.layout.meta["level"] == 0
-    assert fig.layout.meta["position"] == 1
-    assert fig.layout.meta["candidate_index"] == 1
-    assert fig.layout.meta["selected_objectives"] == ("f1", "f3") or list(
-        fig.layout.meta["selected_objectives"]
-    ) == ["f1", "f3"]
-    assert tuple(trace.name for trace in fig.data) == (
-        "dominated",
-        "lost",
-        "preserved",
-    )
-    assert fig.data[0].marker.symbol == "circle-open"
-    assert fig.data[1].marker.symbol == "circle"
-    assert fig.data[2].marker.symbol == "circle"
-    assert tuple(len(trace.x) for trace in fig.data) == (1, 1, 2)
-    assert len(fig.layout.updatemenus) == 3
-    assert fig.layout.scene.xaxis.title.text == "f1"
-    assert fig.layout.scene.yaxis.title.text == "f3"
-    assert fig.layout.scene.zaxis.title.text == "f2"
-
-
-def test_front_plot_accepts_default_size_span_and_ranking_view():
-    result = _mis_set()
-
-    default = result.front_plot(show=False, ranking="default")
-    explicit = result.front_plot(show=False, ranking="size_span")
-    custom = Ranking(
-        result,
-        (1, 0),
-        policy="size_span",
-        groups=((1, 0),),
-    )
-    custom_fig = result.front_plot(show=False, ranking=custom)
-
-    assert default.layout.meta["candidate_index"] == 0
-    assert explicit.layout.meta["candidate_index"] == 0
-    assert custom_fig.layout.meta["candidate_index"] == 1
-
-
-def test_graph_plot_uses_same_level_position_selection_rule():
-    result = _mis_set()
-
-    fig = result.graph_plot(show=False, level=0, position=1)
-    try:
-        assert "candidate[1]" in fig.axes[0].get_title()
-        assert "level=0" in fig.axes[0].get_title()
-        assert "position=1" in fig.axes[0].get_title()
-    finally:
-        plt.close(fig)
-
-
 def test_front_plot_requires_stored_pareto_evidence():
     result = _mis_set()
     object.__setattr__(result[0], "pareto", None)
 
     with pytest.raises(ValueError, match="stored Pareto evidence"):
-        result.front_plot(show=False)
-
-
-def test_front_plot_rejects_invalid_level_and_position():
-    result = _mis_set()
-
-    with pytest.raises(IndexError, match="ranking level"):
-        result.front_plot(show=False, level=1)
-    with pytest.raises(IndexError, match="position"):
-        result.front_plot(show=False, position=2)
+        misda.rank(result).mis().front_plot(show=False)
 
 
 def test_front_plot_can_force_non_webgl_2d_projection():
     result = _mis_set()
 
-    fig = result.front_plot(show=False, projection="2d")
+    fig = misda.rank(result).mis().front_plot(show=False, projection="2d")
 
     assert fig.layout.meta["projection"] == "2d"
     assert tuple(trace.type for trace in fig.data) == ("scatter", "scatter", "scatter")
@@ -164,7 +97,7 @@ def test_front_plot_rejects_invalid_projection():
     result = _mis_set()
 
     with pytest.raises(ValueError, match="projection"):
-        result.front_plot(show=False, projection="4d")
+        misda.rank(result).mis().front_plot(show=False, projection="4d")
 
 
 def test_front_plot_forwards_explicit_plotly_renderer(monkeypatch):
@@ -176,7 +109,7 @@ def test_front_plot_forwards_explicit_plotly_renderer(monkeypatch):
 
     monkeypatch.setattr(_front_plotting, "_show_plotly_figure", fake_show)
 
-    result.front_plot(renderer="notebook_connected")
+    misda.rank(result).mis().front_plot(renderer="notebook_connected")
 
     assert observed["renderer"] == "notebook_connected"
 
@@ -190,7 +123,7 @@ def test_front_plot_layout_keeps_controls_metadata_and_plot_separate():
         result._candidates[1],
     )
 
-    fig = result.front_plot(show=False)
+    fig = misda.rank(result).mis().front_plot(show=False)
 
     assert tuple(trace.name for trace in fig.data) == ("preserved",)
     assert fig.layout.height == 720
