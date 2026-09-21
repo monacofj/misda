@@ -145,6 +145,13 @@ class DiagnosticProblem:
                     for variable in dependencies
                 }
             ),
+            "original_decision_variables": sorted(
+                {
+                    variable
+                    for dependencies in self.objective_dependencies.values()
+                    for variable in dependencies
+                }
+            ),
             "objective_dependencies": {
                 objective: list(dependencies)
                 for objective, dependencies in self.objective_dependencies.items()
