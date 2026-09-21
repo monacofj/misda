@@ -558,48 +558,6 @@ def plot_mis_set_front(
     return fig
 
 
-def _graph_plot(self, show=True, ranking=None, level=0, position=0):
-    """Plot stored G+ using the public ranking/level/position selection rule."""
-
-    resolved, candidate_index, candidate = resolve_ranking_selection(
-        self,
-        ranking,
-        level=level,
-        position=position,
-    )
-    return plot_mis_set_graph(
-        self,
-        ranking=resolved,
-        candidate=candidate,
-        candidate_index=candidate_index,
-        level=int(level),
-        position=int(position),
-        show=show,
-    )
-
-
-def _front_plot(
-    self,
-    show=True,
-    ranking=None,
-    level=0,
-    position=0,
-    projection="auto",
-    renderer=None,
-):
-    """Plot stored Pareto preservation for a ranking-selected MIS."""
-
-    return plot_mis_set_front(
-        self,
-        ranking=ranking,
-        level=level,
-        position=position,
-        show=show,
-        projection=projection,
-        renderer=renderer,
-    )
-
-
 def plot_mis_candidate_front(
     candidate,
     *,
@@ -619,9 +577,3 @@ def plot_mis_candidate_front(
     )
 
 
-def _install():
-    MISSet.graph_plot = _graph_plot
-    MISSet.front_plot = _front_plot
-
-
-_install()
