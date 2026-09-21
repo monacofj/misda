@@ -9,7 +9,7 @@ def _evaluated_result():
     x = np.array([-3.0, -2.0, -1.0, 1.0, 2.0, 3.0])
     data = np.column_stack([x, 2.0 * x, -x, -2.0 * x])
     result = misda.discover(data, seed=19, name="two groups")
-    misda.evaluate(result, metrics=("linear", "pareto"), candidates="all")
+    result.evaluate(metrics=("linear", "pareto"), candidates="all")
     return result
 
 
@@ -26,7 +26,7 @@ def test_report_uses_native_misda_report_without_benchmark_only_expansion():
 
     report = observed.report()
 
-    assert _misda_block(report) == result.report()
+    assert _misda_block(report) == misda.rank(result).report()
     assert "Candidate evaluation evidence" not in report
     assert "Linear selected:" not in report
     assert "Pareto selected:" not in report
