@@ -22,7 +22,7 @@ def test_mop_a_independence_dimensions_are_one():
     assert result.analysis.structural_dimension == 1
     assert len(result.analysis.latent_components) == 1
     assert len(result.analysis.structural_components) == 1
-    assert result.structural_ranking.selected_dimension == 1
+    assert misda.rank(result).selected_dimension == 1
 
 
 def test_mop_b_connected_graph_has_two_independent_dimensions():
@@ -34,4 +34,4 @@ def test_mop_b_connected_graph_has_two_independent_dimensions():
     assert result.analysis.structural_dimension == 2
     assert len(result.analysis.latent_components) == 1
     assert len(result.analysis.structural_components) == 1
-    assert result.structural_ranking.selected_dimension == 2
+    assert misda.rank(result).selected_dimension == 2
