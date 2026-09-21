@@ -337,8 +337,8 @@ line. This keeps terminal/notebook output readable without discarding either
 technical or intuitive meaning. These explanations are descriptive only:
 reporting never recomputes scientific state.
 
-Existing `mis_set.report()` behavior remains supported for compatibility; the
-reporting contract does not authorize shrinking or omitting evidence.
+Complete reporting belongs to `ranking.report()`; the reporting contract does
+not authorize shrinking or omitting evidence.
 
 Inspect one selected MIS directly:
 
