@@ -336,14 +336,14 @@ print(ranking.report())
 ```
 
 It preserves the complete discovery, support, evaluation, ranking, and
-selected-MIS evidence already available in the public report contract. Report fields that are easy to misread carry a concise interpretation after
+selected-MIS evidence already available in the public report contract. Report fields that are easy to misread carry a single-line annotation after
 an em dash, for example graph dimensions versus component counts, threshold
 calibration endpoints, null-envelope completion, ranking ties, support
-diagnostics, and Pareto summaries. Short annotations remain inline. Longer
-technical explanations wrap below the value and align from the value column;
-when a separate intuitive gloss exists, it follows on an aligned parenthesized
-line. This keeps terminal/notebook output readable without discarding either
-technical or intuitive meaning. These explanations are descriptive only:
+diagnostics, and Pareto summaries. The format is deliberately compact:
+a minimal technical definition comes first, followed by a clearer intuitive
+gloss in parentheses. Annotations do not wrap onto continuation lines; ordinary
+fields target roughly 100–110 characters when their values permit it. These
+explanations are descriptive only:
 reporting never recomputes scientific state.
 
 Existing `mis_set.report()` behavior remains supported for compatibility; the
