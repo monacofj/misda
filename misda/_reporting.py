@@ -655,34 +655,18 @@ def _pareto_stability_lines(result, ranking=None):
     )
     return [
         "Pareto stability (observed Y only):",
-        _explained_line(
-            "Observed front",
-            (
-                f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
-                f"(fraction={_format_value(diagnostics.observed_front_fraction)})"
-            ),
-            "full-space empirical nondominated set",
-            label_width=17,
-            value_width=34,
-        ),
-        _explained_line(
-            "Dominance margin",
-            (
-                f"min={_format_value(diagnostics.dominance_margin_min)}, "
-                f"median={_format_value(diagnostics.dominance_margin_median)}, "
-                f"max={_format_value(diagnostics.dominance_margin_max)}"
-            ),
-            "smaller means more perturbation-sensitive exact membership",
-            label_width=17,
-            value_width=48,
-        ),
-        _explained_line(
-            "Additive epsilon+",
-            _format_value(selected_epsilon),
-            "range-normalized P_R -> P_Y; smaller means closer approximation",
-            label_width=17,
-            value_width=34,
-        ),
+        "  Observed front: "
+        f"{diagnostics.observed_front_size}/{result._data.shape[0]} "
+        f"(fraction={_format_value(diagnostics.observed_front_fraction)}) "
+        "— full-space empirical nondominated set",
+        "  Dominance margin: "
+        f"min={_format_value(diagnostics.dominance_margin_min)}, "
+        f"median={_format_value(diagnostics.dominance_margin_median)}, "
+        f"max={_format_value(diagnostics.dominance_margin_max)} "
+        "— smaller means more perturbation-sensitive exact membership",
+        "  Additive epsilon+: "
+        f"{_format_value(selected_epsilon)} "
+        "— range-normalized P_R -> P_Y; smaller means closer approximation",
     ]
 
 
