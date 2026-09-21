@@ -223,3 +223,35 @@ def test_terminal_fallback_writes_standalone_html(monkeypatch):
     text = path.read_text(encoding="utf-8")
     assert "plotly" in text.lower()
     path.unlink()
+
+
+def test_mis_front_plot_uses_already_selected_mis_without_rank_metadata():
+    result = _mis_set()
+    ranking = misda.rank(result)
+    selected = ranking.mis(0, 1)
+
+    fig = selected.front_plot(show=False)
+
+    assert isinstance(fig, go.Figure)
+    assert "ranking_policy" not in fig.layout.meta
+    assert "level" not in fig.layout.meta
+    assert "position" not in fig.layout.meta
+    assert list(fig.layout.meta["selected_objectives"]) == ["f1", "f3"]
+    annotations = tuple(item.text for item in fig.layout.annotations)
+    assert any("MIS dimension 2" in text for text in annotations)
+    assert all("level " not in text for text in annotations)
+
+
+def test_mis_graph_plot_highlights_already_selected_mis_without_rank_metadata():
+    result = _mis_set()
+    selected = misda.rank(result).mis(0, 1)
+
+    fig = selected.graph_plot(show=False)
+    try:
+        title = fig.axes[0].get_title()
+        assert "MIS dimension=2" in title
+        assert "candidate[" not in title
+        assert "level=" not in title
+        assert "position=" not in title
+    finally:
+        plt.close(fig)
