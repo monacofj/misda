@@ -816,6 +816,20 @@ def _candidate_indices(mis_set, candidates, metrics):
         if candidates.mis_set is not mis_set:
             raise ValueError("Ranking belongs to a different MISSet.")
         return candidates.indices, f"{candidates.policy} Ranking view"
+    if isinstance(candidates, MISCandidate):
+        if getattr(candidates, "_mis_set", None) is not mis_set:
+            raise ValueError("MIS belongs to a different MISSet.")
+        index = next(
+            (
+                position
+                for position, observed in enumerate(mis_set)
+                if observed is candidates
+            ),
+            None,
+        )
+        if index is None:
+            raise ValueError("MIS does not belong to this MISSet.")
+        return (index,), "explicit MIS"
     if (
         isinstance(candidates, (int, np.integer))
         and not isinstance(candidates, (bool, np.bool_))
@@ -828,16 +842,47 @@ def _candidate_indices(mis_set, candidates, metrics):
             f"first {count} in {SIZE_SPAN} order",
         )
     try:
-        selected = tuple(int(index) for index in candidates)
-    except (TypeError, ValueError) as exc:
+        raw_selected = tuple(candidates)
+    except TypeError as exc:
         raise TypeError(
-            "candidates must be 'all', an integer, a Ranking, or an index sequence."
+            "candidates must be 'all', an integer, an MIS, a Ranking, "
+            "or a sequence of MISs/indices."
         ) from exc
+
+    if raw_selected and all(
+        isinstance(candidate, MISCandidate) for candidate in raw_selected
+    ):
+        selected = []
+        for candidate in raw_selected:
+            if getattr(candidate, "_mis_set", None) is not mis_set:
+                raise ValueError("MIS belongs to a different MISSet.")
+            index = next(
+                (
+                    position
+                    for position, observed in enumerate(mis_set)
+                    if observed is candidate
+                ),
+                None,
+            )
+            if index is None:
+                raise ValueError("MIS does not belong to this MISSet.")
+            selected.append(index)
+        selected = tuple(selected)
+        basis = "explicit MIS sequence"
+    else:
+        try:
+            selected = tuple(int(index) for index in raw_selected)
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                "candidates must be 'all', an integer, an MIS, a Ranking, "
+                "or a sequence of MISs/indices."
+            ) from exc
+        basis = "explicit candidate indices"
     if len(set(selected)) != len(selected):
         raise ValueError("candidate indices must be unique.")
     if any(index < 0 or index >= len(mis_set) for index in selected):
         raise IndexError("candidate index out of range.")
-    return selected, "explicit candidate indices"
+    return selected, basis
 
 
 def evaluate(
