@@ -158,10 +158,49 @@ class MISCandidate:
     linear: Optional[LinearMetrics] = field(default=None, compare=False)
     nonlinear: Optional[NonlinearMetrics] = field(default=None, compare=False)
     pareto: Optional[ParetoMetrics] = field(default=None, compare=False)
+    _mis_set: Any = field(default=None, compare=False, repr=False)
 
     @property
     def size(self) -> int:
         return len(self.indices)
+
+    def _owner(self):
+        if self._mis_set is None:
+            raise RuntimeError(
+                "This MIS is not attached to an MISSet returned by discover()."
+            )
+        return self._mis_set
+
+    def report(self):
+        """Render stored evidence intrinsic to this MIS."""
+
+        from ._reporting import render_mis_report
+
+        return render_mis_report(self)
+
+    def graph_plot(self, show=True):
+        """Plot the owning structural graph with this MIS highlighted."""
+
+        from ._plotting import plot_mis_candidate_graph
+
+        return plot_mis_candidate_graph(self, show=show)
+
+    def front_plot(
+        self,
+        show=True,
+        projection="auto",
+        renderer=None,
+    ):
+        """Plot stored Pareto preservation evidence for this MIS."""
+
+        from ._front_plotting import plot_mis_candidate_front
+
+        return plot_mis_candidate_front(
+            self,
+            show=show,
+            projection=projection,
+            renderer=renderer,
+        )
 
 
 @dataclass(frozen=True)
@@ -285,6 +324,11 @@ class MISSet:
     ):
         self.analysis = analysis
         self._candidates = tuple(candidates)
+        for candidate in self._candidates:
+            owner = getattr(candidate, "_mis_set", None)
+            if owner is not None and owner is not self:
+                raise ValueError("candidate already belongs to a different MISSet.")
+            object.__setattr__(candidate, "_mis_set", self)
         self._rank_groups = tuple(tuple(group) for group in rank_groups)
         self._data = data
         self._labels = tuple(labels)
@@ -310,6 +354,24 @@ class MISSet:
             tuple(range(len(self))),
             policy=SIZE_SPAN,
             groups=self._rank_groups,
+        )
+
+    def evaluate(
+        self,
+        *,
+        metrics=("linear", "pareto"),
+        candidates=None,
+        null_reference=False,
+        cancel_requested=None,
+    ):
+        """Enrich this MISSet with stored candidate-level evaluation evidence."""
+
+        return evaluate(
+            self,
+            metrics=metrics,
+            candidates=candidates,
+            null_reference=null_reference,
+            cancel_requested=cancel_requested,
         )
 
     def evaluation_scope(self, family):
@@ -404,6 +466,39 @@ class Ranking:
                 groups=self.groups,
             )
         return self.mis_set[self.indices[key]]
+
+    def mis(self, level=0, position=0):
+        """Return one MIS selected by scientific tie level and local position."""
+
+        for value, name in ((level, "level"), (position, "position")):
+            if isinstance(value, (bool, np.bool_)) or not isinstance(
+                value, (int, np.integer)
+            ):
+                raise TypeError(f"{name} must be a non-negative integer.")
+            if int(value) < 0:
+                raise ValueError(f"{name} must be a non-negative integer.")
+        level = int(level)
+        position = int(position)
+
+        if level >= len(self.groups):
+            raise IndexError(
+                f"ranking level {level} is out of range for "
+                f"{len(self.groups)} levels."
+            )
+        group = self.groups[level]
+        if position >= len(group):
+            raise IndexError(
+                f"position {position} is out of range for ranking level {level} "
+                f"with {len(group)} MISs."
+            )
+        return self.mis_set[group[position]]
+
+    def report(self):
+        """Render a complete stored-state report under this ranking view."""
+
+        from ._reporting import render_ranking_report
+
+        return render_ranking_report(self)
 
     @property
     def selected(self):
