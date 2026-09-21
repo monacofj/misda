@@ -336,9 +336,15 @@ print(ranking.report())
 ```
 
 It preserves the complete discovery, support, evaluation, ranking, and
-selected-MIS evidence already available in the public report contract. Existing
-`mis_set.report()` behavior remains supported for compatibility; this API
-refactor does not authorize shrinking report content.
+selected-MIS evidence already available in the public report contract. Report
+fields that are easy to misread carry a concise inline interpretation after an
+em dash, for example graph dimensions versus component counts, threshold
+calibration endpoints, null-envelope completion, ranking ties, support
+diagnostics, and Pareto summaries. These explanations are descriptive only:
+reporting never recomputes scientific state.
+
+Existing `mis_set.report()` behavior remains supported for compatibility; the
+reporting contract does not authorize shrinking or omitting evidence.
 
 Inspect one selected MIS directly:
 
