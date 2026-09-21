@@ -30,14 +30,21 @@ jobs:
           PYTHONPATH=/tmp/misda-remote python - <<'PY'
           import misda
           assert misda.__file__.startswith('/tmp/misda-remote/')
-          assert hasattr(misda.MISSet, 'front_plot')
           assert hasattr(misda.MISSet, 'evaluate')
           assert hasattr(misda.Ranking, 'mis')
+          assert hasattr(misda.Ranking, 'report')
           assert hasattr(misda.MISCandidate, 'report')
           assert hasattr(misda.MISCandidate, 'graph_plot')
           assert hasattr(misda.MISCandidate, 'front_plot')
+          assert not hasattr(misda, 'evaluate')
+          assert not hasattr(misda, 'STRUCTURAL_COVERAGE')
+          assert not hasattr(misda.MISSet, 'report')
+          assert not hasattr(misda.MISSet, 'graph_plot')
+          assert not hasattr(misda.MISSet, 'front_plot')
+          assert not hasattr(misda.MISSet, 'structural_ranking')
+          assert not hasattr(misda.Ranking, 'selected')
           print(misda.__file__)
-          print('MISSet.evaluate / Ranking.mis / MIS views: OK')
+          print('canonical alpha API present; transitional surface absent')
           PY
       - name: Public reporting contract
         run: |
