@@ -85,6 +85,40 @@ def test_noisy_observation_layer_separates_observation_from_reduction():
     assert observed.pareto_jaccard is not None  # existing P_R vs P_Z end-to-end field
 
 
+def test_benchmark_reports_selected_mis_decision_space_effect():
+    x = np.linspace(0.0, 1.0, 12)
+    z = np.column_stack([x, x, 1.0 - x])
+    result = misda.discover(z, seed=17)
+    misda.evaluate(result, metrics=("pareto",), candidates=1)
+    truth = {
+        "name": "decision-space fixture",
+        "objective_dependencies": {
+            "f1": ["x1"],
+            "f2": ["x1"],
+            "f3": ["x2"],
+        },
+        "original_decision_dimension": 2,
+    }
+
+    observed = misda.benchmark(result, truth)
+    selected = result.structural_ranking.selected
+    expected_active = sorted(
+        {
+            variable
+            for objective in selected.objectives
+            for variable in truth["objective_dependencies"][objective]
+        }
+    )
+
+    assert observed.original_decision_dimension == 2
+    assert observed.active_decision_dimension == len(expected_active)
+    assert observed.active_decision_variables == tuple(expected_active)
+    report = observed.report()
+    assert "Decision-space effect of selected MIS" in report
+    assert "Original decision dimension : 2" in report
+    assert f"Active decision dimension   : {len(expected_active)}" in report
+
+
 def test_summary_exposes_all_three_pareto_stages_without_changing_old_column():
     z = _tradeoff_data()
     result = misda.discover(z, seed=17)
@@ -106,3 +140,25 @@ def test_summary_exposes_all_three_pareto_stages_without_changing_old_column():
     assert summary.loc[0, "ParetoDominanceMarginMin"] >= 0.0
     assert summary.loc[0, "ParetoDominanceMarginMedian"] >= 0.0
     assert summary.loc[0, "ParetoDominanceMarginMax"] >= 0.0
+
+
+def test_summary_exposes_decision_dimensions_when_declared():
+    x = np.linspace(0.0, 1.0, 12)
+    z = np.column_stack([x, x, 1.0 - x])
+    result = misda.discover(z, seed=17)
+    misda.evaluate(result, metrics=("pareto",), candidates=1)
+    truth = {
+        "objective_dependencies": {
+            "f1": ["x1"],
+            "f2": ["x1"],
+            "f3": ["x2"],
+        },
+        "original_decision_dimension": 2,
+    }
+
+    summary = misda.compile_benchmark_summary(
+        {"fixture": {"result_obj": result, "truth": truth}}
+    )
+
+    assert summary.loc[0, "OriginalDecisionDimension"] == 2
+    assert summary.loc[0, "ActiveDecisionDimension"] in (1, 2)
