@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import numpy as np
-import pytest
 
 import misda
 import misda.api as api
@@ -37,13 +36,12 @@ def test_evaluation_scope_accumulates_across_calls(monkeypatch):
     assert len(result) == 2
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", _fake_linear)
 
-    ranking = misda.rank(result)
-    result.evaluate(metrics=("linear",), candidates=[ranking.mis(0, 0)])
-    result.evaluate(metrics=("linear",), candidates=[ranking.mis(0, 1)])
+    misda.evaluate(result, metrics=("linear",), candidates=[0])
+    misda.evaluate(result, metrics=("linear",), candidates=[1])
 
     count, basis = result.evaluation_scope("linear")
     assert count == 2
-    assert basis == "explicit MIS sequence"
+    assert basis == "explicit candidate indices"
 
 
 def test_scope_note_disappears_after_family_is_complete(monkeypatch):
@@ -51,20 +49,11 @@ def test_scope_note_disappears_after_family_is_complete(monkeypatch):
     assert len(result) == 2
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", _fake_linear)
 
-    ranking = misda.rank(result)
-    result.evaluate(metrics=("linear",), candidates=ranking.mis())
-    assert "linear metrics were evaluated for" in ranking.report()
+    misda.evaluate(result, metrics=("linear",), candidates=1)
+    assert "linear metrics were evaluated for" in result.report()
 
-    result.evaluate(metrics=("linear",), candidates="all")
+    misda.evaluate(result, metrics=("linear",), candidates="all")
 
     count, _ = result.evaluation_scope("linear")
     assert count == len(result)
-    assert "linear metrics were evaluated for" not in ranking.report()
-
-
-def test_integer_and_index_candidate_selectors_are_rejected():
-    result = misda.discover(_two_candidate_data(), seed=23)
-
-    for selector in (1, [0], (0, 1)):
-        with pytest.raises(TypeError, match="not part of the alpha API"):
-            result.evaluate(metrics=("linear",), candidates=selector)
+    assert "linear metrics were evaluated for" not in result.report()
