@@ -27,7 +27,9 @@ dependencies = [
 requires-python = ">=3.8"
 
 [project.optional-dependencies]
-benchmarks = []
+benchmarks = [
+  "moeabench @ git+https://github.com/monacofj/moeabench.git@d11c6a640c60d2ca8707c069b8c2e99d58840289",
+]
 
 [project.urls]
 Homepage = "https://github.com/monacofj/misda"
