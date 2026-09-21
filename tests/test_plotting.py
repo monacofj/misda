@@ -47,10 +47,12 @@ def test_plot_mis_set_graph_applies_anti_overlap_postprocessing(monkeypatch):
     mis_set = SimpleNamespace(
         analysis=SimpleNamespace(structural_graph=graph),
     )
-    selected = SimpleNamespace(
-        indices=(0, 5, 10, 15),
-        size=4,
-        _mis_set=mis_set,
+    selected = SimpleNamespace(indices=(0, 5, 10, 15))
+    ranking = SimpleNamespace(
+        mis_set=mis_set,
+        selected=selected,
+        policy="structural_coverage",
+        selected_dimension=4,
     )
     calls = []
     original = _plotting._enforce_min_distance
@@ -60,7 +62,7 @@ def test_plot_mis_set_graph_applies_anti_overlap_postprocessing(monkeypatch):
         return original(positions, **kwargs)
 
     monkeypatch.setattr(_plotting, "_enforce_min_distance", recording_enforcer)
-    figure = _plotting.plot_mis_set_graph(mis_set, candidate=selected, show=False)
+    figure = _plotting.plot_mis_set_graph(mis_set, ranking=ranking, show=False)
 
     try:
         assert calls == [{"min_dist": 0.5, "iters": 1200, "seed": 7}]
