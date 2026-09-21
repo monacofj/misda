@@ -56,7 +56,7 @@ def test_public_pareto_evaluation_attaches_y_only_stability_diagnostics():
     result = misda.discover(Y, seed=123)
     assert not hasattr(result, "pareto_stability")
 
-    returned = misda.evaluate(result, metrics=("pareto",))
+    returned = result.evaluate( metrics=("pareto",))
     assert returned is result
     diagnostics = result.pareto_stability
 
@@ -72,7 +72,7 @@ def test_public_pareto_evaluation_attaches_y_only_stability_diagnostics():
     assert evaluated
     assert all(value >= 0.0 for value in evaluated)
 
-    report = result.report()
+    report = misda.rank(result).report()
     assert "Pareto stability (observed Y only):" in report
     assert "Observed front:" in report
     assert "Dominance margin:" in report
@@ -84,7 +84,7 @@ def test_stability_layer_does_not_require_benchmark_truth():
     Y = np.column_stack([x, 1.0 - x, x + 0.01 * np.sin(7.0 * x)])
 
     result = misda.discover(Y, seed=321)
-    misda.evaluate(result, metrics=("pareto",))
+    result.evaluate( metrics=("pareto",))
 
     diagnostics = result.pareto_stability
     assert 0.0 < diagnostics.observed_front_fraction <= 1.0
