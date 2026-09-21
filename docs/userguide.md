@@ -115,16 +115,23 @@ ranking = misda.rank(mis_set)
 The default is `policy="size_span"`. The current release defines no alternative
 policy yet.
 
-A `Ranking` references the same candidate objects and does not mutate the
-`MISSet`:
+A `Ranking` references the same MIS objects and does not mutate the
+`MISSet`. The user-facing selector is `mis(level, position)`:
 
 ```python
-ranking[0]             # underlying MISCandidate
-ranking[:10]           # another Ranking view
-ranking.selected       # ranking[0]
+mis = ranking.mis()                  # level=0, position=0
+alternative = ranking.mis(0, 3)
+alternative = ranking.mis(level=0, position=3)
+
+ranking[:10]                         # another Ranking view
+ranking.selected                     # compatibility alias for the first MIS
 ranking.selected_dimension
-ranking.groups         # scientific tie groups
+ranking.groups                       # scientific tie groups
 ```
+
+`level` selects a scientific tie group and `position` selects one MIS
+inside that group; both are zero-based. The returned object is the existing
+`MISCandidate` owned by `mis_set`, not a copy or ranking-specific wrapper.
 
 The graph-derived structural dimension and the selected dimension are distinct
 concepts:
@@ -168,7 +175,7 @@ Inspect the aggregate and individual evidence with:
 mis_set.support.status
 mis_set.support.supported
 mis_set.support.unsupported
-support = mis_set.support.for_candidate(0)
+support = mis_set.support.for_candidate(ranking.mis())
 
 support.status
 support.reasons
@@ -179,15 +186,20 @@ support.spectral_excess
 `SUPPORTED` means that these diagnostics found no contradiction. It does not
 prove that the unknown true dimension equals the estimate.
 
-## 7. Candidate evaluation
+## 7. MIS evaluation
 
-Use one API for all candidate-level evidence:
+Use the `MISSet` facade for candidate-level evidence:
 
 ```python
-misda.evaluate(
-    mis_set,
-    metrics=("linear", "pareto"),
-)
+mis_set.evaluate()
+```
+
+With no arguments this preserves the established default:
+`metrics=("linear", "pareto")`. The module form remains public and
+equivalent for compatibility:
+
+```python
+misda.evaluate(mis_set, metrics=("linear", "pareto"))
 ```
 
 Current families are:
@@ -209,9 +221,13 @@ The evaluation scope accepts:
 
 ```python
 candidates="all"
+candidates=ranking.mis()
+candidates=[ranking.mis(0, 0), ranking.mis(0, 1)]
+candidates=ranking[:10]
+
+# Existing integer/index selectors remain supported for compatibility:
 candidates=10
 candidates=[0, 4, 17]
-candidates=ranking[:10]
 ```
 
 If no selector is given:
@@ -222,7 +238,7 @@ If no selector is given:
 The scope applies to the whole call. Therefore:
 
 ```python
-misda.evaluate(mis_set, metrics=("linear", "nonlinear"))
+mis_set.evaluate(metrics=("linear", "nonlinear"))
 ```
 
 evaluates both families on one candidate. Use separate calls if different
@@ -238,13 +254,13 @@ objectives using external PRESS/LOO semantics. It records untruncated R² and
 jackknife uncertainty.
 
 ```python
-candidate = ranking.selected
+mis = ranking.mis()
 
-candidate.linear.mean_r2
-candidate.linear.worst_r2
-candidate.linear.r2("f7")
-candidate.linear.jackknife.mean_r2_se
-candidate.linear.jackknife.r2_se("f7")
+mis.linear.mean_r2
+mis.linear.worst_r2
+mis.linear.r2("f7")
+mis.linear.jackknife.mean_r2_se
+mis.linear.jackknife.r2_se("f7")
 ```
 
 When no objective is eliminated or a target is mathematically undefined, the
@@ -257,11 +273,11 @@ Pareto evaluation currently assumes minimization and compares empirical
 nondominated row sets:
 
 ```python
-candidate.pareto.retention
-candidate.pareto.validity
-candidate.pareto.jaccard
-candidate.pareto.exact_preservation
-candidate.pareto.reduced_front_indices
+mis.pareto.retention
+mis.pareto.validity
+mis.pareto.jaccard
+mis.pareto.exact_preservation
+mis.pareto.reduced_front_indices
 ```
 
 Exact membership agreement is deliberately separate from observed-data Pareto
@@ -278,16 +294,15 @@ Mixed directions are outside the current contract.
 Nonlinear evidence is explicitly requested:
 
 ```python
-misda.evaluate(
-    mis_set,
+mis_set.evaluate(
     metrics=("nonlinear",),
-    candidates=1,
+    candidates=ranking.mis(),
 )
 
-candidate = ranking.selected
-candidate.nonlinear.mean_r2
-candidate.nonlinear.worst_r2
-candidate.nonlinear.r2("f7")
+mis = ranking.mis()
+mis.nonlinear.mean_r2
+mis.nonlinear.worst_r2
+mis.nonlinear.r2("f7")
 ```
 
 The engine uses nested external leave-one-out Random Forest reconstruction,
@@ -297,14 +312,13 @@ stopping based on computational versus sample uncertainty.
 An optional sequential null reference is attached to the same nonlinear domain:
 
 ```python
-misda.evaluate(
-    mis_set,
+mis_set.evaluate(
     metrics=("nonlinear",),
-    candidates=1,
+    candidates=ranking.mis(),
     null_reference=True,
 )
 
-null = ranking.selected.nonlinear.null_reference
+null = ranking.mis().nonlinear.null_reference
 null.mean_null_r2
 null.above_null_r2
 null.incidental_reconstruction_rate
@@ -313,33 +327,47 @@ null.mc_se_mean_null_r2
 
 ## 8. Reports and visualizations
 
-```python
-print(mis_set.report())
-graph = mis_set.graph_plot(show=False)
-front = mis_set.front_plot(show=False)
-```
-
-The report and visualization views consume only stored state; they do not
-trigger hidden candidate evaluation.
-
-Visualizations that depend on one MIS use a common selector:
+The ranking report is the complete, self-contained user report:
 
 ```python
-mis_set.graph_plot(ranking="default", level=0, position=0)
-mis_set.front_plot(ranking="default", level=0, position=0)
+ranking = misda.rank(mis_set)
+
+print(ranking.report())
 ```
 
-`ranking=None` and `ranking="default"` select the current canonical ranking.
-`ranking="size_span"` explicitly pins the named policy, and an existing
-`Ranking` object may be supplied directly. `level` selects a scientific tie
-group; `position` selects one MIS within that group.
+It preserves the complete discovery, support, evaluation, ranking, and
+selected-MIS evidence already available in the public report contract. Existing
+`mis_set.report()` behavior remains supported for compatibility; this API
+refactor does not authorize shrinking report content.
 
-`graph_plot()` draws stored `G+` and highlights the selected MIS. `front_plot()`
-requires Pareto evidence already stored for the selected MIS and renders the
-full/reduced empirical-front membership with Plotly. With at least three
-objectives it uses a rotatable 3D scatter; with two objectives it uses a 2D
-scatter. Objective selectors alter only the displayed projection, not Pareto
-membership.
+Inspect one selected MIS directly:
+
+```python
+mis = ranking.mis()
+
+print(mis.report())
+graph = mis.graph_plot(show=False)
+front = mis.front_plot(show=False)
+```
+
+Explore another MIS in ranking coordinates without manipulating canonical
+indices:
+
+```python
+ranking.mis(0, 3).report()
+ranking.mis(0, 3).front_plot()
+```
+
+All report and visualization views consume only stored state; they do not
+trigger hidden candidate evaluation. `graph_plot()` draws stored `G+` and
+highlights the selected MIS. `front_plot()` requires Pareto evidence already
+stored for that MIS and renders the full/reduced empirical-front membership
+with Plotly. With at least three objectives it uses a rotatable 3D scatter;
+with two objectives it uses a 2D scatter. Objective selectors alter only the
+displayed projection, not Pareto membership.
+
+The previous `MISSet.graph_plot(...)` and `MISSet.front_plot(...)` selection
+forms remain supported for compatibility.
 
 Inside notebooks, `front_plot(show=True)` displays inline. From a terminal it
 writes a self-contained temporary HTML file and attempts to open it in the
@@ -365,7 +393,7 @@ bench = misda.benchmark(mis_set, truth)
 print(bench.report())
 ```
 
-Truth never enters `discover()`, `evaluate()`, or `rank()`. Declared latent and
+Truth never enters `discover()`, `MISSet.evaluate()`, or `rank()`. Declared latent and
 structural dimensions are compared with their corresponding graph independence
 numbers. The canonical ranking's selected dimension is reported separately.
 
