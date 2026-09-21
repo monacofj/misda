@@ -46,6 +46,28 @@ def _family_names(sizes: tuple[int, ...]) -> list[list[str]]:
     return families
 
 
+def _block_dependencies(
+    variables: tuple[tuple[str, ...], ...], sizes: tuple[int, ...]
+) -> dict[str, tuple[str, ...]]:
+    """Build an explicit objective -> decision-variable dependency declaration."""
+    if len(variables) != len(sizes):
+        raise ValueError("variables and sizes must describe the same number of blocks")
+    dependencies: dict[str, tuple[str, ...]] = {}
+    objective = 1
+    for names, size in zip(variables, sizes):
+        for _ in range(size):
+            dependencies[f"f{objective}"] = tuple(names)
+            objective += 1
+    return dependencies
+
+
+def _chain_dependencies(size: int) -> dict[str, tuple[str, ...]]:
+    return {
+        f"f{i}": tuple(f"x{j}" for j in range(1, i + 1))
+        for i in range(1, size + 1)
+    }
+
+
 @dataclass(frozen=True)
 class DiagnosticDataset:
     """One sampled diagnostic problem and its clean/observed representations."""
@@ -67,6 +89,7 @@ class DiagnosticProblem:
     scenario: DiagnosticScenario
     sampler: FrameFn
     evaluator: EvalFn
+    objective_dependencies: dict[str, tuple[str, ...]]
 
     @property
     def id(self) -> str:
@@ -90,6 +113,20 @@ class DiagnosticProblem:
         expected_columns = [f"f{i}" for i in range(1, expected_m + 1)]
         if list(Z.columns) != expected_columns:
             raise RuntimeError(f"{self.id}: evaluator returned unexpected objective names")
+        if set(self.objective_dependencies) != set(expected_columns):
+            raise RuntimeError(f"{self.id}: objective dependency declaration is incomplete")
+        known_variables = set(X.columns)
+        unknown_variables = {
+            variable
+            for dependencies in self.objective_dependencies.values()
+            for variable in dependencies
+            if variable not in known_variables
+        }
+        if unknown_variables:
+            raise RuntimeError(
+                f"{self.id}: objective dependency declaration references unknown variables: "
+                f"{sorted(unknown_variables)}"
+            )
         return Z
 
     def truth(self) -> dict:
@@ -101,6 +138,17 @@ class DiagnosticProblem:
             "structural_expected": self.scenario.structural_expected,
             "families_expected": _family_names(self.scenario.family_sizes),
             "pareto_expected": None,
+            "original_decision_dimension": len(
+                {
+                    variable
+                    for dependencies in self.objective_dependencies.values()
+                    for variable in dependencies
+                }
+            ),
+            "objective_dependencies": {
+                objective: list(dependencies)
+                for objective, dependencies in self.objective_dependencies.items()
+            },
             "tags": sorted(self.scenario.tags),
         }
         if self.scenario.structural_unit_sizes is not None:
@@ -409,19 +457,87 @@ def _eval_mop_f(X: pd.DataFrame) -> pd.DataFrame:
 
 # Canonical public order: regular diagnostics first, known adversarial limits last.
 PROBLEMS = (
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["independence"], _sample_case1, _eval_case1),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["total_redundancy"], _sample_normal_1, _eval_case2),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["blocks_4x5"], _sample_normal_4, _eval_case3),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["blocks_2x10"], _sample_normal_2, _eval_case4),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["mixed_independent_and_blocks"], _sample_case6, _eval_case6),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["monotonic_redundancy"], _sample_uniform_1, _eval_mop_a),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["antagonistic_linear_groups"], _sample_normal_1, _eval_case7),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["tradeoff_redundancies"], _sample_uniform_ab, _eval_mop_b),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["nonlinear_blocks_4x5"], _sample_mop_c, _eval_mop_c),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["antagonistic_nonlinear_groups"], _sample_uniform_1, _eval_mop_d),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["overlapping_factors"], _sample_uniform_ab, _eval_mop_e),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["transitive_chain"], _sample_case5, _eval_case5),
-    DiagnosticProblem(DIAGNOSTIC_BY_ID["regime_switching"], _sample_uniform_ab, _eval_mop_f),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["independence"],
+        _sample_case1,
+        _eval_case1,
+        _block_dependencies(tuple((f"x{i}",) for i in range(1, 21)), (1,) * 20),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["total_redundancy"],
+        _sample_normal_1,
+        _eval_case2,
+        _block_dependencies((("x",),), (20,)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["blocks_4x5"],
+        _sample_normal_4,
+        _eval_case3,
+        _block_dependencies(tuple((f"x{i}",) for i in range(1, 5)), (5, 5, 5, 5)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["blocks_2x10"],
+        _sample_normal_2,
+        _eval_case4,
+        _block_dependencies((("x1",), ("x2",)), (10, 10)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["mixed_independent_and_blocks"],
+        _sample_case6,
+        _eval_case6,
+        _block_dependencies(
+            tuple((f"x{i}",) for i in range(1, 13)),
+            (1,) * 10 + (5, 5),
+        ),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["monotonic_redundancy"],
+        _sample_uniform_1,
+        _eval_mop_a,
+        _block_dependencies((("x",),), (20,)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["antagonistic_linear_groups"],
+        _sample_normal_1,
+        _eval_case7,
+        _block_dependencies((("x",),), (20,)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["tradeoff_redundancies"],
+        _sample_uniform_ab,
+        _eval_mop_b,
+        _block_dependencies((("a", "b"),), (20,)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["nonlinear_blocks_4x5"],
+        _sample_mop_c,
+        _eval_mop_c,
+        _block_dependencies((("u",), ("v",), ("w",), ("z",)), (5, 5, 5, 5)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["antagonistic_nonlinear_groups"],
+        _sample_uniform_1,
+        _eval_mop_d,
+        _block_dependencies((("x",),), (20,)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["overlapping_factors"],
+        _sample_uniform_ab,
+        _eval_mop_e,
+        _block_dependencies((("a",), ("b",), ("a", "b")), (10, 4, 6)),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["transitive_chain"],
+        _sample_case5,
+        _eval_case5,
+        _chain_dependencies(20),
+    ),
+    DiagnosticProblem(
+        DIAGNOSTIC_BY_ID["regime_switching"],
+        _sample_uniform_ab,
+        _eval_mop_f,
+        _block_dependencies((("a", "b"), ("b",)), (10, 10)),
+    ),
 )
 
 PROBLEM_BY_ID = {problem.id: problem for problem in PROBLEMS}
