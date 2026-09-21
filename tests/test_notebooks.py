@@ -300,6 +300,7 @@ def test_classical_notebook_keeps_reference_geometry_separate_from_misda_truth(m
     assert summary["pareto_jaccard"].notna().all()
 
 
+
 def test_optimization_notebook_uses_paired_original_space_protocol():
     path = Path("benchmarks/optimization.ipynb")
     notebook, source = _read_notebook(path)
@@ -309,26 +310,47 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "git+https://github.com/monacofj/moeabench" not in source
     assert "pip install moeabench" not in source
 
+    # Global pre-optimization screening, independent of the MOEA and Pareto GT.
+    assert "qmc.Sobol" in source
+    assert "random_base2" in source
+    assert "qmc.scale" in source
+    assert "joint Sobol sample" in source
+    assert "one-factor-at-a-time" in source
+
+    # Objective reduction delegates to the original MOP; no benchmark formula is copied.
     assert "class ObjectiveProjectionMOP" in source
     assert "self.source_mop.evaluation" in source
     assert 'result["F"] = np.asarray(result["F"], dtype=float)[:, self.objective_indices]' in source
 
-    for problem in ("DTLZ2", "DTLZ5", "DTLZ7", "DPF1", "DPF3", "DPF5"):
-        assert f'"{problem}"' in source
-        assert f'run_optimization_case("{problem}", PROBLEMS["{problem}"])' in source
+    # Short pilot only.
+    assert 'run_optimization_case("DTLZ2", PROBLEMS["DTLZ2"])' in source
+    assert 'run_optimization_case("DPF1", PROBLEMS["DPF1"])' in source
+    for problem in ("DTLZ5", "DTLZ7", "DPF3", "DPF5"):
+        assert f'run_optimization_case("{problem}"' not in source
 
     assert "M = 10" in source
+    assert "GENERATIONS = 50" in source
+    assert "POPULATION = 60" in source
+
+    # Pairing: same search seed and initial X, separate reference-direction RNG.
     assert "mb.moeas.NSGA3" in source
-    assert "population=POPULATION" in source
-    assert "generations=GENERATIONS" in source
-    assert "seed=MOEA_SEED" in source
+    assert source.count("seed=MOEA_SEED") == 2
+    assert source.count("ref_dirs_seed=REF_DIRS_SEED") == 2
     assert "np.testing.assert_allclose" in source
 
+    # Decision-space reduction is measured only; the MOEA domain stays unchanged.
+    assert "def _active_decision_dimension" in source
+    assert "measured only; MOEA domain unchanged" in source
+
+    # Every Reduced generation is returned to original objective space.
     assert 'exp[0].history("x")' in source
     assert "original_mop.evaluation" in source
     assert "Reduced decision vectors are re-evaluated" in source
     assert "never feeds back into the Reduced search" in source
 
+    # Pareto GT is a separate ruler for optimization quality.
+    assert "misda_truth" in source
+    assert "Pareto ground truth" in source
     assert "mb.metrics.gdplus" in source
     assert "mb.metrics.igdplus" in source
     assert "mb.metrics.hypervolume" in source
@@ -336,6 +358,10 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "initial_data=full_history[0]" in source
     assert "initial_data=reduced_history[0]" in source
     assert source.count("k=POPULATION") == 2
+
+    # Generations and total represented evaluations are explicit.
+    assert "def _history_evaluations" in source
+    assert '"Evaluations": result["evaluations"]' in source
 
     assert "mb.view.topology" in source
     assert "mb.view.radar" in source
