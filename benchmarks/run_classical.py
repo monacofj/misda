@@ -56,10 +56,9 @@ def run_classical_mops(
         frame = pd.DataFrame(F, columns=[f"f{i}" for i in range(1, m + 1)])
         mis_set = misda.discover(frame, name=spec["name"], seed=seed)
         ranking = misda.rank(mis_set)
-        misda.evaluate(
-            mis_set,
+        mis_set.evaluate(
             metrics=("linear", "pareto"),
-            candidates=ranking[:1],
+            candidates=ranking.mis(),
         )
 
         case = serialize_benchmark_result(
