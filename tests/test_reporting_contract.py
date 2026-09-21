@@ -197,3 +197,58 @@ def test_benchmark_embeds_the_native_report_verbatim():
     embedded = "\n".join(lines[start:end]).rstrip()
 
     assert embedded == native
+
+
+def test_ranking_report_is_complete_and_preserves_default_report_contract():
+    result = _evaluated_result()
+    ranking = misda.rank(result)
+
+    report = ranking.report()
+
+    assert report == result.report()
+    for section in (
+        "Dimensions:",
+        "Graph topology:",
+        "Threshold calibration:",
+        "Null envelope:",
+        "Structural ranking:",
+        "Dimensional support:",
+        "Evaluation scope:",
+        "Candidates:",
+        "Pareto stability (observed Y only):",
+    ):
+        assert section in report
+
+
+def test_mis_report_focuses_on_intrinsic_stored_evidence():
+    result = _evaluated_result()
+    ranking = misda.rank(result)
+
+    report = ranking.mis().report()
+
+    assert "MIS report: report contract" in report
+    assert "Dimension" in report
+    assert "Objectives" in report
+    assert "Structural:" in report
+    assert "Linear reconstruction:" in report
+    assert "Pareto preservation:" in report
+    assert "Front loss" in report
+    assert "Population impact" in report
+    assert "Structural ranking:" not in report
+    assert "candidate[" not in report
+
+
+def test_ranking_and_mis_reports_never_run_hidden_evaluation(monkeypatch):
+    result = _evaluated_result()
+    ranking = misda.rank(result)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("report attempted a new scientific calculation")
+
+    monkeypatch.setattr(api, "evaluate_linear_reconstruction", fail)
+    monkeypatch.setattr(api, "evaluate_pareto_preservation", fail)
+    monkeypatch.setattr(api, "evaluate_nonlinear_reconstruction", fail)
+    monkeypatch.setattr(api, "evaluate_null_reconstruction", fail)
+
+    assert "MISDA report:" in ranking.report()
+    assert "MIS report:" in ranking.mis().report()
