@@ -22,23 +22,17 @@ def _two_blocks(seed=7, n=40):
     ])
 
 
-def test_public_surface_is_single_path_alpha_api():
+def test_public_surface_is_discover_evaluate_rank():
     assert callable(misda.discover)
+    assert callable(misda.evaluate)
     assert callable(misda.rank)
-    assert hasattr(misda.MISSet, "evaluate")
-    assert not hasattr(misda, "evaluate")
-    assert not hasattr(misda.MISSet, "report")
-    assert not hasattr(misda.MISSet, "graph_plot")
-    assert not hasattr(misda.MISSet, "front_plot")
-    assert not hasattr(misda.MISSet, "structural_ranking")
-    assert not hasattr(misda.Ranking, "selected")
-    assert not hasattr(misda, "STRUCTURAL_COVERAGE")
     assert not hasattr(misda, "analyze")
     assert not hasattr(misda, "heavy")
 
 
 def test_public_ranking_policy_is_size_span():
     assert misda.SIZE_SPAN == "size_span"
+    assert misda.STRUCTURAL_COVERAGE == misda.SIZE_SPAN
 
 
 def test_discover_has_no_policy_parameter():
@@ -52,10 +46,12 @@ def test_discover_returns_canonical_mis_set():
 
     assert isinstance(result, misda.MISSet)
     assert len(result) >= 1
-    ranking = misda.rank(result)
-    assert ranking.policy == "size_span"
-    assert ranking[0] is result[0]
-    assert ranking.selected_dimension == ranking.mis().size
+    assert result.structural_ranking.policy == "size_span"
+    assert result.structural_ranking[0] is result[0]
+    assert (
+        result.structural_ranking.selected_dimension
+        == result.structural_ranking.selected.size
+    )
     assert result.analysis.structural_dimension == result[0].size
 
 
@@ -112,7 +108,7 @@ def test_linear_evaluation_defaults_to_all_candidates(monkeypatch):
         }
 
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
-    result.evaluate( metrics=("linear",))
+    misda.evaluate(result, metrics=("linear",))
 
     assert len(calls) == len(result)
     assert result.evaluation_scope("linear")[0] == len(result)
@@ -148,12 +144,12 @@ def test_nonlinear_default_scope_is_one_candidate(monkeypatch):
         }
 
     monkeypatch.setattr(api, "evaluate_nonlinear_reconstruction", fake_nonlinear)
-    result.evaluate( metrics=("nonlinear",))
+    misda.evaluate(result, metrics=("nonlinear",))
 
     assert len(calls) == 1
     assert result[0].nonlinear is not None
     assert result.evaluation_scope("nonlinear")[0] == 1
-    assert "1 of" in misda.rank(result).report()
+    assert "1 of" in result.report()
 
 
 def test_combined_expensive_call_uses_one_common_scope(monkeypatch):
@@ -205,7 +201,7 @@ def test_combined_expensive_call_uses_one_common_scope(monkeypatch):
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
     monkeypatch.setattr(api, "evaluate_nonlinear_reconstruction", fake_nonlinear)
 
-    result.evaluate( metrics=("linear", "nonlinear"))
+    misda.evaluate(result, metrics=("linear", "nonlinear"))
 
     assert len(linear_calls) == 1
     assert len(nonlinear_calls) == 1
@@ -234,7 +230,7 @@ def test_partial_scope_can_follow_ranking_slice(monkeypatch):
         }
 
     monkeypatch.setattr(api, "evaluate_linear_reconstruction", fake_linear)
-    result.evaluate( metrics=("linear",), candidates=ranking[:1])
+    misda.evaluate(result, metrics=("linear",), candidates=ranking[:1])
 
     assert len(calls) == 1
     count, basis = result.evaluation_scope("linear")
@@ -250,7 +246,7 @@ def test_support_exposes_individual_first_rank_candidates():
         "PARTIALLY_SUPPORTED",
         "UNSUPPORTED",
     }
-    assert len(result.support.results) == len(misda.rank(result).groups[0])
+    assert len(result.support.results) == len(result.structural_ranking.groups[0])
     for support_result in result.support.results:
         observed = result.support.for_candidate(support_result.candidate_index)
         assert observed is support_result
@@ -264,7 +260,7 @@ def test_ranking_mis_selects_by_level_and_position_without_indices():
     ranking = misda.rank(result)
 
     assert len(ranking.groups[0]) == 4
-    assert ranking.mis() is result[ranking.groups[0][0]]
+    assert ranking.mis() is ranking.selected
     assert ranking.mis(0, 2) is result[ranking.groups[0][2]]
     assert ranking.mis(level=0, position=3) is result[ranking.groups[0][3]]
 
