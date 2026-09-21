@@ -31,8 +31,13 @@ jobs:
           import misda
           assert misda.__file__.startswith('/tmp/misda-remote/')
           assert hasattr(misda.MISSet, 'front_plot')
+          assert hasattr(misda.MISSet, 'evaluate')
+          assert hasattr(misda.Ranking, 'mis')
+          assert hasattr(misda.MISCandidate, 'report')
+          assert hasattr(misda.MISCandidate, 'graph_plot')
+          assert hasattr(misda.MISCandidate, 'front_plot')
           print(misda.__file__)
-          print('MISSet.front_plot: OK')
+          print('MISSet.evaluate / Ranking.mis / MIS views: OK')
           PY
       - name: Public reporting contract
         run: |
