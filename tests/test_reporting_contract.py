@@ -252,3 +252,74 @@ def test_ranking_and_mis_reports_never_run_hidden_evaluation(monkeypatch):
 
     assert "MISDA report:" in ranking.report()
     assert "MIS report:" in ranking.mis().report()
+
+
+def test_report_explains_top_level_fields_without_losing_values():
+    result = _evaluated_result()
+    report = result.report()
+
+    expected_explanations = (
+        "number of input objectives",
+        "independence number of G± (signed-dependence dimension)",
+        "independence number of G+ (positive-redundancy dimension)",
+        "dimension of the top-ranked MIS",
+        "component count is topology, not dimension",
+        "observed positive-structure onset",
+        "empirical permutation-null envelope endpoint",
+        "threshold actually used to build G+ and G±",
+        "interpolation position: 0=onset, 1=null endpoint",
+        "whether observed onset is strictly separated from the null endpoint",
+        "whether the fixed B=N permutation envelope finished",
+        "null permutations actually completed",
+        "MIS order: size descending, then span descending",
+        "scientific ties under the ranking criteria",
+    )
+    for explanation in expected_explanations:
+        assert explanation in report
+
+    # Existing values and labels remain present; explanations are additive.
+    assert f"Original       : {result.analysis.original_dimension}" in report
+    assert f"Latent         : {result.analysis.latent_dimension}" in report
+    assert f"Structural     : {result.analysis.structural_dimension}" in report
+    assert "G± dependence" in report
+    assert "G+ structural" in report
+    assert "alpha_onset" in report
+    assert "alpha_null" in report
+    assert "aggressiveness" in report
+
+
+def test_report_explains_support_and_intrinsic_mis_metrics():
+    result = _evaluated_result()
+    ranking = misda.rank(result)
+
+    complete = ranking.report()
+    for explanation in (
+        "top-tied MISs tested for dimensional support",
+        "candidates with no diagnostic contradiction",
+        "largest indirect-minus-direct positive association",
+        "mean column-permutation reference",
+        "observed - null; positive flags transitive chaining",
+        "first rank-correlation eigenvalue beyond tested dimension",
+        "observed_next - null_next; positive flags hidden structure",
+        "shared column-permutation replicates",
+    ):
+        assert explanation in complete
+
+    intrinsic = ranking.mis().report()
+    for explanation in (
+        "outside objectives adjacent to this MIS",
+        "fraction of outside objectives covered by this MIS",
+        "G+ edges crossing the retained/eliminated split",
+        "mean crossing-edge degree of retained objectives",
+        "mean G+ degree inside the MIS; zero for an independent set",
+        "full-space nondominated observations",
+        "fraction of the original front lost after reduction",
+        "lost-front observations relative to the full sample",
+    ):
+        assert explanation in intrinsic
+
+
+def test_default_ranking_report_remains_exactly_the_complete_mis_set_report():
+    result = _evaluated_result()
+
+    assert misda.rank(result).report() == result.report()
