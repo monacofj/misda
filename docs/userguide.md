@@ -124,7 +124,6 @@ alternative = ranking.mis(0, 3)
 alternative = ranking.mis(level=0, position=3)
 
 ranking[:10]                         # another Ranking view
-ranking.selected                     # compatibility alias for the first MIS
 ranking.selected_dimension
 ranking.groups                       # scientific tie groups
 ```
@@ -195,12 +194,8 @@ mis_set.evaluate()
 ```
 
 With no arguments this preserves the established default:
-`metrics=("linear", "pareto")`. The module form remains public and
-equivalent for compatibility:
-
-```python
-misda.evaluate(mis_set, metrics=("linear", "pareto"))
-```
+`metrics=("linear", "pareto")`. During alpha, `MISSet.evaluate(...)` is the
+only public evaluation entry point.
 
 Current families are:
 
@@ -224,10 +219,6 @@ candidates="all"
 candidates=ranking.mis()
 candidates=[ranking.mis(0, 0), ranking.mis(0, 1)]
 candidates=ranking[:10]
-
-# Existing integer/index selectors remain supported for compatibility:
-candidates=10
-candidates=[0, 4, 17]
 ```
 
 If no selector is given:
@@ -244,7 +235,7 @@ mis_set.evaluate(metrics=("linear", "nonlinear"))
 evaluates both families on one candidate. Use separate calls if different
 scopes are desired.
 
-Whenever fewer than all candidates are evaluated, `mis_set.report()` states the
+Whenever fewer than all candidates are evaluated, `ranking.report()` states the
 scope and selection basis explicitly.
 
 ### 7.2 Linear reconstruction
@@ -375,8 +366,8 @@ with Plotly. With at least three objectives it uses a rotatable 3D scatter;
 with two objectives it uses a 2D scatter. Objective selectors alter only the
 displayed projection, not Pareto membership.
 
-The previous `MISSet.graph_plot(...)` and `MISSet.front_plot(...)` selection
-forms remain supported for compatibility.
+There is no MISSet-level plotting selector in the alpha API. Selection belongs
+to `Ranking.mis()`; plotting belongs to the returned MIS.
 
 Inside notebooks, `front_plot(show=True)` displays inline. From a terminal it
 writes a self-contained temporary HTML file and attempts to open it in the
