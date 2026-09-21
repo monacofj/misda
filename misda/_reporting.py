@@ -477,11 +477,11 @@ def _evaluation_scope_lines(result):
     return lines
 
 
-def _pareto_stability_lines(result):
+def _pareto_stability_lines(result, ranking=None):
     diagnostics = getattr(result, "pareto_stability", None)
     if diagnostics is None:
         return []
-    ranking = result.structural_ranking
+    ranking = result.structural_ranking if ranking is None else ranking
     selected_index = ranking.indices[0] if ranking.indices else None
     selected_epsilon = (
         diagnostics.epsilon_for_candidate(selected_index)
@@ -504,11 +504,10 @@ def _pareto_stability_lines(result):
     ]
 
 
-def render_mis_set_report(result):
-    """Render a rich audit of already stored MISDA discovery/evaluation state."""
+def _render_complete_report(result, ranking):
+    """Render the complete stored-state report under one ranking view."""
 
     analysis = result.analysis
-    ranking = result.structural_ranking
     separation = getattr(analysis.separation_status, "value", analysis.separation_status)
     selected_index = ranking.indices[0] if ranking.indices else None
     selected_dimension = ranking.selected_dimension
@@ -547,7 +546,7 @@ def render_mis_set_report(result):
             f"  reason         : {analysis.alpha_null_reason or 'none'}",
             "Structural ranking:",
             f"  Policy         : {ranking.policy}",
-            f"  MISs           : {len(result)}",
+            f"  MISs           : {len(ranking)}",
             f"  Selected       : candidate[{selected_index}]"
             if selected_index is not None
             else "  Selected       : N/A",
@@ -581,7 +580,66 @@ def render_mis_set_report(result):
     for index in representative_indices:
         lines.extend(_candidate_lines(result, index, group_by_index.get(index, "N/A")))
 
-    lines.extend(_pareto_stability_lines(result))
+    lines.extend(_pareto_stability_lines(result, ranking=ranking))
+    return "\n".join(lines)
+
+
+def render_mis_set_report(result):
+    """Render the legacy-complete report using the canonical structural ranking."""
+
+    return _render_complete_report(result, result.structural_ranking)
+
+
+def render_ranking_report(ranking):
+    """Render a complete, self-contained report for one Ranking view."""
+
+    return _render_complete_report(ranking.mis_set, ranking)
+
+
+def render_mis_report(candidate):
+    """Render evidence intrinsic to one already-selected MIS."""
+
+    result = candidate._owner()
+    structural = candidate.structural
+    labels = [str(label) for label in candidate.objectives]
+    lines = [
+        f"MIS report: {result.name or 'Untitled'}",
+        "=" * 72,
+        f"Dimension       : {candidate.size}",
+        f"Objectives      : {labels}",
+        "Structural:",
+        f"  neighborhood                    : {structural.neighborhood}",
+        f"  neighborhood_ratio              : {structural.neighborhood_ratio:.4f}",
+        f"  span                            : {structural.span}",
+        f"  avg_external_degree             : {structural.avg_external_degree:.4f}",
+        f"  avg_internal_degree             : {structural.avg_internal_degree:.4f}",
+    ]
+
+    if candidate.linear is not None:
+        lines.append("Linear reconstruction:")
+        lines.extend(_reconstruction_lines(candidate.linear, indent="  "))
+
+    if candidate.pareto is not None:
+        lines.append("Pareto preservation:")
+        lines.extend(
+            _pareto_lines(
+                candidate.pareto,
+                n_observations=result._data.shape[0],
+                indent="  ",
+            )
+        )
+
+    if candidate.nonlinear is not None:
+        lines.append("Nonlinear reconstruction:")
+        lines.extend(_nonlinear_lines(candidate.nonlinear, indent="  "))
+
+    if (
+        candidate.linear is None
+        and candidate.pareto is None
+        and candidate.nonlinear is None
+    ):
+        lines.append("Evaluation: not requested")
+
     return "\n".join(lines)
 
 
