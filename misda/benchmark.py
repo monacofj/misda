@@ -615,7 +615,7 @@ def benchmark(result, truth):
         components_expected=components_expected,
         pareto_expected=pareto_expected,
         found_blocks=found_blocks,
-        selected_dimension=result.structural_ranking.selected_dimension,
+        selected_dimension=rank(result).selected_dimension,
         latent_error=latent[0],
         latent_relative_error=latent[1],
         latent_exact=latent[2],
@@ -770,7 +770,8 @@ class BenchmarkCase:
         unit_reason = "DECLARATION_NOT_UNAMBIGUOUS"
         unit_counts = None
         if self._units_are_unambiguous(result):
-            selected_candidate = result.structural_ranking.selected
+            ranking = rank(result)
+            selected_candidate = ranking.mis() if len(ranking) else None
             selected = set(
                 selected_candidate.objectives if selected_candidate else ()
             )
@@ -864,8 +865,8 @@ def serialize_benchmark_result(case, result, data, *, seed):
         raise TypeError("case must be a BenchmarkCase.")
     if not isinstance(result, MISSet):
         raise TypeError("result must be an MISSet returned by discover().")
-    ranking = result.structural_ranking
-    preferred = ranking.selected
+    ranking = rank(result)
+    preferred = ranking.mis() if len(ranking) else None
     analysis = result.analysis
     return {
         "format_version": FORMAT_VERSION,
@@ -1019,7 +1020,8 @@ def compile_benchmark_summary(results_dict, sort_by=None):
         truth = item.get("truth", {}) if isinstance(item, dict) else {}
         if not isinstance(result, MISSet):
             continue
-        selected = result.structural_ranking.selected
+        ranking = rank(result)
+        selected = ranking.mis() if len(ranking) else None
         linear = selected.linear if selected else None
         nonlinear = selected.nonlinear if selected else None
         pareto = selected.pareto if selected else None
@@ -1029,7 +1031,7 @@ def compile_benchmark_summary(results_dict, sort_by=None):
             "M": int(result._data.shape[1]),
             "Latent": result.analysis.latent_dimension,
             "Structural": result.analysis.structural_dimension,
-            "Selected": result.structural_ranking.selected_dimension,
+            "Selected": ranking.selected_dimension,
             "Alpha": result.analysis.alpha,
             "Support": result.support.status,
             "MeanR2(Lin)": linear.mean_r2 if linear else None,
