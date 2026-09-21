@@ -57,8 +57,10 @@ def plot_mis_set_graph(
     this view.
     """
 
-    if ranking.mis_set is not mis_set:
+    if ranking is not None and ranking.mis_set is not mis_set:
         raise ValueError("ranking belongs to a different MISSet.")
+    if ranking is None and candidate is None:
+        raise ValueError("either ranking or candidate must be provided.")
 
     graph = mis_set.analysis.structural_graph
     selected = ranking.selected if candidate is None else candidate
@@ -158,14 +160,30 @@ def plot_mis_set_graph(
         else ""
     )
     selected_dimension = getattr(selected, "size", None)
-    if selected_dimension is None:
+    if selected_dimension is None and ranking is not None:
         selected_dimension = getattr(ranking, "selected_dimension", None)
-    ax.set_title(
-        "MISDA structural graph — "
-        f"{ranking.policy}; selected dimension={selected_dimension}{detail}"
-    )
+    if ranking is None:
+        title = f"MISDA structural graph — MIS dimension={selected_dimension}"
+    else:
+        title = (
+            "MISDA structural graph — "
+            f"{ranking.policy}; selected dimension={selected_dimension}{detail}"
+        )
+    ax.set_title(title)
     ax.axis("off")
     fig.tight_layout()
     if show:
         plt.show()
     return fig
+
+
+def plot_mis_candidate_graph(candidate, *, show=True):
+    """Render the owning G+ with one already-selected MIS highlighted."""
+
+    mis_set = candidate._owner()
+    return plot_mis_set_graph(
+        mis_set,
+        ranking=None,
+        candidate=candidate,
+        show=show,
+    )
