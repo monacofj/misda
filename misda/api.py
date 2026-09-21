@@ -36,8 +36,6 @@ from ._validation import normalize_input_matrix, validate_aggressiveness
 
 
 SIZE_SPAN = "size_span"
-# Backward-compatible import alias. The canonical policy name is SIZE_SPAN.
-STRUCTURAL_COVERAGE = SIZE_SPAN
 PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
 
 
@@ -387,52 +385,6 @@ class MISSet:
         basis = basis_entry[1] if basis_entry is not None else "existing metrics"
         return evaluated, basis
 
-    def report(self):
-        ranking = self.structural_ranking
-        lines = [f"MISDA discovery: {self.name or 'Untitled'}"]
-        lines.append(
-            "Dimensions: "
-            f"original={self.analysis.original_dimension}, "
-            f"latent={self.analysis.latent_dimension}, "
-            f"structural={self.analysis.structural_dimension}"
-        )
-        lines.append(
-            f"Structural ranking: policy={ranking.policy}; "
-            f"selected_dimension={ranking.selected_dimension}; MISs={len(self)}"
-        )
-        lines.append(
-            f"Dimensional support: "
-            f"{self.support.status if self.support is not None else 'N/A'}"
-        )
-        if self.support is not None and len(self.support.results) > 1:
-            for item in self.support.results:
-                reasons = ", ".join(item.reasons) or "none"
-                lines.append(
-                    f"  candidate[{item.candidate_index}]: {item.status}; "
-                    f"reasons={reasons}"
-                )
-        for family in ("linear", "pareto", "nonlinear"):
-            scope = self.evaluation_scope(family)
-            if scope is not None and scope[0] != len(self):
-                lines.append(
-                    f"Note: {family} metrics were evaluated for "
-                    f"{scope[0]} of {len(self)} candidates only "
-                    f"({scope[1]})."
-                )
-        return "\n".join(lines)
-
-    def graph_plot(self, show=True, ranking=None):
-        """Plot the stored positive structural graph and a ranking selection."""
-
-        from ._plotting import plot_mis_set_graph
-
-        return plot_mis_set_graph(
-            self,
-            ranking=self.structural_ranking if ranking is None else ranking,
-            show=show,
-        )
-
-
 class Ranking:
     """Snapshot ordering view over candidates in one MISSet."""
 
@@ -501,12 +453,8 @@ class Ranking:
         return render_ranking_report(self)
 
     @property
-    def selected(self):
-        return self[0] if self.indices else None
-
-    @property
     def selected_dimension(self):
-        return self.selected.size if self.selected is not None else None
+        return self.mis().size if self.indices else None
 
     def position(self, candidate):
         canonical = next(
@@ -561,10 +509,6 @@ def _rank_size_span(structure, labels):
             previous = value
         groups[-1].append(index)
     return ordered, tuple(tuple(group) for group in groups)
-
-
-# Private compatibility alias for tests/extensions that imported the old helper.
-_rank_structural_coverage = _rank_size_span
 
 
 def _discovery_signature(correlation_statistics, log_alpha):
@@ -811,7 +755,7 @@ def _candidate_indices(mis_set, candidates, metrics):
     if isinstance(candidates, str):
         if candidates != "all":
             raise ValueError("the only string candidate selector is 'all'.")
-        return tuple(range(len(mis_set))), "all candidates"
+        return tuple(range(len(mis_set))), "all MISs"
     if isinstance(candidates, Ranking):
         if candidates.mis_set is not mis_set:
             raise ValueError("Ranking belongs to a different MISSet.")
@@ -830,60 +774,41 @@ def _candidate_indices(mis_set, candidates, metrics):
         if index is None:
             raise ValueError("MIS does not belong to this MISSet.")
         return (index,), "explicit MIS"
-    if (
-        isinstance(candidates, (int, np.integer))
-        and not isinstance(candidates, (bool, np.bool_))
-    ):
-        count = int(candidates)
-        if count < 0:
-            raise ValueError("candidates must be non-negative.")
-        return (
-            tuple(range(min(count, len(mis_set)))),
-            f"first {count} in {SIZE_SPAN} order",
-        )
+
     try:
         raw_selected = tuple(candidates)
     except TypeError as exc:
         raise TypeError(
-            "candidates must be 'all', an integer, an MIS, a Ranking, "
-            "or a sequence of MISs/indices."
+            "candidates must be 'all', an MIS, a Ranking, "
+            "or a sequence of MIS objects."
         ) from exc
 
-    if raw_selected and all(
-        isinstance(candidate, MISCandidate) for candidate in raw_selected
-    ):
-        selected = []
-        for candidate in raw_selected:
-            if getattr(candidate, "_mis_set", None) is not mis_set:
-                raise ValueError("MIS belongs to a different MISSet.")
-            index = next(
-                (
-                    position
-                    for position, observed in enumerate(mis_set)
-                    if observed is candidate
-                ),
-                None,
-            )
-            if index is None:
-                raise ValueError("MIS does not belong to this MISSet.")
-            selected.append(index)
-        selected = tuple(selected)
-        basis = "explicit MIS sequence"
-    else:
-        try:
-            selected = tuple(int(index) for index in raw_selected)
-        except (TypeError, ValueError) as exc:
-            raise TypeError(
-                "candidates must be 'all', an integer, an MIS, a Ranking, "
-                "or a sequence of MISs/indices."
-            ) from exc
-        basis = "explicit candidate indices"
-    if len(set(selected)) != len(selected):
-        raise ValueError("candidate indices must be unique.")
-    if any(index < 0 or index >= len(mis_set) for index in selected):
-        raise IndexError("candidate index out of range.")
-    return selected, basis
+    if not all(isinstance(candidate, MISCandidate) for candidate in raw_selected):
+        raise TypeError(
+            "candidate index/prefix selectors are not part of the alpha API; "
+            "pass MIS objects returned by Ranking.mis(), a sequence of MISs, "
+            "a Ranking view, or 'all'."
+        )
 
+    selected = []
+    for candidate in raw_selected:
+        if getattr(candidate, "_mis_set", None) is not mis_set:
+            raise ValueError("MIS belongs to a different MISSet.")
+        index = next(
+            (
+                position
+                for position, observed in enumerate(mis_set)
+                if observed is candidate
+            ),
+            None,
+        )
+        if index is None:
+            raise ValueError("MIS does not belong to this MISSet.")
+        selected.append(index)
+    selected = tuple(selected)
+    if len(set(selected)) != len(selected):
+        raise ValueError("MIS selection must not contain duplicates.")
+    return selected, "explicit MIS sequence"
 
 def evaluate(
     mis_set,
