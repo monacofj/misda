@@ -54,7 +54,11 @@ def test_python_examples_use_only_new_public_workflow(path):
     assert "mis_set.evaluate(" in joined
     assert "misda.rank(" in joined
     assert "ranking.mis(" in joined
-    assert "misda.evaluate(mis_set" in text
+    assert "misda.evaluate(" not in joined
+    assert "mis_set.report()" not in joined
+    assert "mis_set.graph_plot(" not in joined
+    assert "mis_set.front_plot(" not in joined
+    assert "ranking.selected" not in joined.replace("ranking.selected_dimension", "")
     assert "misda.analyze(" not in joined
     assert "misda.heavy(" not in joined
     assert ".validate(" not in joined
@@ -85,3 +89,19 @@ def test_readme_keeps_classical_front_geometry_separate_from_misda_truth():
 
     assert "analytical Pareto-manifold geometry" in text
     assert "not re-labelled as MISDA latent or structural ground truth" in text
+
+
+def test_alpha_docs_record_removed_compatibility_surface():
+    adr = Path("docs/adr/0020-remove-transitional-alpha-api.md").read_text(
+        encoding="utf-8"
+    )
+    for removed in (
+        "misda.evaluate",
+        "MISSet.report",
+        "MISSet.graph_plot",
+        "MISSet.front_plot",
+        "MISSet.structural_ranking",
+        "Ranking.selected",
+        "STRUCTURAL_COVERAGE",
+    ):
+        assert removed in adr
