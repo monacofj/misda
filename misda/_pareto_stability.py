@@ -31,12 +31,9 @@ _BaseMISSet = _api_module.MISSet
 
 if hasattr(_api_module, "_pareto_stability_original_evaluate"):
     _base_evaluate = _api_module._pareto_stability_original_evaluate
-    _base_report = _api_module._pareto_stability_original_report
 else:
     _base_evaluate = _api_module.evaluate
-    _base_report = _BaseMISSet.report
     _api_module._pareto_stability_original_evaluate = _base_evaluate
-    _api_module._pareto_stability_original_report = _base_report
 
 
 @dataclass(frozen=True)
@@ -168,46 +165,6 @@ def compute_pareto_stability(mis_set):
     )
 
 
-def _format_metric(value):
-    if value is None:
-        return "N/A"
-    return f"{float(value):.4f}"
-
-
-def _report(self):
-    lines = _base_report(self).splitlines()
-    diagnostics = getattr(self, "pareto_stability", None)
-    if diagnostics is None:
-        return "\n".join(lines)
-
-    lines.append("Pareto stability (observed Y only):")
-    lines.append(
-        "  Observed front: "
-        f"{diagnostics.observed_front_size}/{self._data.shape[0]} "
-        f"(fraction={_format_metric(diagnostics.observed_front_fraction)})"
-    )
-    lines.append(
-        "  Dominance margin: "
-        f"min={_format_metric(diagnostics.dominance_margin_min)}, "
-        f"median={_format_metric(diagnostics.dominance_margin_median)}, "
-        f"max={_format_metric(diagnostics.dominance_margin_max)} "
-        "(smaller = more perturbation-sensitive exact membership)"
-    )
-    ranking = self.structural_ranking
-    selected_index = ranking.indices[0] if ranking.indices else None
-    selected_epsilon = (
-        diagnostics.epsilon_for_candidate(selected_index)
-        if selected_index is not None
-        else None
-    )
-    lines.append(
-        "  Additive epsilon+: "
-        f"{_format_metric(selected_epsilon)} "
-        "(range-normalized P_R -> P_Y; smaller = closer full-space approximation)"
-    )
-    return "\n".join(lines)
-
-
 def evaluate(
     mis_set,
     *,
@@ -231,12 +188,11 @@ def evaluate(
 
 
 def _install():
-    """Install the additive observed-data Pareto diagnostics on the API module."""
+    """Install Pareto-stability enrichment on the internal evaluator."""
 
     module = sys.modules.get(f"{__package__}.api")
     if module is not None:
         module.evaluate = evaluate
-        module.MISSet.report = _report
 
 
 _install()
