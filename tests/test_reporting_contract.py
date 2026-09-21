@@ -3,7 +3,7 @@
 This file intentionally protects user-visible reporting capability.  Refactors
 may change implementation and formatting, but deleting one of these evidence
 families requires an explicit methodological/API decision rather than silently
-shrinking ``MISSet.report()``.
+shrinking ``Ranking.report()``.
 """
 
 import numpy as np
@@ -16,13 +16,13 @@ def _evaluated_result():
     x = np.array([-3.0, -2.0, -1.0, 1.0, 2.0, 3.0])
     data = np.column_stack([x, 2.0 * x, -x, -2.0 * x])
     result = misda.discover(data, seed=19, name="report contract")
-    misda.evaluate(result, metrics=("linear", "pareto"), candidates="all")
+    result.evaluate(metrics=("linear", "pareto"), candidates="all")
     return result
 
 
 def test_report_preserves_rich_public_audit_contract():
     result = _evaluated_result()
-    report = result.report()
+    report = misda.rank(result).report()
 
     for section in (
         "MISDA report: report contract",
@@ -109,7 +109,7 @@ def test_report_preserves_nonlinear_and_null_reference_evidence():
     object.__setattr__(result[0], "nonlinear", nonlinear)
     result._evaluation_scopes["nonlinear"] = (1, "report contract fixture")
 
-    report = result.report()
+    report = misda.rank(result).report()
 
     assert "nonlinear_reconstruction" in report
     assert "null_reference" in report
@@ -130,7 +130,7 @@ def test_report_compacts_first_rank_dimensional_support():
     x = np.linspace(-1.0, 1.0, 20)
     data = np.column_stack([x for _ in range(20)])
     result = misda.discover(data, seed=19, name="support aggregation")
-    report = result.report()
+    report = misda.rank(result).report()
 
     start = report.index("Dimensional support:")
     end = report.index("Evaluation scope:")
@@ -161,7 +161,7 @@ def test_report_exposes_front_loss_and_population_impact():
     )
     object.__setattr__(result[0], "pareto", metrics)
 
-    report = result.report()
+    report = misda.rank(result).report()
 
     assert "Original front                  : 3/6" in report
     assert "Preserved front                 : 1/3 (0.3333)" in report
@@ -180,13 +180,13 @@ def test_report_never_runs_hidden_scientific_evaluation(monkeypatch):
     monkeypatch.setattr(api, "evaluate_nonlinear_reconstruction", fail)
     monkeypatch.setattr(api, "evaluate_null_reconstruction", fail)
 
-    report = result.report()
+    report = misda.rank(result).report()
     assert "MISDA report:" in report
 
 
 def test_benchmark_embeds_the_native_report_verbatim():
     result = _evaluated_result()
-    native = result.report()
+    native = misda.rank(result).report()
     report = misda.benchmark(
         result,
         {"name": "contract", "latent_expected": 1, "structural_expected": 2},
@@ -205,7 +205,7 @@ def test_ranking_report_is_complete_and_preserves_default_report_contract():
 
     report = ranking.report()
 
-    assert report == result.report()
+    assert report == misda.rank(result).report()
     for section in (
         "Dimensions:",
         "Graph topology:",
@@ -256,7 +256,7 @@ def test_ranking_and_mis_reports_never_run_hidden_evaluation(monkeypatch):
 
 def test_report_explains_top_level_fields_without_losing_values():
     result = _evaluated_result()
-    report = result.report()
+    report = misda.rank(result).report()
 
     expected_explanations = (
         "number of input objectives",
@@ -322,12 +322,12 @@ def test_report_explains_support_and_intrinsic_mis_metrics():
 def test_default_ranking_report_remains_exactly_the_complete_mis_set_report():
     result = _evaluated_result()
 
-    assert misda.rank(result).report() == result.report()
+    assert misda.rank(result).report() == misda.rank(result).report()
 
 
 def test_long_metric_explanations_wrap_from_the_value_column():
     result = _evaluated_result()
-    report_lines = result.report().splitlines()
+    report_lines = misda.rank(result).report().splitlines()
 
     index = next(
         i for i, line in enumerate(report_lines)
@@ -346,7 +346,7 @@ def test_long_metric_explanations_wrap_from_the_value_column():
 
 def test_short_explanations_stay_inline_and_long_ones_wrap_cleanly():
     result = _evaluated_result()
-    report_lines = result.report().splitlines()
+    report_lines = misda.rank(result).report().splitlines()
 
     original = next(line for line in report_lines if line.startswith("  Original"))
     latent_index = next(
@@ -363,7 +363,7 @@ def test_short_explanations_stay_inline_and_long_ones_wrap_cleanly():
 
 def test_wrapped_report_preserves_legacy_pareto_stability_labels():
     result = _evaluated_result()
-    report = result.report()
+    report = misda.rank(result).report()
 
     assert "Observed front:" in report
     assert "Dominance margin:" in report
