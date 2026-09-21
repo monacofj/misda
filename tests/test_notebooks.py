@@ -335,6 +335,7 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert 'scale="abs"' in source
     assert "initial_data=full_history[0]" in source
     assert "initial_data=reduced_history[0]" in source
+    assert source.count("k=POPULATION") == 2
 
     assert "mb.view.topology" in source
     assert "mb.view.radar" in source
