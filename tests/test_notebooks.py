@@ -334,8 +334,8 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
 
     # Pairing: same search seed and initial X, separate reference-direction RNG.
     assert "mb.moeas.NSGA3" in source
-    assert source.count("seed=MOEA_SEED") == 2
-    assert source.count("ref_dirs_seed=REF_DIRS_SEED") == 2
+    assert source.count("\n            seed=MOEA_SEED,\n") == 2
+    assert source.count("\n            ref_dirs_seed=REF_DIRS_SEED,\n") == 2
     assert "np.testing.assert_allclose" in source
 
     # Decision-space reduction is measured only; the MOEA domain stays unchanged.
