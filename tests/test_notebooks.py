@@ -307,6 +307,8 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
 
     assert notebook["nbformat"] == 4
     assert "misda[benchmarks]" in source
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert "moeabench.git@5b7b379dd03bc5aa11a74447a914c724aa88c010" in pyproject
     assert "git+https://github.com/monacofj/moeabench" not in source
     assert "pip install moeabench" not in source
 
@@ -358,6 +360,11 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "mb.metrics.igdplus" in source
     assert "mb.metrics.hypervolume" in source
     assert 'scale="rel"' in source
+    assert "def _calibrated_ground_truth" in source
+    assert "mop.calibrate(" in source
+    assert '"gt_reference"' in source
+    assert "optimal(n_points=" not in source
+    assert source.count("source_baseline=calibration_sidecar") == 2
     assert source.count("initial_data=initial_original") == 2
     assert source.count("k=POPULATION") == 2
 
