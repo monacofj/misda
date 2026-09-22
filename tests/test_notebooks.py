@@ -357,7 +357,7 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "mb.metrics.gdplus" in source
     assert "mb.metrics.igdplus" in source
     assert "mb.metrics.hypervolume" in source
-    assert 'scale="abs"' in source
+    assert 'scale="rel"' in source
     assert source.count("initial_data=initial_original") == 2
     assert source.count("k=POPULATION") == 2
 
