@@ -426,8 +426,8 @@ def test_optimization_notebook_runtime_pairs_initial_population(monkeypatch):
 
 
 
-def test_optimization_notebook_full_dtlz2_pilot_executes(monkeypatch):
-    """Diagnostic execution of the complete DTLZ2 pilot, except rendering."""
+def test_optimization_notebook_full_pilot_executes(monkeypatch):
+    """Diagnostic execution of the complete two-problem pilot, except rendering."""
     path = Path("benchmarks/optimization.ipynb")
     notebook, _ = _read_notebook(path)
     monkeypatch.setenv("MPLBACKEND", "Agg")
@@ -452,10 +452,11 @@ def test_optimization_notebook_full_dtlz2_pilot_executes(monkeypatch):
     monkeypatch.setattr(mb.view, "history", lambda *args, **kwargs: None)
     namespace["display"] = lambda *args, **kwargs: None
 
-    result = namespace["run_optimization_case"](
-        "DTLZ2", mb.mops.DTLZ2(M=namespace["M"])
-    )
-
-    assert result["mop"].M == 10
-    assert result["evaluations"] > 0
-    assert len(result["full_history"]) == len(result["reduced_history"])
+    for name, mop in (
+        ("DTLZ2", mb.mops.DTLZ2(M=namespace["M"])),
+        ("DPF1", mb.mops.DPF1(M=namespace["M"], D=2, K=5)),
+    ):
+        result = namespace["run_optimization_case"](name, mop)
+        assert result["mop"].M == 10
+        assert result["evaluations"] > 0
+        assert len(result["full_history"]) == len(result["reduced_history"])
