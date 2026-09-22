@@ -347,7 +347,7 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "def _active_decision_dimension" in source
     assert "measured only; MOEA domain unchanged" in source
 
-    # Every Reduced generation is returned to original objective space.
+    # Every Reduced-search generation is returned to original objective space as Full_r.
     assert 'exp[0].history("x")' in source
     assert "original_mop.evaluation" in source
     assert "Reduced decision vectors are re-evaluated" in source
@@ -366,7 +366,12 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "optimal(n_points=" not in source
     assert source.count("source_baseline=calibration_sidecar") == 2
     assert source.count("initial_data=initial_original") == 2
-    assert source.count("k=POPULATION") == 2
+    assert "population_size=population" not in source
+    assert "k=POPULATION" not in source
+    assert "Full_r" in source
+    assert '"full_r_front"' in source
+    assert '"full_r_history"' in source
+    assert "Original-space ND cardinality" in source
 
     # Generations and total represented evaluations are explicit.
     assert "def _history_evaluations" in source
