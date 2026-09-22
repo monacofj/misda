@@ -369,3 +369,57 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "mb.view.radar" in source
     assert "mb.view.history" in source
     assert "mb.view.perf_history" not in source
+
+
+
+def test_optimization_notebook_runtime_pairs_initial_population(monkeypatch):
+    """Execute the paired NSGA-III initialization contract, not only source checks."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "optimization_runtime_smoke"}
+
+    wanted = {
+        "optimization-imports",
+        "optimization-helpers-1",
+        "optimization-helpers-2",
+    }
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(
+                compile("".join(cell.get("source", [])), str(path), "exec"),
+                namespace,
+            )
+
+    mb = namespace["mb"]
+    np = namespace["np"]
+    mop = mb.mops.DTLZ2(M=10)
+    reduced_mop = namespace["ObjectiveProjectionMOP"](mop, (0, 1, 2))
+    X0 = namespace["_paired_initial_population"](mop, size=12, seed=321)
+
+    def _run(problem):
+        exp = mb.experiment(
+            mop=problem,
+            moea=mb.moeas.NSGA3(
+                population=12,
+                generations=2,
+                seed=321,
+                ref_dirs_seed=456,
+                sampling=X0.copy(),
+            ),
+        )
+        exp.run(repeat=1, silent=True)
+        return exp
+
+    full = _run(mop)
+    reduced = _run(reduced_mop)
+    canonical = namespace["_canonical_rows"]
+
+    np.testing.assert_allclose(
+        canonical(full[0].history("x")[0]),
+        canonical(X0),
+    )
+    np.testing.assert_allclose(
+        canonical(reduced[0].history("x")[0]),
+        canonical(X0),
+    )
