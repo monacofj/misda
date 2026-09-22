@@ -336,6 +336,9 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "mb.moeas.NSGA3" in source
     assert source.count("\n            seed=MOEA_SEED,\n") == 2
     assert source.count("\n            ref_dirs_seed=REF_DIRS_SEED,\n") == 2
+    assert source.count("sampling=X0.copy()") == 2
+    assert "def _paired_initial_population" in source
+    assert "def _canonical_rows" in source
     assert "np.testing.assert_allclose" in source
 
     # Decision-space reduction is measured only; the MOEA domain stays unchanged.
@@ -355,8 +358,7 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "mb.metrics.igdplus" in source
     assert "mb.metrics.hypervolume" in source
     assert 'scale="abs"' in source
-    assert "initial_data=full_history[0]" in source
-    assert "initial_data=reduced_history[0]" in source
+    assert source.count("initial_data=initial_original") == 2
     assert source.count("k=POPULATION") == 2
 
     # Generations and total represented evaluations are explicit.
