@@ -350,7 +350,7 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     # Every Reduced-search generation is returned to original objective space as Full_r.
     assert 'exp[0].history("x")' in source
     assert "original_mop.evaluation" in source
-    assert "Reduced decision vectors are re-evaluated" in source
+    assert "Reduced-search decision vectors re-evaluated" in source
     assert "never feeds back into the Reduced search" in source
 
     # Pareto GT is a separate ruler for optimization quality.
@@ -477,8 +477,14 @@ def test_optimization_notebook_full_r_calibrated_pilot_executes(monkeypatch):
         assert len(result["full_front"]) <= namespace["POPULATION"]
         assert len(result["full_r_front"]) <= namespace["POPULATION"]
         assert len(result["full_history"]) == len(result["full_r_history"])
-        assert result["diag_full"].diagnostic_context["k"] == len(result["full_front"])
-        assert result["diag_full_r"].diagnostic_context["k"] == len(result["full_r_front"])
+        full_k = result["diag_full"].diagnostic_context["k"]
+        full_r_k = result["diag_full_r"].diagnostic_context["k"]
+        assert full_k > 0
+        assert full_r_k > 0
+        with open(result["calibration_sidecar"], encoding="utf-8") as handle:
+            calibrated = json.load(handle)["problems"][name]
+        assert str(full_k) in calibrated
+        assert str(full_r_k) in calibrated
         observed[name] = (
             len(result["full_front"]),
             len(result["full_r_front"]),
