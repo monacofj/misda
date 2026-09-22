@@ -435,3 +435,53 @@ def test_optimization_notebook_runtime_pairs_initial_population(monkeypatch):
         canonical(reduced[0].history("x")[0]),
         canonical(X0),
     )
+
+
+
+def test_optimization_notebook_full_r_calibrated_pilot_executes(monkeypatch):
+    """Diagnostic execution of Full vs Full_r with default FAIR calibration."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "optimization_full_r_calibrated_pilot"}
+
+    wanted = {
+        "optimization-imports",
+        "optimization-helpers-1",
+        "optimization-helpers-2",
+        "optimization-runner",
+    }
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(
+                compile("".join(cell.get("source", [])), str(path), "exec"),
+                namespace,
+            )
+
+    mb = namespace["mb"]
+    np = namespace["np"]
+    monkeypatch.setattr(mb.view, "topology", lambda *args, **kwargs: None)
+    monkeypatch.setattr(mb.view, "radar", lambda *args, **kwargs: None)
+    monkeypatch.setattr(mb.view, "history", lambda *args, **kwargs: None)
+    namespace["display"] = lambda *args, **kwargs: None
+
+    observed = {}
+    for name, mop in (
+        ("DTLZ2", mb.mops.DTLZ2(M=namespace["M"])),
+        ("DPF1", mb.mops.DPF1(M=namespace["M"], D=2, K=5)),
+    ):
+        result = namespace["run_optimization_case"](name, mop)
+        gt = np.asarray(result["gt"])
+        assert gt.shape == (2000, namespace["M"])
+        assert result["calibration_sidecar"]
+        assert len(result["full_front"]) <= namespace["POPULATION"]
+        assert len(result["full_r_front"]) <= namespace["POPULATION"]
+        assert len(result["full_history"]) == len(result["full_r_history"])
+        assert result["diag_full"].diagnostic_context["k"] == len(result["full_front"])
+        assert result["diag_full_r"].diagnostic_context["k"] == len(result["full_r_front"])
+        observed[name] = (
+            len(result["full_front"]),
+            len(result["full_r_front"]),
+        )
+
+    print(f"Full/Full_r cardinalities: {observed}")
