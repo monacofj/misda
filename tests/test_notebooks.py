@@ -318,6 +318,18 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "qmc.scale" in source
     assert "joint Sobol sample" in source
     assert "one-factor-at-a-time" in source
+    assert 'REMOTE_REF = "issue-75-optimization-benchmark"' in source
+    assert "/blob/issue-75-optimization-benchmark/benchmarks/optimization.ipynb" in source
+    assert 'mis_set.evaluate(metrics=("linear", "pareto"), candidates=selected)' in source
+    assert "print(ranking.report())" in source
+    assert "selected.graph_plot()" in source
+    assert "Selected MIS support:" in source
+    assert '"front_loss"' in source
+    assert '"population_impact"' in source
+    assert '"selected_support"' in source
+    assert '"screening_diagnostics": screening_diagnostics' in source
+    assert source.index("screening_diagnostics = _diagnose_screening(screening)") < source.index("full.run(repeat=1")
+    assert "optimization_confrontation = optimization_summary[" in source
 
     # Objective reduction delegates to the original MOP; no benchmark formula is copied.
     assert "class ObjectiveProjectionMOP" in source
@@ -435,3 +447,38 @@ def test_optimization_notebook_runtime_pairs_initial_population(monkeypatch):
         canonical(reduced[0].history("x")[0]),
         canonical(X0),
     )
+
+
+def test_optimization_screening_diagnostics_run_without_moea_or_gt(monkeypatch, capsys):
+    """The selected MIS's stored diagnostics depend only on Y_screen."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "optimization_screening_smoke"}
+    wanted = {
+        "optimization-imports",
+        "optimization-helpers-1",
+        "optimization-helpers-2",
+    }
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(
+                compile("".join(cell.get("source", [])), str(path), "exec"),
+                namespace,
+            )
+    mop = namespace["mb"].mops.DPF1(M=10, D=2, K=5)
+    screening = namespace["_screen_misda"](mop, power=5, seed=123)
+    diagnostics = namespace["_diagnose_screening"](screening, show_plots=False)
+    assert diagnostics["n_screen"] == 32
+    assert diagnostics["selected_indices"] == screening["indices"]
+    assert diagnostics["selected_dimension"] == len(screening["indices"])
+    assert diagnostics["selected_support"] in {"SUPPORTED", "UNSUPPORTED"}
+    assert screening["selected"].linear is not None
+    assert screening["selected"].pareto is not None
+    assert diagnostics["pareto_jaccard"] is not None
+    assert diagnostics["front_loss"] is not None
+    assert 0 <= diagnostics["population_impact"] <= 1
+    out = capsys.readouterr().out
+    assert "Discovery evidence: MISDA" in out
+    assert "Selected MIS support:" in out
+    assert "neither Pareto GT nor NSGA-III" in out
