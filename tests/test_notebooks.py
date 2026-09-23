@@ -330,6 +330,13 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert '"screening_diagnostics": screening_diagnostics' in source
     assert source.index("screening_diagnostics = _diagnose_screening(screening)") < source.index("full.run(repeat=1")
     assert "optimization_confrontation = optimization_summary[" in source
+    assert "dpf1_gt_projection = _dpf1_gt_projection_check" in source
+    assert "mop.ps(n_points=n_points)" in source
+    assert "track_dpf1_g=True" in source
+    assert "_dpf1_g_from_original_objectives(F)" in source
+    assert '"g_diagnostics": g_diagnostics' in source
+    assert "_plot_dpf1_g_convergence" in source
+    assert source.index("dpf1_gt_projection = ") < source.index('run_optimization_case("DPF1"')
 
     # Objective reduction delegates to the original MOP; no benchmark formula is copied.
     assert "class ObjectiveProjectionMOP" in source
@@ -482,3 +489,62 @@ def test_optimization_screening_diagnostics_run_without_moea_or_gt(monkeypatch, 
     assert "Discovery evidence: MISDA" in out
     assert "Selected MIS support:" in out
     assert "neither Pareto GT nor NSGA-III" in out
+
+
+def test_optimization_dpf1_analytical_projections_without_optimizer(monkeypatch):
+    """The base and previously selected objective pairs retain sampled analytic GT."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "dpf1_projection_smoke"}
+    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
+
+    mop = namespace["mb"].mops.DPF1(M=10, D=2, K=5)
+    result = namespace["_dpf1_gt_projection_check"](mop, n_points=64)
+    table = result["table"]
+    assert result["gt"].shape == (64, 10)
+    assert table["Objectives"].tolist() == ["f1, f2", "f2, f8"]
+    assert table["Full GT ND"].tolist() == [64, 64]
+    assert table["Projected GT ND"].tolist() == [64, 64]
+    assert table["All GT points retained"].all()
+
+
+def test_optimization_dpf1_g_history_tracks_whole_populations(monkeypatch):
+    """The g series is recovered during full-space population re-evaluation."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "dpf1_g_smoke"}
+    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
+
+    mop = namespace["mb"].mops.DPF1(M=10, D=2, K=5)
+    near = mop.ps(n_points=12)
+    far = near.copy()
+    far[:, mop.D - 1:] = 0.25
+
+    class FakeRun:
+        def history(self, key):
+            assert key == "x"
+            return [far, near]
+
+    class FakeExperiment:
+        def __getitem__(self, index):
+            assert index == 0
+            return FakeRun()
+
+    fronts, stats = namespace["_original_space_history"](
+        FakeExperiment(), mop, track_dpf1_g=True
+    )
+    assert len(fronts) == len(stats) == 2
+    assert stats["min_g"].iloc[0] > stats["min_g"].iloc[1]
+    assert stats["median_g"].iloc[0] > stats["median_g"].iloc[1]
+    assert stats["min_g"].iloc[-1] < 1e-10
+    comparison = namespace["_dpf1_g_convergence"](stats, stats.copy())
+    assert len(comparison["history"]) == 2
+    assert comparison["summary"]["Final min g"].max() < 1e-10
