@@ -328,7 +328,16 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert '"population_impact"' in source
     assert '"selected_support"' in source
     assert '"screening_diagnostics": screening_diagnostics' in source
-    assert source.index("screening_diagnostics = _diagnose_screening(screening)") < source.index("full.run(repeat=1")
+    runner_source = "".join(
+        next(
+            cell["source"]
+            for cell in notebook["cells"]
+            if cell.get("id") == "optimization-runner"
+        )
+    )
+    assert runner_source.index(
+        "screening_diagnostics = _diagnose_screening(screening)"
+    ) < runner_source.index("full.run(repeat=1")
     assert "optimization_confrontation = optimization_summary[" in source
     assert "dtlz2_objective_truth = _dtlz2_objective_irredundancy_check" in source
     assert "dtlz5_objective_truth = _dtlz5_safe_reduction_check" in source
