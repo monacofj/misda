@@ -330,6 +330,10 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert '"screening_diagnostics": screening_diagnostics' in source
     assert source.index("screening_diagnostics = _diagnose_screening(screening)") < source.index("full.run(repeat=1")
     assert "optimization_confrontation = optimization_summary[" in source
+    assert "dtlz2_objective_truth = _dtlz2_objective_irredundancy_check" in source
+    assert "dtlz5_objective_truth = _dtlz5_safe_reduction_check" in source
+    assert 'ANALYTICAL_PREFLIGHT = {' in source
+    assert '"DTLZ5": mb.mops.DTLZ5(M=M)' in source
     assert "dpf1_gt_projection = _dpf1_gt_projection_check" in source
     assert "mop.ps(n_points=n_points)" in source
     assert "track_dpf1_g=True" in source
@@ -548,3 +552,45 @@ def test_optimization_dpf1_g_history_tracks_whole_populations(monkeypatch):
     comparison = namespace["_dpf1_g_convergence"](stats, stats.copy())
     assert len(comparison["history"]) == 2
     assert comparison["summary"]["Final min g"].max() < 1e-10
+
+
+def test_optimization_dtlz2_exact_objective_irredundancy(monkeypatch):
+    """Every DTLZ2 objective has an exact axis-point dominance witness."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "dtlz2_truth_smoke"}
+    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
+
+    mop = namespace["mb"].mops.DTLZ2(M=10)
+    table = namespace["_dtlz2_objective_irredundancy_check"](mop)
+    assert len(table) == 10
+    assert table["Full-space ND"].eq(2).all()
+    assert table["Projected ND"].eq(1).all()
+    assert table["Dominance changed"].all()
+
+
+def test_optimization_dtlz5_specific_safe_pair_and_unsafe_pair(monkeypatch):
+    """DTLZ5 f_(M-1),f_M is safe; degeneracy does not make f1,f_M safe."""
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "dtlz5_truth_smoke"}
+    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
+
+    mop = namespace["mb"].mops.DTLZ5(M=10)
+    result = namespace["_dtlz5_safe_reduction_check"](
+        mop, n_front=128, stress_power=6, seed=123
+    )
+    assert result["safe_pair"] == (8, 9)
+    assert result["unsafe_pair"] == (0, 9)
+    assert len(result["gt"]) == 128
+    assert result["table"].iloc[0]["Projected PF ND"] == 128
+    assert result["matched_front_dominates"].all()
+    assert result["unsafe_witness"]
