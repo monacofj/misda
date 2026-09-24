@@ -332,14 +332,18 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "optimization_confrontation = optimization_summary[" in source
     assert "dtlz2_objective_truth = _dtlz2_objective_irredundancy_check" in source
     assert "dtlz5_objective_truth = _dtlz5_safe_reduction_check" in source
-    assert 'ANALYTICAL_PREFLIGHT = {' in source
     assert '"DTLZ5": mb.mops.DTLZ5(M=M)' in source
+    assert 'dtlz5_screening = _screen_misda(PROBLEMS["DTLZ5"])' in source
+    assert 'dtlz5_screening_diagnostics = _diagnose_screening(dtlz5_screening)' in source
+    assert 'dtlz5_budget = _full_budget_calibration("DTLZ5", PROBLEMS["DTLZ5"])' in source
+    assert "BUDGET_CHECKPOINTS = (50, 100, 200, 400)" in source
+    assert "mb.metrics.gdplus(full, ref=gt, progress=False)" in source
+    assert "mb.metrics.igdplus(full, ref=gt, progress=False)" in source
+    assert "serially dependent observations" in source
+    assert "_dpf1_g_from_original_objectives" not in source
+    assert "_plot_dpf1_g_convergence" not in source
     assert "dpf1_gt_projection = _dpf1_gt_projection_check" in source
     assert "mop.ps(n_points=n_points)" in source
-    assert "track_dpf1_g=True" in source
-    assert "_dpf1_g_from_original_objectives(F)" in source
-    assert '"g_diagnostics": g_diagnostics' in source
-    assert "_plot_dpf1_g_convergence" in source
     assert source.index("dpf1_gt_projection = ") < source.index('run_optimization_case("DPF1"')
 
     # Objective reduction delegates to the original MOP; no benchmark formula is copied.
@@ -359,9 +363,9 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
 
     # Pairing: same search seed and initial X, separate reference-direction RNG.
     assert "mb.moeas.NSGA3" in source
-    assert source.count("\n            seed=MOEA_SEED,\n") == 2
-    assert source.count("\n            ref_dirs_seed=REF_DIRS_SEED,\n") == 2
-    assert source.count("sampling=X0.copy()") == 2
+    assert source.count("\n            seed=MOEA_SEED,\n") == 3
+    assert source.count("\n            ref_dirs_seed=REF_DIRS_SEED,\n") == 3
+    assert source.count("sampling=X0.copy()") == 3
     assert "def _paired_initial_population" in source
     assert "def _canonical_rows" in source
     assert "np.testing.assert_allclose" in source
@@ -516,44 +520,6 @@ def test_optimization_dpf1_analytical_projections_without_optimizer(monkeypatch)
     assert table["All GT points retained"].all()
 
 
-def test_optimization_dpf1_g_history_tracks_whole_populations(monkeypatch):
-    """The g series is recovered during full-space population re-evaluation."""
-    path = Path("benchmarks/optimization.ipynb")
-    notebook, _ = _read_notebook(path)
-    monkeypatch.setenv("MPLBACKEND", "Agg")
-    namespace = {"__name__": "dpf1_g_smoke"}
-    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
-    for cell in notebook["cells"]:
-        if cell.get("id") in wanted:
-            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
-
-    mop = namespace["mb"].mops.DPF1(M=10, D=2, K=5)
-    near = mop.ps(n_points=12)
-    far = near.copy()
-    far[:, mop.D - 1:] = 0.25
-
-    class FakeRun:
-        def history(self, key):
-            assert key == "x"
-            return [far, near]
-
-    class FakeExperiment:
-        def __getitem__(self, index):
-            assert index == 0
-            return FakeRun()
-
-    fronts, stats = namespace["_original_space_history"](
-        FakeExperiment(), mop, track_dpf1_g=True
-    )
-    assert len(fronts) == len(stats) == 2
-    assert stats["min_g"].iloc[0] > stats["min_g"].iloc[1]
-    assert stats["median_g"].iloc[0] > stats["median_g"].iloc[1]
-    assert stats["min_g"].iloc[-1] < 1e-10
-    comparison = namespace["_dpf1_g_convergence"](stats, stats.copy())
-    assert len(comparison["history"]) == 2
-    assert comparison["summary"]["Final min g"].max() < 1e-10
-
-
 def test_optimization_dtlz2_exact_objective_irredundancy(monkeypatch):
     """Every DTLZ2 objective has an exact axis-point dominance witness."""
     path = Path("benchmarks/optimization.ipynb")
@@ -594,3 +560,46 @@ def test_optimization_dtlz5_specific_safe_pair_and_unsafe_pair(monkeypatch):
     assert result["table"].iloc[0]["Projected PF ND"] == 128
     assert result["matched_front_dominates"].all()
     assert result["unsafe_witness"]
+
+
+def test_optimization_budget_checkpoint_table_uses_metricmatrix_rows(monkeypatch):
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "budget_checkpoint_smoke"}
+    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
+
+    Matrix = namespace["mb"].metrics.MetricMatrix
+    metrics = {
+        "GD+": Matrix([[4.0], [3.0], [2.0], [1.0]], metric_name="GD+"),
+        "IGD+": Matrix([[8.0], [6.0], [4.0], [2.0]], metric_name="IGD+"),
+        "HV (relative to GT)": Matrix([[0.1], [0.2], [0.3], [0.4]], metric_name="Hypervolume (Rel)"),
+    }
+    table = namespace["_budget_checkpoint_table"](metrics, (1, 2, 4))
+    assert table["Generation"].tolist() == [1, 2, 4]
+    assert table["GD+"].tolist() == [4.0, 3.0, 1.0]
+    assert table["IGD+"].tolist() == [8.0, 6.0, 2.0]
+    assert table["HV (relative to GT)"].tolist() == [0.1, 0.2, 0.4]
+
+
+def test_optimization_dtlz5_misda_screening_is_truth_independent(monkeypatch):
+    path = Path("benchmarks/optimization.ipynb")
+    notebook, _ = _read_notebook(path)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    namespace = {"__name__": "dtlz5_screening_smoke"}
+    wanted = {"optimization-imports", "optimization-helpers-1", "optimization-helpers-2"}
+    for cell in notebook["cells"]:
+        if cell.get("id") in wanted:
+            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
+
+    mop = namespace["mb"].mops.DTLZ5(M=10)
+    screening = namespace["_screen_misda"](mop, power=5, seed=123)
+    diagnostics = namespace["_diagnose_screening"](screening, show_plots=False)
+    assert diagnostics["n_screen"] == 32
+    assert diagnostics["selected_indices"] == screening["indices"]
+    assert diagnostics["selected_support"] in {"SUPPORTED", "UNSUPPORTED"}
+    assert screening["selected"].linear is not None
+    assert screening["selected"].pareto is not None
