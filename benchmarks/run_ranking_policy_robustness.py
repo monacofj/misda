@@ -37,11 +37,47 @@ MISDA_SEED = 123
 SAMPLE_SEEDS = (101, 202, 303, 404, 505, 606, 707, 808)
 
 
+class SafePathMOP:
+    """Three-objective control with safe MISs of different cardinalities.
+
+    For decisions (x, y) in [0,1]^2:
+
+        f1 = x + y
+        f2 = y
+        f3 = 1 - x + y
+
+    The full Pareto set is y=0 for all x. Both the singleton {f2} and the pair
+    {f1,f3} preserve exactly that decision-space Pareto set. Under independent
+    uniform sampling, corr(f1,f2) and corr(f2,f3) are positive while
+    corr(f1,f3)=0, yielding the intended path graph in the population limit.
+    """
+
+    N = 2
+    M = 3
+    xl = np.zeros(2, dtype=float)
+    xu = np.ones(2, dtype=float)
+
+    def evaluation(self, X):
+        data = np.asarray(X, dtype=float)
+        x = data[:, 0]
+        y = data[:, 1]
+        return {
+            "F": np.column_stack(
+                [
+                    x + y,
+                    y,
+                    1.0 - x + y,
+                ]
+            )
+        }
+
+
 def _problem_suite():
     return {
         "DTLZ2": mb.mops.DTLZ2(M=M),
         "DTLZ5": mb.mops.DTLZ5(M=M),
         "DPF1": mb.mops.DPF1(M=M, D=2, K=5),
+        "SAFE_PATH": SafePathMOP(),
     }
 
 
@@ -55,6 +91,11 @@ def _controls(name):
         return {
             "safe_base": (0, 1),
             "previous_size_span": (1, 7),
+        }
+    if name == "SAFE_PATH":
+        return {
+            "safe_small": (1,),
+            "safe_large": (0, 2),
         }
     return {}
 
