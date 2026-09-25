@@ -881,6 +881,15 @@ def _pareto_metrics(raw):
     )
 
 
+def _dominance_metrics(raw):
+    return DominanceMetrics(
+        new_dominance_rate=float(raw["new_dominance_rate"]),
+        new_dominance_pairs=int(raw["new_dominance_pairs"]),
+        original_no_dominance_pairs=int(raw["original_no_dominance_pairs"]),
+        exact_preservation=bool(raw["exact_preservation"]),
+    )
+
+
 def _candidate_indices(mis_set, candidates, metrics):
     if candidates is None:
         return (
@@ -978,7 +987,7 @@ def evaluate(
     if not isinstance(mis_set, MISSet):
         raise TypeError("mis_set must be an MISSet.")
     requested = tuple(metrics)
-    allowed = {"structural", "linear", "nonlinear", "pareto"}
+    allowed = {"structural", "linear", "nonlinear", "pareto", "dominance"}
     unknown = tuple(metric for metric in requested if metric not in allowed)
     if unknown:
         raise ValueError(f"Unknown metric families: {unknown!r}.")
@@ -993,6 +1002,9 @@ def evaluate(
     full_front = None
     if "pareto" in requested:
         full_front = get_nondominated_mask_minimize(mis_set._data)
+    dominance_prepared = None
+    if "dominance" in requested:
+        dominance_prepared = prepare_dominance_pairs(mis_set._data)
 
     started = time.perf_counter()
     for index in selected:
@@ -1010,6 +1022,13 @@ def evaluate(
                 full_front=full_front,
             )
             object.__setattr__(candidate, "pareto", _pareto_metrics(raw))
+
+        if "dominance" in requested and candidate.dominance is None:
+            raw = evaluate_dominance_preservation(
+                dominance_prepared,
+                candidate.indices,
+            )
+            object.__setattr__(candidate, "dominance", _dominance_metrics(raw))
 
         if "nonlinear" in requested:
             nonlinear = candidate.nonlinear
