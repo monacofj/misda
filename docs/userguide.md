@@ -112,8 +112,44 @@ Use `rank()` to materialize an ordered view:
 ranking = misda.rank(mis_set)
 ```
 
-The default is `policy="size_span"`. The current release defines no alternative
-policy yet.
+The default remains `policy="size_span"`. The experimental alternative
+`policy="pareto_retention"` ranks candidates only by empirical Pareto-front
+retention on the observed `Y`. Cardinality is not a scientific ranking
+criterion. If retention ties exactly, the smaller MIS is ordered first only as
+an operational reduction-efficiency tie-break; tied candidates remain in the
+same scientific rank group.
+
+It requires stored Pareto evidence:
+
+```python
+mis_set.evaluate(metrics=("pareto",), candidates="all")
+ranking = misda.rank(mis_set, policy="pareto_retention")
+```
+
+Or the user may explicitly authorize that evaluation cost:
+
+```python
+ranking = misda.rank(mis_set, policy="pareto_retention", accept_cost=True)
+```
+
+`pareto_retention` is experimental and does not replace the canonical structural
+order. A second experimental policy, `dominance_preservation`, ranks by the
+fraction of row pairs with no dominance in full `Y` that acquire a dominance
+relation after projection. Lower values rank first; exact scientific ties are
+ordered with the larger MIS first as a conservative operational tie-break.
+
+```python
+mis_set.evaluate(metrics=("dominance",), candidates="all")
+ranking = misda.rank(mis_set, policy="dominance_preservation")
+mis = ranking.mis()
+print(ranking.assessment.status)
+```
+
+`ranking.assessment` never suppresses the selected MIS. It annotates it as
+`NO_REDUNDANCY`, `SUPPORTED_REDUCTION`, or `UNSUPPORTED_REDUCTION`. In the last
+case the candidate is still returned so its error can be inspected, but MISDA
+explicitly says not to trust the reduction. These policies use observed `Y`
+only; neither is a proof of global optimization equivalence.
 
 A `Ranking` references the same MIS objects and does not mutate the
 `MISSet`. The user-facing selector is `mis(level, position)`:
@@ -160,8 +196,10 @@ The current mechanisms are:
 - `HIDDEN_SPECTRAL_STRUCTURE`: the first rank-correlation eigenvalue beyond the
   estimated latent signal dimension exceeds its column-permutation null mean.
 
-If several candidates tie at the first `size_span` rank, support is evaluated
-for all of them using the same null permutations. Aggregate states are:
+Candidate-specific support is stored for every discovered MIS using shared null
+permutations. The historical aggregate `mis_set.support` remains defined over
+the first `size_span` tie group. Use `mis_set.support_for(candidate)` for a MIS
+selected by any ranking. Aggregate first-group states are:
 
 ```text
 SUPPORTED             all tied first-rank candidates supported
@@ -175,7 +213,7 @@ Inspect the aggregate and individual evidence with:
 mis_set.support.status
 mis_set.support.supported
 mis_set.support.unsupported
-support = mis_set.support.for_candidate(ranking.mis())
+support = mis_set.support_for(ranking.mis())
 
 support.status
 support.reasons
@@ -209,6 +247,7 @@ structural
 linear
 nonlinear
 pareto
+dominance
 ```
 
 Structural metrics are already present after discovery. The other families are
@@ -279,6 +318,13 @@ mis.pareto.jaccard
 mis.pareto.exact_preservation
 mis.pareto.reduced_front_indices
 ```
+
+For same-sample objective projection, full-space dominance is preserved when
+objectives are removed. Hence the reduced nondominated set is always a subset
+of the full nondominated set. Under this contract, `validity = 1` and
+`jaccard = retention` exactly, so retention is the only independent
+set-membership preservation signal among those three fields. The redundant
+fields remain public for explicitness and compatibility.
 
 Exact membership agreement is deliberately separate from observed-data Pareto
 stability. When Pareto evaluation is requested, `mis_set.pareto_stability`
@@ -469,5 +515,5 @@ normative decision.
   ranking-selected dimension are distinct quantities.
 - Complete MIS enumeration is currently assumed; bounded partial enumeration
   remains future work.
-- Alternative ranking policies remain future work.
+- `pareto_retention` is experimental; additional ranking policies remain future work.
 - Maximization and mixed objective directions remain future work.

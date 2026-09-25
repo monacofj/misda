@@ -53,3 +53,18 @@ def test_pareto_preservation_rejects_mixed_directions_for_now(pareto_example):
             [0, 1],
             directions=[-1, 1, -1],
         )
+
+
+def test_objective_projection_makes_validity_and_jaccard_redundant():
+    rng = np.random.default_rng(123)
+    data = rng.normal(size=(40, 6))
+
+    for selected in ((0,), (0, 2), (1, 3, 5), (0, 1, 2, 3, 4)):
+        observed = _pareto.evaluate_pareto_preservation(data, selected)
+
+        assert observed["pareto_validity"] == 1.0
+        assert observed["pareto_jaccard"] == pytest.approx(
+            observed["pareto_retention"]
+        )
+        assert observed["reduced_front_size"] == observed["intersection_size"]
+        assert observed["union_size"] == observed["full_front_size"]

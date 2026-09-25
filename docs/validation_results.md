@@ -87,3 +87,285 @@ No Pareto implementation bug is indicated by these results. The current implemen
 The evidence reinforces the separation established by ADR 0014: dimensional support and Pareto stability answer different questions. A low Pareto Jaccard must not be interpreted by itself as evidence that the graph-derived dimension is wrong. Exact membership, observed-front saturation, and geometric approximation should be read together.
 
 No estimator change or fixed Pareto-stability threshold is justified by this validation run.
+
+
+# Optimization ranking resampling probe — 2026-09-25
+
+This section records branch-level evidence from PR #76 at commit
+`d26b7d20dd837ccb3b698b0e78f327cbaff6606e`. GitHub Actions run
+`36159796301` executed the dedicated `ranking policy robustness` workflow.
+This is empirical validation evidence, not a normative ranking guarantee.
+
+## Protocol
+
+The experiment isolates screening-sample variability:
+
+- objectives: `M=10`;
+- problems: DTLZ2, DTLZ5, and DPF1;
+- scrambled Sobol sample seeds: `101, 202, 303, 404, 505, 606, 707, 808`;
+- sample sizes: `N in {256, 512, 1024}`;
+- MISDA permutation seed fixed at `123`;
+- all discovered MISs receive Pareto evaluation;
+- canonical `size_span` and experimental `pareto_retention` first groups are
+  compared after discovery;
+- analytical controls are attached only after ranking and never enter MISDA.
+
+For DTLZ5, `f9,f10` is the known safe control and `f1,f10` the explicit
+unsafe witness. For DPF1, `f1,f2` is the safe base pair and `f2,f8` is the
+previous `size_span` selection. DTLZ2 is the negative control: every proper
+objective subset is analytically unsafe.
+
+## Results
+
+| problem/control | N=256 | N=512 | N=1024 |
+| --- | ---: | ---: | ---: |
+| DTLZ5 safe pair present | 8/8 | 8/8 | 8/8 |
+| DTLZ5 safe pair in `size_span` first group | 8/8 | 8/8 | 8/8 |
+| DTLZ5 safe pair in `pareto_retention` first group | 7/8 | 6/8 | 6/8 |
+| DTLZ5 unsafe witness in `size_span` first group | 8/8 | 8/8 | 8/8 |
+| DTLZ5 unsafe witness in `pareto_retention` first group | 0/8 | 0/8 | 0/8 |
+| DPF1 safe base pair present | 8/8 | 8/8 | 8/8 |
+| DPF1 safe base pair in `size_span` first group | 0/8 | 0/8 | 0/8 |
+| DPF1 safe base pair in `pareto_retention` first group | 8/8 | 8/8 | 8/8 |
+| DPF1 previous `f2,f8` in `size_span` first group | 8/8 | 8/8 | 8/8 |
+| DPF1 previous `f2,f8` in `pareto_retention` first group | 0/8 | 0/8 | 0/8 |
+| DTLZ2 any exact observed-front preservation | 0/8 | 0/8 | 0/8 |
+
+For DTLZ2, the median best observed retention decreases as the sample grows:
+`0.9193` at `N=256`, `0.7227` at `N=512`, and `0.3548` at
+`N=1024`. No sampled candidate reaches exact preservation at any tested size.
+
+For DTLZ5, increasing the sample size does not remove the ranking variability.
+The safe control is consistently discovered and the unsafe witness is
+consistently rejected by `pareto_retention`, but the safe pair is not always
+the unique highest-retention candidate. The first-group success rates
+`7/8, 6/8, 6/8` therefore argue against explaining the remaining misses as
+simple small-sample noise.
+
+For DPF1, the contrast is stable at every tested sample size:
+`pareto_retention` selects the safe base pair in every replicate, whereas
+`size_span` consistently prefers the previous `f2,f8` candidate.
+
+## Interpretation
+
+The experiment supports `pareto_retention` as a substantially better
+optimization-oriented ranking signal than `size_span` for these controls, but
+does not justify treating empirical front retention as a complete optimization
+safety criterion. DTLZ5 remains the discriminating case: retention rejects the
+known unsafe witness reliably yet sometimes prefers another two-objective MIS
+over the known safe control.
+
+The next methodological question is therefore not whether to increase the
+screening sample further, but whether a richer dominance-preservation signal
+can distinguish reductions that have similar front retention while preserving
+the no-truth, observed-data ranking contract.
+
+
+## Dominance-distortion ranking diagnostic
+
+A follow-up probe on the same 24 DTLZ5 and 24 DPF1 resampling runs tested a
+stronger observed-data signal than Pareto-front retention.
+
+For a retained objective subset `S`, define the global dominance-distortion
+rate as
+
+```text
+number of full-space incomparable unordered pairs
+that become comparable after projection to S
+----------------------------------------------------------------
+number of full-space incomparable unordered pairs
+```
+
+Lower is better. This metric uses all sampled observations, not only the
+observed nondominated front. A front-only variant was also tested by restricting
+the pair universe to observations nondominated in the full sampled objective
+space.
+
+The global variant was markedly more stable:
+
+| problem/control | N=256 | N=512 | N=1024 |
+| --- | ---: | ---: | ---: |
+| DTLZ5 safe `f9,f10`: best global distortion | 8/8 | 8/8 | 8/8 |
+| DTLZ5 unsafe `f1,f10`: best global distortion | 0/8 | 0/8 | 0/8 |
+| DTLZ5 safe `f9,f10`: best front-only distortion | 2/8 | 3/8 | 1/8 |
+| DPF1 safe `f1,f2`: best global distortion | 8/8 | 8/8 | 8/8 |
+| DPF1 previous `f2,f8`: best global distortion | 0/8 | 0/8 | 0/8 |
+
+For DTLZ5, the safe pair was the **unique** minimum-global-distortion candidate
+in all 24 runs. Its median global distortion was approximately `0.2002`,
+`0.2025`, and `0.2021` for `N=256,512,1024`, respectively. The explicit
+unsafe witness had consistently larger medians of approximately `0.2681`,
+`0.2676`, and `0.2680`.
+
+For DPF1, the safe base pair had zero global dominance distortion in every
+replicate, whereas the previous `size_span` pair `f2,f8` had median
+distortion around `0.32-0.34`.
+
+The DTLZ2 negative control also showed no zero-distortion reduction. The median
+best global distortion increased from approximately `0.0043` at `N=256`
+to `0.0111` at `N=512` and `0.0299` at `N=1024`.
+
+### Interpretation
+
+This result supports a different explanation from front retention alone.
+Finite-sample nondominated sets contain sample-specific pseudo-front points.
+A reduction that is globally optimization-safe may legitimately dominate many
+of those points, so front-only preservation can penalize the correct reduction.
+
+The full cloud contains additional order information. Measuring how much the
+projection changes pairwise comparability over **all** sampled observations
+appears, in these controls, to recover the safe reduction much more reliably.
+
+The metric is nevertheless stronger than optimization-front equivalence:
+a globally safe objective reduction need not preserve every off-front
+incomparability. Consequently, this evidence justifies continued investigation
+of global dominance distortion as a ranking signal, but not yet promotion to a
+canonical MISDA policy.
+
+
+## Variable-cardinality safe control
+
+A further analytical control tests whether observed-data preservation metrics
+implicitly favor larger MISs even when a smaller MIS is equally safe for the
+true optimization problem.
+
+For decisions `(x,y) in [0,1]^2`, define
+
+```text
+f1 = x + y
+f2 = y
+f3 = 1 - x + y
+```
+
+In the population, `corr(f1,f2)>0`, `corr(f2,f3)>0`, and
+`corr(f1,f3)=0`, so the intended positive-dependence graph is the path
+`f1--f2--f3`. Its two maximal independent sets have different cardinalities:
+
+```text
+{f2}        size 1
+{f1,f3}     size 2
+```
+
+Both are analytically optimization-safe. The full Pareto set is exactly
+`y=0` for every `x in [0,1]`. Minimizing `f2=y` alone gives the same
+decision-space Pareto set, while under `{f1,f3}` every `y>0` point is
+dominated by its same-`x`, `y=0` counterpart and all `y=0` points remain
+mutually trading off.
+
+Across 8 Sobol seeds at each of `N=256,512,1024`, MISDA discovered exactly
+these two MISs in every replicate. The observed-data criteria nevertheless
+preferred the larger safe MIS in all 24 runs:
+
+| control | N=256 | N=512 | N=1024 |
+| --- | ---: | ---: | ---: |
+| smaller safe `{f2}`: top by Pareto retention | 0/8 | 0/8 | 0/8 |
+| larger safe `{f1,f3}`: top by Pareto retention | 8/8 | 8/8 | 8/8 |
+| smaller safe `{f2}`: top by global dominance distortion | 0/8 | 0/8 | 0/8 |
+| larger safe `{f1,f3}`: top by global dominance distortion | 8/8 | 8/8 | 8/8 |
+
+For the larger MIS, observed Pareto retention is `1.0` and global dominance
+distortion is `0.0` in every run. For the smaller MIS, global dominance
+distortion is `1.0` in every run and median observed retention decreases from
+approximately `0.0667` at `N=256` to `0.0476` at `N=512` and
+`0.0323` at `N=1024`.
+
+### Consequence for ranking semantics
+
+This control establishes a limitation that the DTLZ5/DPF1 controls could not
+expose. Global dominance distortion is an excellent **conservative
+order-preservation** signal in the tested controls, but it is not a criterion
+for the **smallest globally optimization-safe reduction**.
+
+The discrepancy is not repaired by increasing the generic Sobol sample.
+The true Pareto manifold of this control lies on the boundary `y=0`; a
+scrambled finite Sobol cloud does not contain that continuum. In the sampled
+cloud, reducing to `f2` legitimately collapses many sample-specific
+trade-offs even though, over the continuous MOP, it preserves exactly the true
+Pareto set.
+
+Therefore no current observed-cloud ranking metric should be described as
+identifying the maximally aggressive optimization-safe reduction. The evidence
+supports a separation between:
+
+1. conservative preservation of the observed objective order; and
+2. global optimization equivalence/minimal safe objective cardinality.
+
+The latter requires information beyond finite-sample order preservation
+(e.g. analytical structure, targeted sampling near the Pareto set, or direct
+optimization evidence).
+
+
+## Conservative reduction decision probe — 2026-09-25
+
+The end-to-end Y-only decision contract was validated by GitHub Actions run
+`36169426437` on commit `a9eae1a1ad4824f26f9aff5f1540f036a1ebdb82`.
+Truth was attached only after MISDA completed discovery, candidate evaluation,
+dominance-preservation ranking, and trust annotation.
+
+The decision pipeline was:
+
+```text
+Y
+ -> discover complete MIS universe
+ -> evaluate candidate dominance/Pareto evidence
+ -> rank by minimum observed new-dominance rate
+ -> always return the selected MIS
+ -> annotate NO_REDUNDANCY / SUPPORTED_REDUCTION / UNSUPPORTED_REDUCTION
+```
+
+The selected answer is never suppressed when unsupported.
+
+### Results
+
+| case | selected | new-dominance rate | Pareto retention | status | external interpretation |
+| --- | --- | ---: | ---: | --- | --- |
+| independence | all 20 objectives | 0.0000 | 1.0000 | `NO_REDUNDANCY` | correct: no redundancy exists |
+| total redundancy | `f1` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | correct exact reduction |
+| blocks 4x5 | `f1,f10,f11,f16` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | correct one-per-block reduction |
+| blocks 2x10 | `f1,f11` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | correct one-per-block reduction |
+| DTLZ2 | `f1,f7,f8,f9,f10` | 0.01153 | 0.70115 | `UNSUPPORTED_REDUCTION` | reduction is analytically unsafe; warning is correct |
+| DTLZ5 | `f9,f10` | 0.20031 | 0.10938 | `UNSUPPORTED_REDUCTION` | selected pair is analytically safe; conservative false negative |
+| DPF1 | `f1,f2` | 0.0000 | 1.0000 | `UNSUPPORTED_REDUCTION` | selected base pair is analytically safe; conservative false negative |
+| SAFE_PATH | `f1,f3` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | selected pair is analytically safe |
+
+DTLZ2, DTLZ5, and DPF1 received `TRANSITIVE_CHAINING` as the selected-candidate
+support reason. The important distinction is that the same diagnostic that
+correctly prevents trust in the unsafe DTLZ2 reduction also conservatively
+withholds trust from two safe reductions. Under the adopted precision-first
+contract, those latter cases are acceptable false negatives: MISDA still
+returns the candidates so their actual benchmark error remains measurable.
+
+All strict validation checks passed:
+
+- true independence produced `NO_REDUNDANCY`;
+- exact controlled redundancies produced supported reductions at the expected
+  structural dimensions;
+- the analytically unsafe DTLZ2 reduction was not trusted;
+- DTLZ5, DPF1, and SAFE_PATH selected known-safe candidates;
+- no known-unsafe reduction was marked trustworthy in the tested controls.
+
+The existing 20-seed clean sampling validation already recovers the declared
+independence-case structural dimension `20/20` in every replicate. Because
+`NO_REDUNDANCY` is defined by the selected MIS retaining all original
+objectives, that dimensional robustness directly supports repeated
+no-redundancy detection rather than only the single decision-probe sample.
+
+### Interpretation
+
+The current target is deliberately conservative. MISDA is not required to find
+the smallest possible safe reduction and is allowed to abstain from trusting a
+reduction that external truth later shows was safe. What is methodologically
+more important is that:
+
+1. absence of redundancy can be represented explicitly without forcing a
+   reduction;
+2. every run still produces a candidate reduction for diagnostic/benchmark
+   analysis;
+3. internal contradictions remain visible as a trust warning rather than being
+   used to hide or replace the candidate;
+4. the tested controls contain no case where a known-unsafe reduction was
+   marked trustworthy.
+
+This closes the current ranking/acceptance search at a pragmatic point: known
+limitations are reported rather than recursively addressed by adding more
+heuristics.

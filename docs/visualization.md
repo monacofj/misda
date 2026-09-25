@@ -93,8 +93,10 @@ mis_set.front_plot(ranking="default", level=0, position=0)
 ```
 
 `ranking=None` is equivalent to `ranking="default"`.
-`ranking="size_span"` explicitly pins the current named policy, and an
-existing `Ranking` object may also be supplied.
+`ranking="size_span"` explicitly pins the canonical structural policy;
+`ranking="pareto_retention"` selects the experimental Pareto-retention policy
+when the required Pareto evidence is already stored. An existing `Ranking`
+object may also be supplied.
 
 These compatibility views retain ranking metadata in the plot title/layout.
 The preferred MIS-level views omit that contextual metadata because the MIS
