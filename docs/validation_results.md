@@ -159,3 +159,65 @@ The next methodological question is therefore not whether to increase the
 screening sample further, but whether a richer dominance-preservation signal
 can distinguish reductions that have similar front retention while preserving
 the no-truth, observed-data ranking contract.
+
+
+## Dominance-distortion ranking diagnostic
+
+A follow-up probe on the same 24 DTLZ5 and 24 DPF1 resampling runs tested a
+stronger observed-data signal than Pareto-front retention.
+
+For a retained objective subset `S`, define the global dominance-distortion
+rate as
+
+```text
+number of full-space incomparable unordered pairs
+that become comparable after projection to S
+----------------------------------------------------------------
+number of full-space incomparable unordered pairs
+```
+
+Lower is better. This metric uses all sampled observations, not only the
+observed nondominated front. A front-only variant was also tested by restricting
+the pair universe to observations nondominated in the full sampled objective
+space.
+
+The global variant was markedly more stable:
+
+| problem/control | N=256 | N=512 | N=1024 |
+| --- | ---: | ---: | ---: |
+| DTLZ5 safe `f9,f10`: best global distortion | 8/8 | 8/8 | 8/8 |
+| DTLZ5 unsafe `f1,f10`: best global distortion | 0/8 | 0/8 | 0/8 |
+| DTLZ5 safe `f9,f10`: best front-only distortion | 2/8 | 3/8 | 1/8 |
+| DPF1 safe `f1,f2`: best global distortion | 8/8 | 8/8 | 8/8 |
+| DPF1 previous `f2,f8`: best global distortion | 0/8 | 0/8 | 0/8 |
+
+For DTLZ5, the safe pair was the **unique** minimum-global-distortion candidate
+in all 24 runs. Its median global distortion was approximately `0.2002`,
+`0.2025`, and `0.2021` for `N=256,512,1024`, respectively. The explicit
+unsafe witness had consistently larger medians of approximately `0.2681`,
+`0.2676`, and `0.2680`.
+
+For DPF1, the safe base pair had zero global dominance distortion in every
+replicate, whereas the previous `size_span` pair `f2,f8` had median
+distortion around `0.32-0.34`.
+
+The DTLZ2 negative control also showed no zero-distortion reduction. The median
+best global distortion increased from approximately `0.0043` at `N=256`
+to `0.0111` at `N=512` and `0.0299` at `N=1024`.
+
+### Interpretation
+
+This result supports a different explanation from front retention alone.
+Finite-sample nondominated sets contain sample-specific pseudo-front points.
+A reduction that is globally optimization-safe may legitimately dominate many
+of those points, so front-only preservation can penalize the correct reduction.
+
+The full cloud contains additional order information. Measuring how much the
+projection changes pairwise comparability over **all** sampled observations
+appears, in these controls, to recover the safe reduction much more reliably.
+
+The metric is nevertheless stronger than optimization-front equivalence:
+a globally safe objective reduction need not preserve every off-front
+incomparability. Consequently, this evidence justifies continued investigation
+of global dominance distortion as a ranking signal, but not yet promotion to a
+canonical MISDA policy.
