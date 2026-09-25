@@ -293,3 +293,79 @@ supports a separation between:
 The latter requires information beyond finite-sample order preservation
 (e.g. analytical structure, targeted sampling near the Pareto set, or direct
 optimization evidence).
+
+
+## Conservative reduction decision probe — 2026-09-25
+
+The end-to-end Y-only decision contract was validated by GitHub Actions run
+`36169426437` on commit `a9eae1a1ad4824f26f9aff5f1540f036a1ebdb82`.
+Truth was attached only after MISDA completed discovery, candidate evaluation,
+dominance-preservation ranking, and trust annotation.
+
+The decision pipeline was:
+
+```text
+Y
+ -> discover complete MIS universe
+ -> evaluate candidate dominance/Pareto evidence
+ -> rank by minimum observed new-dominance rate
+ -> always return the selected MIS
+ -> annotate NO_REDUNDANCY / SUPPORTED_REDUCTION / UNSUPPORTED_REDUCTION
+```
+
+The selected answer is never suppressed when unsupported.
+
+### Results
+
+| case | selected | new-dominance rate | Pareto retention | status | external interpretation |
+| --- | --- | ---: | ---: | --- | --- |
+| independence | all 20 objectives | 0.0000 | 1.0000 | `NO_REDUNDANCY` | correct: no redundancy exists |
+| total redundancy | `f1` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | correct exact reduction |
+| blocks 4x5 | `f1,f10,f11,f16` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | correct one-per-block reduction |
+| blocks 2x10 | `f1,f11` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | correct one-per-block reduction |
+| DTLZ2 | `f1,f7,f8,f9,f10` | 0.01153 | 0.70115 | `UNSUPPORTED_REDUCTION` | reduction is analytically unsafe; warning is correct |
+| DTLZ5 | `f9,f10` | 0.20031 | 0.10938 | `UNSUPPORTED_REDUCTION` | selected pair is analytically safe; conservative false negative |
+| DPF1 | `f1,f2` | 0.0000 | 1.0000 | `UNSUPPORTED_REDUCTION` | selected base pair is analytically safe; conservative false negative |
+| SAFE_PATH | `f1,f3` | 0.0000 | 1.0000 | `SUPPORTED_REDUCTION` | selected pair is analytically safe |
+
+DTLZ2, DTLZ5, and DPF1 received `TRANSITIVE_CHAINING` as the selected-candidate
+support reason. The important distinction is that the same diagnostic that
+correctly prevents trust in the unsafe DTLZ2 reduction also conservatively
+withholds trust from two safe reductions. Under the adopted precision-first
+contract, those latter cases are acceptable false negatives: MISDA still
+returns the candidates so their actual benchmark error remains measurable.
+
+All strict validation checks passed:
+
+- true independence produced `NO_REDUNDANCY`;
+- exact controlled redundancies produced supported reductions at the expected
+  structural dimensions;
+- the analytically unsafe DTLZ2 reduction was not trusted;
+- DTLZ5, DPF1, and SAFE_PATH selected known-safe candidates;
+- no known-unsafe reduction was marked trustworthy in the tested controls.
+
+The existing 20-seed clean sampling validation already recovers the declared
+independence-case structural dimension `20/20` in every replicate. Because
+`NO_REDUNDANCY` is defined by the selected MIS retaining all original
+objectives, that dimensional robustness directly supports repeated
+no-redundancy detection rather than only the single decision-probe sample.
+
+### Interpretation
+
+The current target is deliberately conservative. MISDA is not required to find
+the smallest possible safe reduction and is allowed to abstain from trusting a
+reduction that external truth later shows was safe. What is methodologically
+more important is that:
+
+1. absence of redundancy can be represented explicitly without forcing a
+   reduction;
+2. every run still produces a candidate reduction for diagnostic/benchmark
+   analysis;
+3. internal contradictions remain visible as a trust warning rather than being
+   used to hide or replace the candidate;
+4. the tested controls contain no case where a known-unsafe reduction was
+   marked trustworthy.
+
+This closes the current ranking/acceptance search at a pragmatic point: known
+limitations are reported rather than recursively addressed by adding more
+heuristics.
