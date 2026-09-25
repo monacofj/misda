@@ -12,6 +12,7 @@ from typing import Any, Optional, Tuple
 import networkx as nx
 import numpy as np
 
+from ._dominance import evaluate_dominance_preservation, prepare_dominance_pairs
 from ._graph import build_dependency_graphs, enumerate_structural_mis
 from ._linear import evaluate_linear_reconstruction
 from ._pareto import evaluate_pareto_preservation, get_nondominated_mask_minimize
@@ -37,6 +38,11 @@ from ._validation import normalize_input_matrix, validate_aggressiveness
 
 SIZE_SPAN = "size_span"
 PARETO_RETENTION = "pareto_retention"
+DOMINANCE_PRESERVATION = "dominance_preservation"
+
+NO_REDUNDANCY = "NO_REDUNDANCY"
+SUPPORTED_REDUCTION = "SUPPORTED_REDUCTION"
+UNSUPPORTED_REDUCTION = "UNSUPPORTED_REDUCTION"
 # Backward-compatible import alias. The canonical structural policy name is SIZE_SPAN.
 STRUCTURAL_COVERAGE = SIZE_SPAN
 PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
@@ -150,6 +156,30 @@ class ParetoMetrics:
 
 
 @dataclass(frozen=True)
+class DominanceMetrics:
+    """Observed changes in pairwise Pareto dominance after projection."""
+
+    new_dominance_rate: float
+    new_dominance_pairs: int
+    original_no_dominance_pairs: int
+    exact_preservation: bool
+
+
+@dataclass(frozen=True)
+class ReductionAssessment:
+    """Trust annotation for a ranking-selected reduction."""
+
+    status: str
+    candidate_index: int
+    support_status: str
+    reasons: Tuple[str, ...]
+
+    @property
+    def trustworthy(self) -> bool:
+        return self.status in {NO_REDUNDANCY, SUPPORTED_REDUCTION}
+
+
+@dataclass(frozen=True)
 class MISCandidate:
     """One discovered structural maximal independent set."""
 
@@ -159,6 +189,7 @@ class MISCandidate:
     linear: Optional[LinearMetrics] = field(default=None, compare=False)
     nonlinear: Optional[NonlinearMetrics] = field(default=None, compare=False)
     pareto: Optional[ParetoMetrics] = field(default=None, compare=False)
+    dominance: Optional[DominanceMetrics] = field(default=None, compare=False)
     _mis_set: Any = field(default=None, compare=False, repr=False)
 
     @property
@@ -336,6 +367,7 @@ class MISSet:
         self.seed = int(seed)
         self.name = name
         self.support = support
+        self._support_by_index = {}
         self.timings = dict(timings or {})
         self._evaluation_scopes = {}
 
@@ -375,8 +407,28 @@ class MISSet:
             cancel_requested=cancel_requested,
         )
 
+    def support_for(self, candidate):
+        """Return stored dimensional support for any discovered MIS."""
+
+        if isinstance(candidate, (int, np.integer)):
+            index = int(candidate)
+        else:
+            index = next(
+                (
+                    position
+                    for position, observed in enumerate(self._candidates)
+                    if observed is candidate
+                ),
+                None,
+            )
+            if index is None:
+                raise ValueError("candidate does not belong to this MISSet.")
+        if index not in self._support_by_index:
+            raise ValueError("support is not available for this candidate.")
+        return self._support_by_index[index]
+
     def evaluation_scope(self, family):
-        if family not in {"linear", "pareto", "nonlinear"}:
+        if family not in {"linear", "pareto", "dominance", "nonlinear"}:
             return self._evaluation_scopes.get(family)
         basis_entry = self._evaluation_scopes.get(family)
         evaluated = sum(
@@ -412,7 +464,7 @@ class MISSet:
                     f"  candidate[{item.candidate_index}]: {item.status}; "
                     f"reasons={reasons}"
                 )
-        for family in ("linear", "pareto", "nonlinear"):
+        for family in ("linear", "pareto", "dominance", "nonlinear"):
             scope = self.evaluation_scope(family)
             if scope is not None and scope[0] != len(self):
                 lines.append(
