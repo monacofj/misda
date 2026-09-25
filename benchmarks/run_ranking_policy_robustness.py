@@ -69,6 +69,71 @@ def _sample_objectives(mop, *, power, sample_seed):
     return np.asarray(mop.evaluation(X)["F"], dtype=float)
 
 
+def _dominance_matrix(Y):
+    """Directed strict Pareto-dominance matrix for minimization."""
+
+    data = np.asarray(Y, dtype=float)
+    weak = (data[:, None, :] <= data[None, :, :]).all(axis=2)
+    strict = (data[:, None, :] < data[None, :, :]).any(axis=2)
+    dominance = weak & strict
+    np.fill_diagonal(dominance, False)
+    return dominance
+
+
+def _spurious_dominance_metrics(F, selected_indices, *, full_dom=None, full_front=None):
+    """Measure new comparabilities introduced by objective projection.
+
+    Two rates are returned:
+
+    * global: fraction of previously incomparable unordered sample pairs that
+      become comparable after projection;
+    * front: fraction of unordered pairs inside the observed full-space
+      nondominated set that become comparable after projection.
+
+    These are diagnostics only. A globally optimization-safe reduction need not
+    preserve every finite-sample incomparability.
+    """
+
+    data = np.asarray(F, dtype=float)
+    selected = tuple(int(index) for index in selected_indices)
+    if full_dom is None:
+        full_dom = _dominance_matrix(data)
+    if full_front is None:
+        raise ValueError("full_front must be supplied by the caller.")
+    front_mask = np.asarray(full_front, dtype=bool)
+
+    reduced_dom = _dominance_matrix(data[:, selected])
+    full_comparable = full_dom | full_dom.T
+    reduced_comparable = reduced_dom | reduced_dom.T
+
+    upper = np.triu(np.ones(full_comparable.shape, dtype=bool), k=1)
+    incomparable = upper & ~full_comparable
+    newly_comparable = incomparable & reduced_comparable
+    n_incomparable = int(incomparable.sum())
+    global_rate = (
+        float(newly_comparable.sum() / n_incomparable)
+        if n_incomparable
+        else 0.0
+    )
+
+    front_pairs = upper & front_mask[:, None] & front_mask[None, :]
+    n_front_pairs = int(front_pairs.sum())
+    front_new = front_pairs & reduced_comparable
+    front_rate = (
+        float(front_new.sum() / n_front_pairs)
+        if n_front_pairs
+        else 0.0
+    )
+    return {
+        "global_spurious_dominance_rate": global_rate,
+        "front_spurious_dominance_rate": front_rate,
+        "global_spurious_pairs": int(newly_comparable.sum()),
+        "global_incomparable_pairs": n_incomparable,
+        "front_spurious_pairs": int(front_new.sum()),
+        "front_pairs": n_front_pairs,
+    }
+
+
 def _candidate_index(mis_set, indices):
     target = tuple(int(index) for index in indices)
     for index, candidate in enumerate(mis_set):
@@ -97,6 +162,59 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
     structural_top = _top_group(structural)
     pareto_top = _top_group(pareto)
 
+    # Derive the observed full-space Pareto front once for front-focused
+    # dominance diagnostics.
+    from misda._pareto import get_nondominated_mask_minimize
+    full_front_mask = get_nondominated_mask_minimize(F)
+    full_dom = _dominance_matrix(F)
+
+    dominance_rows = []
+    for candidate_index, candidate in enumerate(mis_set):
+        metrics = _spurious_dominance_metrics(
+            F,
+            candidate.indices,
+            full_dom=full_dom,
+            full_front=full_front_mask,
+        )
+        dominance_rows.append(metrics)
+
+    global_order = sorted(
+        range(len(mis_set)),
+        key=lambda index: (
+            dominance_rows[index]["global_spurious_dominance_rate"],
+            tuple(repr(label) for label in mis_set[index].objectives),
+        ),
+    )
+    front_order = sorted(
+        range(len(mis_set)),
+        key=lambda index: (
+            dominance_rows[index]["front_spurious_dominance_rate"],
+            tuple(repr(label) for label in mis_set[index].objectives),
+        ),
+    )
+    global_best = dominance_rows[global_order[0]][
+        "global_spurious_dominance_rate"
+    ]
+    front_best = dominance_rows[front_order[0]][
+        "front_spurious_dominance_rate"
+    ]
+    global_top = {
+        index
+        for index in global_order
+        if np.isclose(
+            dominance_rows[index]["global_spurious_dominance_rate"],
+            global_best,
+        )
+    }
+    front_top = {
+        index
+        for index in front_order
+        if np.isclose(
+            dominance_rows[index]["front_spurious_dominance_rate"],
+            front_best,
+        )
+    }
+
     selected = pareto.mis()
     row = {
         "problem": name,
@@ -112,6 +230,10 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         "pareto_selected_exact": bool(selected.pareto.exact_preservation),
         "pareto_top_group_size": int(len(pareto.groups[0])),
         "size_span_top_group_size": int(len(structural.groups[0])),
+        "global_spurious_best_rate": float(global_best),
+        "front_spurious_best_rate": float(front_best),
+        "global_spurious_top_group_size": int(len(global_top)),
+        "front_spurious_top_group_size": int(len(front_top)),
     }
 
     # DTLZ2 is a negative control: no proper subset is globally safe.
@@ -140,6 +262,12 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         row[f"{control_name}_pareto_top"] = (
             bool(index in pareto_top) if present else False
         )
+        row[f"{control_name}_global_spurious_top"] = (
+            bool(index in global_top) if present else False
+        )
+        row[f"{control_name}_front_spurious_top"] = (
+            bool(index in front_top) if present else False
+        )
         if present:
             candidate = mis_set[index]
             row[f"{control_name}_retention"] = float(
@@ -148,9 +276,17 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
             row[f"{control_name}_exact"] = bool(
                 candidate.pareto.exact_preservation
             )
+            row[f"{control_name}_global_spurious_rate"] = float(
+                dominance_rows[index]["global_spurious_dominance_rate"]
+            )
+            row[f"{control_name}_front_spurious_rate"] = float(
+                dominance_rows[index]["front_spurious_dominance_rate"]
+            )
         else:
             row[f"{control_name}_retention"] = None
             row[f"{control_name}_exact"] = None
+            row[f"{control_name}_global_spurious_rate"] = None
+            row[f"{control_name}_front_spurious_rate"] = None
 
     return row
 
@@ -221,6 +357,12 @@ def summarize_robustness(results):
             summary[f"{control_name}_pareto_top_rate"] = _rate(
                 group[f"{control_name}_pareto_top"]
             )
+            summary[f"{control_name}_global_spurious_top_rate"] = _rate(
+                group[f"{control_name}_global_spurious_top"]
+            )
+            summary[f"{control_name}_front_spurious_top_rate"] = _rate(
+                group[f"{control_name}_front_spurious_top"]
+            )
             if n_present:
                 summary[
                     f"{control_name}_pareto_top_given_present_rate"
@@ -230,11 +372,39 @@ def summarize_robustness(results):
                 summary[f"{control_name}_median_retention"] = float(
                     group.loc[present, f"{control_name}_retention"].median()
                 )
+                summary[
+                    f"{control_name}_global_spurious_top_given_present_rate"
+                ] = _rate(
+                    group.loc[present, f"{control_name}_global_spurious_top"]
+                )
+                summary[
+                    f"{control_name}_front_spurious_top_given_present_rate"
+                ] = _rate(
+                    group.loc[present, f"{control_name}_front_spurious_top"]
+                )
+                summary[f"{control_name}_median_global_spurious_rate"] = float(
+                    group.loc[
+                        present, f"{control_name}_global_spurious_rate"
+                    ].median()
+                )
+                summary[f"{control_name}_median_front_spurious_rate"] = float(
+                    group.loc[
+                        present, f"{control_name}_front_spurious_rate"
+                    ].median()
+                )
             else:
                 summary[
                     f"{control_name}_pareto_top_given_present_rate"
                 ] = None
                 summary[f"{control_name}_median_retention"] = None
+                summary[
+                    f"{control_name}_global_spurious_top_given_present_rate"
+                ] = None
+                summary[
+                    f"{control_name}_front_spurious_top_given_present_rate"
+                ] = None
+                summary[f"{control_name}_median_global_spurious_rate"] = None
+                summary[f"{control_name}_median_front_spurious_rate"] = None
 
         summaries.append(summary)
 
