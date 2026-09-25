@@ -92,6 +92,7 @@ structural
 linear
 nonlinear
 pareto
+dominance
 ```
 
 Candidate evidence is exposed through typed domains:
@@ -163,6 +164,19 @@ not enter the scientific rank; exact retention ties are ordered with the
 smaller MIS first only as an operational reduction-efficiency tie-break. It is
 not the default and is not a guarantee of global optimization safety.
 
+A conservative experimental view is also available:
+
+```python
+mis_set.evaluate(metrics=("dominance",), candidates="all")
+ranking = misda.rank(mis_set, policy="dominance_preservation")
+```
+
+`dominance_preservation` minimizes the fraction of row pairs with no dominance
+in full `Y` that gain a dominance relation after reduction. Exact ties prefer
+the larger MIS operationally. `ranking.assessment.status` is
+`NO_REDUNDANCY`, `SUPPORTED_REDUCTION`, or `UNSUPPORTED_REDUCTION`; even an
+unsupported reduction remains returned and inspectable.
+
 A deterministic label-based tie-break provides reproducible order inside a
 scientific tie but does not create a new rank group.
 
@@ -230,9 +244,10 @@ diagnostics are:
 - `HIDDEN_SPECTRAL_STRUCTURE`: organized rank-correlation structure remains
   beyond the estimated latent dimension.
 
-If several candidates are scientifically tied at the first structural rank,
-support is evaluated for all of them rather than depending on an arbitrary
-deterministic tie-break.
+Support is evaluated for every discovered MIS using shared permutation work.
+The aggregate `mis_set.support` still summarizes the first structural-rank
+group, while `mis_set.support_for(candidate)` retrieves candidate-specific
+support for any ranking selection.
 
 ```python
 mis_set.support.status
