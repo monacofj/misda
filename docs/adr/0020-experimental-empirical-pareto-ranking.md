@@ -97,10 +97,12 @@ optimization equivalence.
 
 ## Dimensional support
 
-Dimensional support is currently attached during discovery to the canonical
-first `size_span` tie group. An alternative ranking may select a candidate
-outside that group. `pareto_retention` does not silently recompute or reinterpret
-support, and reports must state the scope distinction.
+Discovery stores candidate-specific dimensional support for every discovered
+MIS using shared permutation work. The historical aggregate
+`MISSet.support` remains scoped to the canonical first `size_span` group for
+compatibility, while `MISSet.support_for(candidate)` exposes support for a
+candidate selected by any ranking. Ranking never borrows another candidate's
+support label.
 
 ## Limitation exposed by variable-cardinality control
 
