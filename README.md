@@ -155,12 +155,13 @@ evaluation:
 
 ```python
 mis_set.evaluate(metrics=("pareto",), candidates="all")
-ranking = misda.rank(mis_set, policy="size_pareto")
+ranking = misda.rank(mis_set, policy="pareto_retention")
 ```
 
-`size_pareto` keeps size first and then prefers greater empirical Pareto
-retention. It is not the default and is not a guarantee of global optimization
-safety.
+`pareto_retention` ranks by empirical Pareto retention. Candidate size does
+not enter the scientific rank; exact retention ties are ordered with the
+smaller MIS first only as an operational reduction-efficiency tie-break. It is
+not the default and is not a guarantee of global optimization safety.
 
 A deterministic label-based tie-break provides reproducible order inside a
 scientific tie but does not create a new rank group.
