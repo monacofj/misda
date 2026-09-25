@@ -150,6 +150,18 @@ is equivalent to:
 ranking = misda.rank(mis_set, policy="size_span")
 ```
 
+An experimental Pareto-aware view is also available after candidate Pareto
+evaluation:
+
+```python
+mis_set.evaluate(metrics=("pareto",), candidates="all")
+ranking = misda.rank(mis_set, policy="size_pareto")
+```
+
+`size_pareto` keeps size first and then prefers greater empirical Pareto
+retention. It is not the default and is not a guarantee of global optimization
+safety.
+
 A deterministic label-based tie-break provides reproducible order inside a
 scientific tie but does not create a new rank group.
 
