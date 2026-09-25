@@ -925,7 +925,7 @@ def _render_complete_report(result, ranking):
             representative_indices.append(index)
 
     lines.append(
-        "Candidates: one representative from the first three structural tie "
+        "Candidates: one representative from the first three ranking tie "
         "groups, plus any candidate with nonlinear evidence"
     )
     for index in representative_indices:
