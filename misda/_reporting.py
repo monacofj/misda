@@ -231,6 +231,8 @@ def _ranking_policy_explanation(policy):
         return "larger MISs first, then broader span"
     if policy == "pareto_retention":
         return "greater observed Pareto-front retention; smaller MISs break exact ties"
+    if policy == "dominance_preservation":
+        return "fewer new observed dominance relations; larger MISs break exact ties"
     return "the named policy determines candidate order"
 
 
@@ -283,6 +285,47 @@ def _reconstruction_lines(metrics, *, indent="      "):
             "jackknife_n",
             jackknife.n_replicates,
             indent=indent,
+        ),
+    ]
+
+
+def _dominance_lines(metrics, *, indent="      "):
+    return [
+        _explained_line(
+            "new_dominance_rate",
+            _format_value(metrics.new_dominance_rate),
+            "new observed dominance fraction",
+            "among row pairs with no dominance in full Y, how many become dominated after reduction",
+            indent=indent,
+            label_width=32,
+            value_width=10,
+        ),
+        _explained_line(
+            "new_dominance_pairs",
+            metrics.new_dominance_pairs,
+            "new observed dominance count",
+            "how many previously non-dominating row pairs acquire dominance",
+            indent=indent,
+            label_width=32,
+            value_width=10,
+        ),
+        _explained_line(
+            "original_no_dominance_pairs",
+            metrics.original_no_dominance_pairs,
+            "full-space no-dominance pair count",
+            "the denominator used by the distortion rate",
+            indent=indent,
+            label_width=32,
+            value_width=10,
+        ),
+        _explained_line(
+            "exact_preservation",
+            "yes" if metrics.exact_preservation else "no",
+            "observed dominance preservation",
+            "whether reduction creates zero new dominance relations",
+            indent=indent,
+            label_width=32,
+            value_width=10,
         ),
     ]
 
@@ -491,6 +534,10 @@ def _candidate_lines(result, candidate_index, group_number):
             )
         )
 
+    if candidate.dominance is not None:
+        lines.append("    dominance_preservation")
+        lines.extend(_dominance_lines(candidate.dominance))
+
     if candidate.nonlinear is not None:
         lines.append("    nonlinear_reconstruction")
         lines.extend(_nonlinear_lines(candidate.nonlinear))
@@ -498,6 +545,7 @@ def _candidate_lines(result, candidate_index, group_number):
     if (
         candidate.linear is None
         and candidate.pareto is None
+        and candidate.dominance is None
         and candidate.nonlinear is None
     ):
         lines.append("    evaluation not requested")
@@ -677,7 +725,7 @@ def _support_lines(result):
 def _evaluation_scope_lines(result):
     lines = ["Evaluation scope:"]
     observed = False
-    for family in ("linear", "pareto", "nonlinear"):
+    for family in ("linear", "pareto", "dominance", "nonlinear"):
         scope = result.evaluation_scope(family)
         if scope is None:
             continue
@@ -905,10 +953,38 @@ def _render_complete_report(result, ranking):
         )
     )
     lines.extend(_support_lines(result))
-    if ranking.policy != "size_span":
-        lines.append(
-            "  Ranking note: dimensional support above belongs to the canonical "
-            "size_span first-rank group; alternative rankings do not recompute it."
+    assessment = ranking.assessment
+    if assessment is not None:
+        selected_support = result.support_for(assessment.candidate_index)
+        reasons = ", ".join(selected_support.reasons) or "none"
+        lines.extend(
+            [
+                "Reduction assessment:",
+                _explained_line(
+                    "Status",
+                    assessment.status,
+                    "use-status annotation",
+                    "the candidate is always returned; UNSUPPORTED_REDUCTION means do not trust it",
+                    label_width=17,
+                    value_width=24,
+                ),
+                _explained_line(
+                    "Selected support",
+                    selected_support.status,
+                    "support of the selected MIS",
+                    "candidate-specific internal diagnostic status",
+                    label_width=17,
+                    value_width=24,
+                ),
+                _explained_line(
+                    "Reasons",
+                    reasons,
+                    "selected-candidate support reasons",
+                    "why MISDA says this reduction should or should not be trusted",
+                    label_width=17,
+                    value_width=24,
+                ),
+            ]
         )
     lines.extend(_evaluation_scope_lines(result))
 
@@ -1014,6 +1090,10 @@ def render_mis_report(candidate):
                 indent="  ",
             )
         )
+
+    if candidate.dominance is not None:
+        lines.append("Dominance preservation:")
+        lines.extend(_dominance_lines(candidate.dominance, indent="  "))
 
     if candidate.nonlinear is not None:
         lines.append("Nonlinear reconstruction:")
