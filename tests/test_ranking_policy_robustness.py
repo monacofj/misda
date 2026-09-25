@@ -13,14 +13,14 @@ def test_ranking_policy_robustness_smoke_uses_independent_sample_seeds():
     )
     summary = probe.summarize_robustness(results)
 
-    assert len(results) == 6
-    assert set(results["problem"]) == {"DTLZ2", "DTLZ5", "DPF1"}
+    assert len(results) == 8
+    assert set(results["problem"]) == {"DTLZ2", "DTLZ5", "DPF1", "SAFE_PATH"}
     assert results.groupby("problem")["sample_seed"].nunique().eq(2).all()
     assert set(results["misda_seed"]) == {123}
     assert set(results["n_screen"]) == {32}
 
-    assert len(summary) == 3
-    assert set(summary["problem"]) == {"DTLZ2", "DTLZ5", "DPF1"}
+    assert len(summary) == 4
+    assert set(summary["problem"]) == {"DTLZ2", "DTLZ5", "DPF1", "SAFE_PATH"}
     assert summary["replicates"].eq(2).all()
 
     dtlz5 = summary.loc[summary["problem"] == "DTLZ5"].iloc[0]
@@ -29,6 +29,9 @@ def test_ranking_policy_robustness_smoke_uses_independent_sample_seeds():
     assert "safe_pareto_top_given_present_rate" in dtlz5.index
     assert "safe_base_present_rate" in dpf1.index
     assert "safe_base_pareto_top_given_present_rate" in dpf1.index
+    safe_path = summary.loc[summary["problem"] == "SAFE_PATH"].iloc[0]
+    assert "safe_small_global_spurious_top_given_present_rate" in safe_path.index
+    assert "safe_large_global_spurious_top_given_present_rate" in safe_path.index
 
 
 def test_summary_separates_discovery_from_conditional_ranking_success():
