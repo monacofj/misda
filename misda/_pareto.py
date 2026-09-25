@@ -55,7 +55,18 @@ def evaluate_pareto_preservation(
     full_front=None,
     directions=None,
 ):
-    """Evaluate retention and validity of a reduced minimization front."""
+    """Evaluate empirical Pareto preservation under objective projection.
+
+    Under the current minimization-only contract, removing objectives can only
+    add dominance relations. Every point dominated in the full objective space
+    therefore remains dominated after projection, so the reduced empirical
+    nondominated set is always a subset of the full one.
+
+    Consequently, whenever the fronts are non-empty, ``pareto_validity`` is 1
+    and ``pareto_jaccard`` equals ``pareto_retention``. Those fields remain in
+    the public schema for explicitness and compatibility, but they are not
+    independent ranking signals under this contract.
+    """
 
     if directions is not None:
         raise ValueError("Mixed objective directions are not supported.")
