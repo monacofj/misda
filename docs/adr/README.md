@@ -34,5 +34,6 @@ Each record may contain: Context, Definitions, Decision, Formal specification, R
 - [0017 — Size-span canonical structural ranking](0017-size-span-canonical-ranking.md)
 - [0018 — Ranking-selected visualization views](0018-ranking-selected-visualization-views.md)
 - [0019 — User-facing MIS, ranking, and evaluation workflow](0019-user-facing-mis-ranking-workflow.md)
+- [0020 — Experimental empirical-Pareto ranking](0020-experimental-empirical-pareto-ranking.md)
 
 All records below are retrospective unless explicitly stated otherwise. They document the current MISDA design, with later records superseding earlier decisions where explicitly stated.
