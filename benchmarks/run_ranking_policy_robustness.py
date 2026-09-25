@@ -215,6 +215,10 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         )
     }
 
+    global_selected_index = global_order[0]
+    global_selected = mis_set[global_selected_index]
+    candidate_sizes = [candidate.size for candidate in mis_set]
+
     selected = pareto.mis()
     row = {
         "problem": name,
@@ -222,6 +226,15 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         "misda_seed": int(misda_seed),
         "n_screen": int(F.shape[0]),
         "n_mis": int(len(mis_set)),
+        "candidate_size_min": int(min(candidate_sizes)),
+        "candidate_size_max": int(max(candidate_sizes)),
+        "global_distortion_selected": ",".join(
+            map(str, global_selected.objectives)
+        ),
+        "global_distortion_selected_size": int(global_selected.size),
+        "global_distortion_selected_is_max_size": bool(
+            global_selected.size == max(candidate_sizes)
+        ),
         "latent_dimension": int(mis_set.analysis.latent_dimension),
         "structural_dimension": int(mis_set.analysis.structural_dimension),
         "pareto_selected": ",".join(map(str, selected.objectives)),
@@ -326,6 +339,14 @@ def summarize_robustness(results):
             "replicates": int(len(group)),
             "n_screen": int(group["n_screen"].iloc[0]),
             "median_n_mis": float(group["n_mis"].median()),
+            "candidate_size_min": int(group["candidate_size_min"].min()),
+            "candidate_size_max": int(group["candidate_size_max"].max()),
+            "global_distortion_selected_max_size_rate": _rate(
+                group["global_distortion_selected_is_max_size"]
+            ),
+            "median_global_distortion_selected_size": float(
+                group["global_distortion_selected_size"].median()
+            ),
             "median_selected_retention": float(
                 group["pareto_selected_retention"].median()
             ),
