@@ -36,7 +36,8 @@ from ._validation import normalize_input_matrix, validate_aggressiveness
 
 
 SIZE_SPAN = "size_span"
-# Backward-compatible import alias. The canonical policy name is SIZE_SPAN.
+SIZE_PARETO = "size_pareto"
+# Backward-compatible import alias. The canonical structural policy name is SIZE_SPAN.
 STRUCTURAL_COVERAGE = SIZE_SPAN
 PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
 
@@ -540,6 +541,28 @@ def _structural_rank_value(metric):
     )
 
 
+def _size_pareto_rank_value(candidate):
+    """Scientific rank value for the empirical Pareto-aware policy."""
+
+    if candidate.pareto is None or candidate.pareto.retention is None:
+        raise ValueError(
+            "size_pareto requires stored Pareto evidence for every ranked MIS."
+        )
+    return (
+        candidate.size,
+        float(candidate.pareto.retention),
+    )
+
+
+def _size_pareto_sort_key(candidate):
+    size, retention = _size_pareto_rank_value(candidate)
+    return (
+        -size,
+        -retention,
+        tuple(repr(label) for label in candidate.objectives),
+    )
+
+
 def _rank_size_span(structure, labels):
     n_objectives = structure.structural_graph.number_of_nodes()
     adjacency = nx.to_numpy_array(
@@ -1010,32 +1033,83 @@ def rank(
     candidates="all",
     accept_cost=False,
 ):
-    """Create a ranking snapshot over an already discovered MISSet."""
+    """Create a ranking snapshot over an already discovered MISSet.
+
+    size_span is the canonical zero-cost structural policy.
+    size_pareto is experimental: after cardinality, it prefers greater
+    empirical Pareto-front retention on the observed Y. It never uses
+    benchmark truth. Pareto evidence must already be stored unless
+    accept_cost=True explicitly authorizes its evaluation.
+    """
 
     if not isinstance(mis_set, MISSet):
         raise TypeError("mis_set must be an MISSet.")
-    if policy != SIZE_SPAN:
-        raise ValueError(
-            f"Unsupported ranking policy {policy!r}; currently only "
-            f"{SIZE_SPAN!r} is defined."
-        )
     if not isinstance(accept_cost, (bool, np.bool_)):
         raise TypeError("accept_cost must be a boolean.")
+    if policy not in {SIZE_SPAN, SIZE_PARETO}:
+        raise ValueError(
+            f"Unsupported ranking policy {policy!r}; supported policies are "
+            f"{SIZE_SPAN!r} and {SIZE_PARETO!r}."
+        )
+
     selected, _ = _candidate_indices(
         mis_set,
         candidates,
         metrics=("structural",),
     )
     allowed = set(selected)
-    ordered = tuple(index for index in range(len(mis_set)) if index in allowed)
-    groups = tuple(
-        tuple(index for index in group if index in allowed)
-        for group in mis_set._rank_groups
-        if any(index in allowed for index in group)
+
+    if policy == SIZE_SPAN:
+        ordered = tuple(index for index in range(len(mis_set)) if index in allowed)
+        groups = tuple(
+            tuple(index for index in group if index in allowed)
+            for group in mis_set._rank_groups
+            if any(index in allowed for index in group)
+        )
+        return Ranking(
+            mis_set,
+            ordered,
+            policy=SIZE_SPAN,
+            groups=groups,
+        )
+
+    missing = tuple(
+        index for index in selected
+        if mis_set[index].pareto is None
+        or mis_set[index].pareto.retention is None
     )
+    if missing and not accept_cost:
+        raise ValueError(
+            "size_pareto requires Pareto evaluation for every ranked MIS; "
+            "run mis_set.evaluate(metrics=('pareto',), candidates=...) first "
+            "or pass accept_cost=True."
+        )
+    if missing:
+        evaluate(
+            mis_set,
+            metrics=("pareto",),
+            candidates=missing,
+        )
+
+    ordered = tuple(
+        sorted(
+            selected,
+            key=lambda index: _size_pareto_sort_key(mis_set[index]),
+        )
+    )
+    groups = []
+    previous = object()
+    for index in ordered:
+        value = _size_pareto_rank_value(mis_set[index])
+        if not groups or value != previous:
+            groups.append([])
+            previous = value
+        groups[-1].append(index)
+
     return Ranking(
         mis_set,
         ordered,
-        policy=SIZE_SPAN,
-        groups=groups,
+        policy=SIZE_PARETO,
+        groups=tuple(tuple(group) for group in groups),
     )
+
