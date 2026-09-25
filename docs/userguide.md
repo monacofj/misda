@@ -133,10 +133,23 @@ ranking = misda.rank(mis_set, policy="pareto_retention", accept_cost=True)
 ```
 
 `pareto_retention` is experimental and does not replace the canonical structural
-order. It ranks preservation of the observed sample only; it must not be read
-as selecting the smallest globally optimization-safe objective subset. Its retention score is sample evidence, not a proof that the same
-objective subset is globally safe for future optimization. Dimensional support
-also remains scoped to the canonical `size_span` first-rank group.
+order. A second experimental policy, `dominance_preservation`, ranks by the
+fraction of row pairs with no dominance in full `Y` that acquire a dominance
+relation after projection. Lower values rank first; exact scientific ties are
+ordered with the larger MIS first as a conservative operational tie-break.
+
+```python
+mis_set.evaluate(metrics=("dominance",), candidates="all")
+ranking = misda.rank(mis_set, policy="dominance_preservation")
+mis = ranking.mis()
+print(ranking.assessment.status)
+```
+
+`ranking.assessment` never suppresses the selected MIS. It annotates it as
+`NO_REDUNDANCY`, `SUPPORTED_REDUCTION`, or `UNSUPPORTED_REDUCTION`. In the last
+case the candidate is still returned so its error can be inspected, but MISDA
+explicitly says not to trust the reduction. These policies use observed `Y`
+only; neither is a proof of global optimization equivalence.
 
 A `Ranking` references the same MIS objects and does not mutate the
 `MISSet`. The user-facing selector is `mis(level, position)`:
@@ -183,8 +196,10 @@ The current mechanisms are:
 - `HIDDEN_SPECTRAL_STRUCTURE`: the first rank-correlation eigenvalue beyond the
   estimated latent signal dimension exceeds its column-permutation null mean.
 
-If several candidates tie at the first `size_span` rank, support is evaluated
-for all of them using the same null permutations. Aggregate states are:
+Candidate-specific support is stored for every discovered MIS using shared null
+permutations. The historical aggregate `mis_set.support` remains defined over
+the first `size_span` tie group. Use `mis_set.support_for(candidate)` for a MIS
+selected by any ranking. Aggregate first-group states are:
 
 ```text
 SUPPORTED             all tied first-rank candidates supported
@@ -198,7 +213,7 @@ Inspect the aggregate and individual evidence with:
 mis_set.support.status
 mis_set.support.supported
 mis_set.support.unsupported
-support = mis_set.support.for_candidate(ranking.mis())
+support = mis_set.support_for(ranking.mis())
 
 support.status
 support.reasons
@@ -232,6 +247,7 @@ structural
 linear
 nonlinear
 pareto
+dominance
 ```
 
 Structural metrics are already present after discovery. The other families are
