@@ -574,14 +574,14 @@ class Ranking:
             return None
         candidate_index = self.indices[0]
         candidate = self.selected
+        support = self.mis_set.support_for(candidate_index)
         if candidate.size == self.mis_set.analysis.original_dimension:
             return ReductionAssessment(
                 status=NO_REDUNDANCY,
                 candidate_index=candidate_index,
-                support_status=SUPPORTED,
-                reasons=tuple(),
+                support_status=support.status,
+                reasons=tuple(support.reasons),
             )
-        support = self.mis_set.support_for(candidate_index)
         status = (
             SUPPORTED_REDUCTION
             if support.status == SUPPORTED
