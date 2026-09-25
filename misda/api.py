@@ -36,7 +36,7 @@ from ._validation import normalize_input_matrix, validate_aggressiveness
 
 
 SIZE_SPAN = "size_span"
-SIZE_PARETO = "size_pareto"
+PARETO_RETENTION = "pareto_retention"
 # Backward-compatible import alias. The canonical structural policy name is SIZE_SPAN.
 STRUCTURAL_COVERAGE = SIZE_SPAN
 PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
@@ -541,24 +541,21 @@ def _structural_rank_value(metric):
     )
 
 
-def _size_pareto_rank_value(candidate):
-    """Scientific rank value for the empirical Pareto-aware policy."""
+def _pareto_retention_rank_value(candidate):
+    """Scientific rank value for the empirical Pareto-retention policy."""
 
     if candidate.pareto is None or candidate.pareto.retention is None:
         raise ValueError(
-            "size_pareto requires stored Pareto evidence for every ranked MIS."
+            "pareto_retention requires stored Pareto evidence for every ranked MIS."
         )
-    return (
-        candidate.size,
-        float(candidate.pareto.retention),
-    )
+    return float(candidate.pareto.retention)
 
 
-def _size_pareto_sort_key(candidate):
-    size, retention = _size_pareto_rank_value(candidate)
+def _pareto_retention_sort_key(candidate):
+    retention = _pareto_retention_rank_value(candidate)
     return (
-        -size,
         -retention,
+        candidate.size,
         tuple(repr(label) for label in candidate.objectives),
     )
 
@@ -1036,9 +1033,11 @@ def rank(
     """Create a ranking snapshot over an already discovered MISSet.
 
     size_span is the canonical zero-cost structural policy.
-    size_pareto is experimental: after cardinality, it prefers greater
-    empirical Pareto-front retention on the observed Y. It never uses
-    benchmark truth. Pareto evidence must already be stored unless
+    pareto_retention is experimental: it prefers greater empirical
+    Pareto-front retention on the observed Y. Candidate size is not part of
+    the scientific rank; among exact retention ties, smaller MISs are ordered
+    first only as an operational reduction-efficiency tie-break. Benchmark
+    truth is never used. Pareto evidence must already be stored unless
     accept_cost=True explicitly authorizes its evaluation.
     """
 
@@ -1046,10 +1045,10 @@ def rank(
         raise TypeError("mis_set must be an MISSet.")
     if not isinstance(accept_cost, (bool, np.bool_)):
         raise TypeError("accept_cost must be a boolean.")
-    if policy not in {SIZE_SPAN, SIZE_PARETO}:
+    if policy not in {SIZE_SPAN, PARETO_RETENTION}:
         raise ValueError(
             f"Unsupported ranking policy {policy!r}; supported policies are "
-            f"{SIZE_SPAN!r} and {SIZE_PARETO!r}."
+            f"{SIZE_SPAN!r} and {PARETO_RETENTION!r}."
         )
 
     selected, _ = _candidate_indices(
@@ -1080,7 +1079,7 @@ def rank(
     )
     if missing and not accept_cost:
         raise ValueError(
-            "size_pareto requires Pareto evaluation for every ranked MIS; "
+            "pareto_retention requires Pareto evaluation for every ranked MIS; "
             "run mis_set.evaluate(metrics=('pareto',), candidates=...) first "
             "or pass accept_cost=True."
         )
@@ -1094,13 +1093,13 @@ def rank(
     ordered = tuple(
         sorted(
             selected,
-            key=lambda index: _size_pareto_sort_key(mis_set[index]),
+            key=lambda index: _pareto_retention_sort_key(mis_set[index]),
         )
     )
     groups = []
     previous = object()
     for index in ordered:
-        value = _size_pareto_rank_value(mis_set[index])
+        value = _pareto_retention_rank_value(mis_set[index])
         if not groups or value != previous:
             groups.append([])
             previous = value
@@ -1109,7 +1108,7 @@ def rank(
     return Ranking(
         mis_set,
         ordered,
-        policy=SIZE_PARETO,
+        policy=PARETO_RETENTION,
         groups=tuple(tuple(group) for group in groups),
     )
 
