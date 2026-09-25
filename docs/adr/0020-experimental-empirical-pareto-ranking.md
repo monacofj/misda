@@ -33,31 +33,59 @@ and optimization-preserving objective selection are distinct properties.
 
 ## Decision
 
-Add an experimental ranking policy named `size_pareto` with lexicographic key:
+Add an experimental ranking policy named `pareto_retention`.
+
+Its scientific rank value is only:
 
 ```text
-size                descending
 pareto_retention    descending
 ```
 
-A deterministic objective-label tie-break orders otherwise equal candidates
-without splitting a scientific tie group.
+Candidate cardinality is not evidence of Pareto preservation and therefore does
+not enter the scientific rank. When two candidates have exactly the same
+retention, the smaller MIS is ordered first as an operational
+reduction-efficiency tie-break, followed by deterministic objective labels.
+Neither operational tie-break splits the scientific tie group.
 
 The canonical default remains `size_span`. Discovery order, graph dimensions,
 MIS enumeration, and `MISSet.structural_ranking` are unchanged.
 
 ## Evaluation contract
 
-`size_pareto` depends on stored Pareto evidence. The explicit workflow is:
+`pareto_retention` depends on stored Pareto evidence. The explicit workflow is:
 
 ```python
 mis_set.evaluate(metrics=("pareto",), candidates="all")
-ranking = misda.rank(mis_set, policy="size_pareto")
+ranking = misda.rank(mis_set, policy="pareto_retention")
 ```
 
 Alternatively, `accept_cost=True` authorizes evaluation of missing Pareto
 evidence for the requested ranking scope. Without stored evidence or explicit
 cost authorization, ranking fails rather than performing hidden computation.
+
+## Projection identity
+
+Under the current same-sample minimization contract, objective removal can only
+add dominance relations. Any point dominated in the full objective space
+remains dominated in every objective subset. Therefore
+
+```text
+ND(Y_S) ⊆ ND(Y)
+```
+
+for every retained objective subset `S`.
+
+It follows exactly that, whenever the fronts are non-empty:
+
+```text
+pareto_validity = 1
+pareto_jaccard  = pareto_retention
+```
+
+Thus retention is the only independent set-membership preservation signal among
+those three metrics for this ranking problem. Validity and Jaccard remain
+reported for compatibility and explicit diagnostics but must not be interpreted
+as independent ranking evidence.
 
 ## Interpretation
 
@@ -71,15 +99,15 @@ optimization equivalence.
 
 Dimensional support is currently attached during discovery to the canonical
 first `size_span` tie group. An alternative ranking may select a candidate
-outside that group. `size_pareto` does not silently recompute or reinterpret
+outside that group. `pareto_retention` does not silently recompute or reinterpret
 support, and reports must state the scope distinction.
 
 ## Invariants
 
 - `size_span` remains the canonical default and immutable MISSet order.
-- `size_pareto` creates a Ranking view and never reorders the MISSet.
+- `pareto_retention` creates a Ranking view and never reorders the MISSet.
 - structural and latent dimensions are unchanged by ranking policy.
-- benchmark truth is never consulted by `size_pareto`.
+- benchmark truth is never consulted by `pareto_retention`.
 - missing Pareto evidence never triggers hidden work unless `accept_cost=True`.
 - empirical Pareto retention must not be described as a guarantee of future
   optimization safety.
