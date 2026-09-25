@@ -112,8 +112,27 @@ Use `rank()` to materialize an ordered view:
 ranking = misda.rank(mis_set)
 ```
 
-The default is `policy="size_span"`. The current release defines no alternative
-policy yet.
+The default remains `policy="size_span"`. The experimental alternative
+`policy="size_pareto"` keeps cardinality first and then prefers greater
+empirical Pareto-front retention on the observed `Y`.
+
+It requires stored Pareto evidence:
+
+```python
+mis_set.evaluate(metrics=("pareto",), candidates="all")
+ranking = misda.rank(mis_set, policy="size_pareto")
+```
+
+Or the user may explicitly authorize that evaluation cost:
+
+```python
+ranking = misda.rank(mis_set, policy="size_pareto", accept_cost=True)
+```
+
+`size_pareto` is experimental and does not replace the canonical structural
+order. Its retention score is sample evidence, not a proof that the same
+objective subset is globally safe for future optimization. Dimensional support
+also remains scoped to the canonical `size_span` first-rank group.
 
 A `Ranking` references the same MIS objects and does not mutate the
 `MISSet`. The user-facing selector is `mis(level, position)`:
