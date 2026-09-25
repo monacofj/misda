@@ -155,7 +155,9 @@ state partial scope explicitly rather than warning as though an error occurred.
 
 Future ranking policies may declare required metrics and computational cost.
 Expensive automatic work over a large candidate universe must then require
-explicit cost opt-in. No alternative ranking policy is defined yet.
+explicit cost opt-in. The experimental `size_pareto` policy follows this rule:
+it requires stored Pareto evidence or `accept_cost=True`; `size_span` remains
+the canonical structural default.
 
 ## 7. Dimensional support
 
