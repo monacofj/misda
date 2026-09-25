@@ -33,7 +33,7 @@ _discover_impl = _api.discover
 
 from .api import (
     PARTIALLY_SUPPORTED,
-    SIZE_PARETO,
+    PARETO_RETENTION,
     SIZE_SPAN,
     STRUCTURAL_COVERAGE,
     CandidateSupport,
@@ -102,7 +102,7 @@ from ._benchmark_observation import benchmark, compile_benchmark_summary
 __all__ = [
     "__version__",
     "SIZE_SPAN",
-    "SIZE_PARETO",
+    "PARETO_RETENTION",
     "STRUCTURAL_COVERAGE",
     "PARTIALLY_SUPPORTED",
     "StructuralMetrics",
