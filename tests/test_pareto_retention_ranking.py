@@ -112,7 +112,7 @@ def test_pareto_retention_accept_cost_authorizes_missing_evaluation(monkeypatch)
     )
 
     assert calls == [(("pareto",), (0,))]
-    assert ranking.selected is result[0]
+    assert ranking.selected is result[2]
 
 
 def test_default_policy_remains_size_span():
