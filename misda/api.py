@@ -742,15 +742,22 @@ def discover(
 
     support_start = time.perf_counter()
     first_group = groups[0] if groups else tuple()
+    all_indices = tuple(range(len(candidates)))
     raw_support = evaluate_dimensional_support_group(
         normalized.data,
-        tuple(candidates[index].indices for index in first_group),
+        tuple(candidates[index].indices for index in all_indices),
         structure.latent_dimension,
         seed=seed,
     )
-    support_results = tuple(
+    all_support_results = tuple(
         _candidate_support(raw, index)
-        for raw, index in zip(raw_support, first_group)
+        for raw, index in zip(raw_support, all_indices)
+    )
+    support_by_index = {
+        item.candidate_index: item for item in all_support_results
+    }
+    support_results = tuple(
+        support_by_index[index] for index in first_group
     )
     support_seconds = time.perf_counter() - support_start
 
@@ -796,6 +803,7 @@ def discover(
         },
     )
     result.support = DimensionalSupport(support_results, result._candidates)
+    result._support_by_index = support_by_index
     return result
 
 
