@@ -1,21 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Probe candidate-ranking heuristics on the DTLZ5 optimization control.
+"""Compare ranking hypotheses on optimization-control MOPs.
 
-This is a diagnostic script, not a benchmark acceptance test. It reproduces
-the optimization notebook screening protocol, evaluates every discovered MIS,
-and compares candidate-ordering signals without feeding analytical truth back
-into MISDA:
-
-* canonical size_span ordering;
-* positive Pearson-correlation coverage of eliminated objectives;
-* external linear reconstruction (PRESS/LOO R2);
-* observed Pareto retention on the same Sobol screening sample.
-
-The analytical DTLZ5 labels are added only after all data-driven quantities are
-computed: for M=10, f9,f10 is the known optimization-safe control and f1,f10
-has an explicit unsafe counterexample in optimization.ipynb.
+The script reproduces the optimization notebook independent Sobol screening
+for DTLZ2, DTLZ5, and DPF1. All candidate scores are computed from observed Y
+only. Analytical truth labels are attached afterwards for interpretation and
+never feed discovery, evaluation, or ranking.
 """
 
 from __future__ import annotations
@@ -33,7 +24,7 @@ SCREEN_POWER = 9
 MISDA_SEED = 123
 
 
-def _screen(mop):
+def _screen(name, mop):
     sampler = qmc.Sobol(d=mop.N, scramble=True, seed=MISDA_SEED)
     X = qmc.scale(
         sampler.random_base2(m=SCREEN_POWER),
@@ -44,7 +35,7 @@ def _screen(mop):
     frame = pd.DataFrame(F, columns=[f"f{i + 1}" for i in range(mop.M)])
     result = misda.discover(
         frame,
-        name="DTLZ5 ranking-policy probe",
+        name=f"{name} ranking-policy probe",
         seed=MISDA_SEED,
     )
     misda.evaluate(result, metrics=("linear", "pareto"), candidates="all")
@@ -52,8 +43,6 @@ def _screen(mop):
 
 
 def _positive_correlation_coverage(F, indices):
-    """Return worst/mean best positive pairwise correlation to retained columns."""
-
     corr = np.corrcoef(np.asarray(F, dtype=float), rowvar=False)
     selected = tuple(int(index) for index in indices)
     selected_set = set(selected)
@@ -64,14 +53,13 @@ def _positive_correlation_coverage(F, indices):
     if not outside:
         return 1.0, 1.0
 
-    best = []
-    for target in outside:
-        best.append(
-            max(
-                0.0,
-                max(float(corr[source, target]) for source in selected),
-            )
+    best = [
+        max(
+            0.0,
+            max(float(corr[source, target]) for source in selected),
         )
+        for target in outside
+    ]
     return float(np.min(best)), float(np.mean(best))
 
 
@@ -80,9 +68,32 @@ def _rank_positions(rows, key):
     return {index: position + 1 for position, index in enumerate(ordered)}
 
 
-def main():
-    mop = mb.mops.DTLZ5(M=M)
-    mis_set, F = _screen(mop)
+def _truth_label(name, indices):
+    objectives = tuple(index + 1 for index in indices)
+    if name == "DTLZ2":
+        return "UNSAFE: every proper subset changes PF dominance"
+    if name == "DTLZ5":
+        if objectives == (9, 10):
+            return "SAFE control"
+        if objectives == (1, 10):
+            return "UNSAFE witness"
+        return ""
+    if name == "DPF1":
+        if objectives == (1, 2):
+            return "SAFE base pair"
+        if objectives == (2, 8):
+            return "PF-only evidence; global safety uncertified"
+        return ""
+    return ""
+
+
+def _probe(name, mop):
+    mis_set, F = _screen(name, mop)
+    pareto_ranking = misda.rank(mis_set, policy=misda.SIZE_PARETO)
+    pareto_position = {
+        index: position + 1
+        for position, index in enumerate(pareto_ranking.indices)
+    }
 
     rows = []
     for candidate_index, candidate in enumerate(mis_set):
@@ -90,30 +101,24 @@ def main():
             F,
             candidate.indices,
         )
-        objective_numbers = tuple(index + 1 for index in candidate.indices)
-        truth = ""
-        if objective_numbers == (M - 1, M):
-            truth = "SAFE control"
-        elif objective_numbers == (1, M):
-            truth = "UNSAFE witness"
-
         rows.append(
             {
                 "candidate_index": candidate_index,
-                "objectives": ",".join(candidate.objectives),
+                "objectives": ",".join(map(str, candidate.objectives)),
                 "size": candidate.size,
                 "span": candidate.structural.span,
+                "size_span_position": candidate_index + 1,
                 "worst_corr": worst_corr,
                 "mean_corr": mean_corr,
                 "worst_r2": candidate.linear.worst_r2,
                 "mean_r2": candidate.linear.mean_r2,
                 "pareto_retention": candidate.pareto.retention,
-                "pareto_validity": candidate.pareto.validity,
-                "truth": truth,
+                "size_pareto_position": pareto_position[candidate_index],
+                "truth": _truth_label(name, candidate.indices),
             }
         )
 
-    correlation_rank = _rank_positions(
+    correlation = _rank_positions(
         rows,
         lambda row: (
             -row["size"],
@@ -122,7 +127,7 @@ def main():
             row["objectives"],
         ),
     )
-    reconstruction_rank = _rank_positions(
+    reconstruction = _rank_positions(
         rows,
         lambda row: (
             -row["size"],
@@ -131,58 +136,59 @@ def main():
             row["objectives"],
         ),
     )
-    pareto_rank = _rank_positions(
-        rows,
-        lambda row: (
-            -row["pareto_retention"],
-            -row["pareto_validity"],
-            row["objectives"],
-        ),
-    )
-
     for index, row in enumerate(rows):
-        row["size_span_rank"] = index + 1
-        row["correlation_rank"] = correlation_rank[index]
-        row["reconstruction_rank"] = reconstruction_rank[index]
-        row["pareto_rank"] = pareto_rank[index]
+        row["correlation_position"] = correlation[index]
+        row["reconstruction_position"] = reconstruction[index]
 
     table = pd.DataFrame(rows).sort_values(
-        ["correlation_rank", "reconstruction_rank", "candidate_index"]
+        ["size_pareto_position", "candidate_index"]
     )
-    columns = [
-        "candidate_index",
-        "objectives",
-        "size",
-        "span",
-        "size_span_rank",
-        "worst_corr",
-        "mean_corr",
-        "correlation_rank",
-        "worst_r2",
-        "mean_r2",
-        "reconstruction_rank",
-        "pareto_retention",
-        "pareto_validity",
-        "pareto_rank",
-        "truth",
-    ]
-    print(table[columns].to_string(index=False))
+    print(f"\n=== {name} ===")
+    print(
+        table[
+            [
+                "candidate_index",
+                "objectives",
+                "size",
+                "span",
+                "size_span_position",
+                "correlation_position",
+                "reconstruction_position",
+                "pareto_retention",
+                "size_pareto_position",
+                "truth",
+            ]
+        ].to_string(index=False)
+    )
+    return table
 
-    safe = table.loc[table["truth"] == "SAFE control"].iloc[0]
-    unsafe = table.loc[table["truth"] == "UNSAFE witness"].iloc[0]
-    print()
-    print(
-        "SAFE f9,f10: "
-        f"correlation rank={int(safe['correlation_rank'])}, "
-        f"reconstruction rank={int(safe['reconstruction_rank'])}, "
-        f"Pareto-retention rank={int(safe['pareto_rank'])}"
-    )
-    print(
-        "UNSAFE f1,f10: "
-        f"correlation rank={int(unsafe['correlation_rank'])}, "
-        f"reconstruction rank={int(unsafe['reconstruction_rank'])}, "
-        f"Pareto-retention rank={int(unsafe['pareto_rank'])}"
-    )
+
+def main():
+    results = {
+        "DTLZ2": _probe("DTLZ2", mb.mops.DTLZ2(M=M)),
+        "DTLZ5": _probe("DTLZ5", mb.mops.DTLZ5(M=M)),
+        "DPF1": _probe("DPF1", mb.mops.DPF1(M=M, D=2, K=5)),
+    }
+
+    print("\n=== External-truth controls (interpretation only) ===")
+    for name, table in results.items():
+        controls = table.loc[table["truth"] != ""]
+        if controls.empty:
+            continue
+        print(f"\n{name}")
+        print(
+            controls[
+                [
+                    "objectives",
+                    "size_span_position",
+                    "correlation_position",
+                    "reconstruction_position",
+                    "pareto_retention",
+                    "size_pareto_position",
+                    "truth",
+                ]
+            ].to_string(index=False)
+        )
 
 
 if __name__ == "__main__":
