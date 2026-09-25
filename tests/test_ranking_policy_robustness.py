@@ -42,11 +42,19 @@ def test_summary_separates_discovery_from_conditional_ranking_success():
                 "safe_present": True,
                 "safe_size_span_top": False,
                 "safe_pareto_top": True,
+                "safe_global_spurious_top": True,
+                "safe_front_spurious_top": True,
                 "safe_retention": 0.20,
+                "safe_global_spurious_rate": 0.02,
+                "safe_front_spurious_rate": 0.10,
                 "unsafe_witness_present": True,
                 "unsafe_witness_size_span_top": True,
                 "unsafe_witness_pareto_top": False,
+                "unsafe_witness_global_spurious_top": False,
+                "unsafe_witness_front_spurious_top": False,
                 "unsafe_witness_retention": 0.10,
+                "unsafe_witness_global_spurious_rate": 0.08,
+                "unsafe_witness_front_spurious_rate": 0.30,
             },
             {
                 "problem": "DTLZ5",
@@ -56,7 +64,11 @@ def test_summary_separates_discovery_from_conditional_ranking_success():
                 "safe_present": False,
                 "safe_size_span_top": False,
                 "safe_pareto_top": False,
+                "safe_global_spurious_top": False,
+                "safe_front_spurious_top": False,
                 "safe_retention": None,
+                "safe_global_spurious_rate": None,
+                "safe_front_spurious_rate": None,
                 "unsafe_witness_present": True,
                 "unsafe_witness_size_span_top": True,
                 "unsafe_witness_pareto_top": False,
@@ -70,3 +82,5 @@ def test_summary_separates_discovery_from_conditional_ranking_success():
     assert summary["safe_present_rate"] == 0.5
     assert summary["safe_pareto_top_rate"] == 0.5
     assert summary["safe_pareto_top_given_present_rate"] == 1.0
+    assert summary["safe_global_spurious_top_given_present_rate"] == 1.0
+    assert summary["safe_front_spurious_top_given_present_rate"] == 1.0
