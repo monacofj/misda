@@ -102,6 +102,25 @@ first `size_span` tie group. An alternative ranking may select a candidate
 outside that group. `pareto_retention` does not silently recompute or reinterpret
 support, and reports must state the scope distinction.
 
+## Limitation exposed by variable-cardinality control
+
+A later analytical control contains two globally optimization-safe MISs of
+different sizes: a singleton and a two-objective MIS. On finite Sobol clouds,
+the larger safe MIS has perfect empirical Pareto retention while the smaller
+safe MIS has low retention, even though both preserve exactly the same true
+continuous Pareto set.
+
+Therefore `pareto_retention` is explicitly an **observed-cloud preservation
+ranking**, not an estimator of the smallest globally optimization-safe
+objective subset. A stronger global pairwise dominance-distortion diagnostic
+improves DTLZ5/DPF1 control selection but exhibits the same conservative
+cardinality behavior on this control.
+
+This limitation is informational rather than an implementation defect:
+generic finite samples need not contain the true Pareto manifold. Optimization
+safety/minimal safe cardinality requires additional evidence from the MOP,
+targeted Pareto sampling, analytical structure, or optimizer-based validation.
+
 ## Invariants
 
 - `size_span` remains the canonical default and immutable MISSet order.
