@@ -40,3 +40,15 @@ jobs:
           name: misda-ranking-policy-robustness
           path: /tmp/misda-ranking-policy-robustness-p*.json
           if-no-files-found: warn
+      - name: Conservative reduction decision probe
+        run: |
+          python -m benchmarks.run_reduction_decision_probe \
+            --strict \
+            --output /tmp/misda-reduction-decision.json
+      - name: Preserve reduction-decision artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-reduction-decision
+          path: /tmp/misda-reduction-decision.json
+          if-no-files-found: warn
