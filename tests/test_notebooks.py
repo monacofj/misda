@@ -320,7 +320,11 @@ def test_optimization_notebook_uses_paired_original_space_protocol():
     assert "one-factor-at-a-time" in source
     assert 'REMOTE_REF = "issue-75-optimization-benchmark"' in source
     assert "/blob/issue-75-optimization-benchmark/benchmarks/optimization.ipynb" in source
+    assert 'mis_set.evaluate(metrics=("dominance",), candidates="all")' in source
+    assert 'policy=misda.DOMINANCE_PRESERVATION' in source
     assert 'mis_set.evaluate(metrics=("linear", "pareto"), candidates=selected)' in source
+    assert '"reduction_status": assessment.status' in source
+    assert '"new_dominance_rate": selected.dominance.new_dominance_rate' in source
     assert "print(ranking.report())" in source
     assert "selected.graph_plot()" in source
     assert "Selected MIS support:" in source
@@ -497,6 +501,12 @@ def test_optimization_screening_diagnostics_run_without_moea_or_gt(monkeypatch, 
     assert diagnostics["selected_indices"] == screening["indices"]
     assert diagnostics["selected_dimension"] == len(screening["indices"])
     assert diagnostics["selected_support"] in {"SUPPORTED", "UNSUPPORTED"}
+    assert diagnostics["reduction_status"] in {
+        "NO_REDUNDANCY",
+        "SUPPORTED_REDUCTION",
+        "UNSUPPORTED_REDUCTION",
+    }
+    assert diagnostics["new_dominance_rate"] is not None
     assert screening["selected"].linear is not None
     assert screening["selected"].pareto is not None
     assert diagnostics["pareto_jaccard"] is not None
