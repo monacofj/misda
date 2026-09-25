@@ -162,11 +162,11 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
     structural_top = _top_group(structural)
     pareto_top = _top_group(pareto)
 
-    # Derive the observed full-space Pareto front once for front-focused
-    # dominance diagnostics.
-    from misda._pareto import get_nondominated_mask_minimize
-    full_front_mask = get_nondominated_mask_minimize(F)
+    # Derive the observed full-space Pareto front directly from the
+    # full-space dominance relation: a row is nondominated iff no other row
+    # dominates it.
     full_dom = _dominance_matrix(F)
+    full_front_mask = ~full_dom.any(axis=0)
 
     dominance_rows = []
     for candidate_index, candidate in enumerate(mis_set):
