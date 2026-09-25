@@ -229,8 +229,8 @@ def _explained_line(
 def _ranking_policy_explanation(policy):
     if policy == "size_span":
         return "larger MISs first, then broader span"
-    if policy == "size_pareto":
-        return "larger MISs first, then greater observed Pareto-front retention"
+    if policy == "pareto_retention":
+        return "greater observed Pareto-front retention; smaller MISs break exact ties"
     return "the named policy determines candidate order"
 
 
