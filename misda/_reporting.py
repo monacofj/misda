@@ -229,6 +229,8 @@ def _explained_line(
 def _ranking_policy_explanation(policy):
     if policy == "size_span":
         return "larger MISs first, then broader span"
+    if policy == "size_pareto":
+        return "larger MISs first, then greater observed Pareto-front retention"
     return "the named policy determines candidate order"
 
 
@@ -903,6 +905,11 @@ def _render_complete_report(result, ranking):
         )
     )
     lines.extend(_support_lines(result))
+    if ranking.policy != "size_span":
+        lines.append(
+            "  Ranking note: dimensional support above belongs to the canonical "
+            "size_span first-rank group; alternative rankings do not recompute it."
+        )
     lines.extend(_evaluation_scope_lines(result))
 
     representative_indices = []
