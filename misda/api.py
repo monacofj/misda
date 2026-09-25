@@ -561,6 +561,39 @@ class Ranking:
     def selected_dimension(self):
         return self.selected.size if self.selected is not None else None
 
+    @property
+    def assessment(self):
+        """Annotate whether the selected reduction should be trusted.
+
+        The ranking always returns a candidate. This annotation never blocks or
+        replaces that answer; UNSUPPORTED_REDUCTION means the answer is kept for
+        inspection but MISDA's internal diagnostics say not to trust it.
+        """
+
+        if self.selected is None:
+            return None
+        candidate_index = self.indices[0]
+        candidate = self.selected
+        if candidate.size == self.mis_set.analysis.original_dimension:
+            return ReductionAssessment(
+                status=NO_REDUNDANCY,
+                candidate_index=candidate_index,
+                support_status=SUPPORTED,
+                reasons=tuple(),
+            )
+        support = self.mis_set.support_for(candidate_index)
+        status = (
+            SUPPORTED_REDUCTION
+            if support.status == SUPPORTED
+            else UNSUPPORTED_REDUCTION
+        )
+        return ReductionAssessment(
+            status=status,
+            candidate_index=candidate_index,
+            support_status=support.status,
+            reasons=tuple(support.reasons),
+        )
+
     def position(self, candidate):
         canonical = next(
             (
@@ -608,6 +641,26 @@ def _pareto_retention_sort_key(candidate):
     return (
         -retention,
         candidate.size,
+        tuple(repr(label) for label in candidate.objectives),
+    )
+
+
+def _dominance_preservation_rank_value(candidate):
+    """Scientific rank value for observed new-dominance distortion."""
+
+    if candidate.dominance is None:
+        raise ValueError(
+            "dominance_preservation requires stored dominance evidence "
+            "for every ranked MIS."
+        )
+    return float(candidate.dominance.new_dominance_rate)
+
+
+def _dominance_preservation_sort_key(candidate):
+    rate = _dominance_preservation_rank_value(candidate)
+    return (
+        rate,
+        -candidate.size,
         tuple(repr(label) for label in candidate.objectives),
     )
 
@@ -1112,22 +1165,24 @@ def rank(
     """Create a ranking snapshot over an already discovered MISSet.
 
     size_span is the canonical zero-cost structural policy.
-    pareto_retention is experimental: it prefers greater empirical
-    Pareto-front retention on the observed Y. Candidate size is not part of
-    the scientific rank; among exact retention ties, smaller MISs are ordered
-    first only as an operational reduction-efficiency tie-break. Benchmark
-    truth is never used. Pareto evidence must already be stored unless
-    accept_cost=True explicitly authorizes its evaluation.
+    pareto_retention is experimental and prefers greater empirical Pareto-front
+    retention on observed Y.
+    dominance_preservation is experimental and prefers the MIS that introduces
+    the smallest fraction of new observed dominance relations. Exact scientific
+    ties are ordered with larger MISs first as a conservative operational
+    tie-break. Benchmark truth is never used. Required evidence must already be
+    stored unless accept_cost=True explicitly authorizes its evaluation.
     """
 
     if not isinstance(mis_set, MISSet):
         raise TypeError("mis_set must be an MISSet.")
     if not isinstance(accept_cost, (bool, np.bool_)):
         raise TypeError("accept_cost must be a boolean.")
-    if policy not in {SIZE_SPAN, PARETO_RETENTION}:
+    if policy not in {SIZE_SPAN, PARETO_RETENTION, DOMINANCE_PRESERVATION}:
         raise ValueError(
             f"Unsupported ranking policy {policy!r}; supported policies are "
-            f"{SIZE_SPAN!r} and {PARETO_RETENTION!r}."
+            f"{SIZE_SPAN!r}, {PARETO_RETENTION!r}, and "
+            f"{DOMINANCE_PRESERVATION!r}."
         )
 
     selected, _ = _candidate_indices(
@@ -1149,6 +1204,48 @@ def rank(
             ordered,
             policy=SIZE_SPAN,
             groups=groups,
+        )
+
+    if policy == DOMINANCE_PRESERVATION:
+        missing = tuple(
+            index for index in selected
+            if mis_set[index].dominance is None
+        )
+        if missing and not accept_cost:
+            raise ValueError(
+                "dominance_preservation requires dominance evaluation for every "
+                "ranked MIS; run mis_set.evaluate(metrics=('dominance',), "
+                "candidates=...) first or pass accept_cost=True."
+            )
+        if missing:
+            evaluate(
+                mis_set,
+                metrics=("dominance",),
+                candidates=missing,
+            )
+
+        ordered = tuple(
+            sorted(
+                selected,
+                key=lambda index: _dominance_preservation_sort_key(
+                    mis_set[index]
+                ),
+            )
+        )
+        groups = []
+        previous = object()
+        for index in ordered:
+            value = _dominance_preservation_rank_value(mis_set[index])
+            if not groups or value != previous:
+                groups.append([])
+                previous = value
+            groups[-1].append(index)
+
+        return Ranking(
+            mis_set,
+            ordered,
+            policy=DOMINANCE_PRESERVATION,
+            groups=tuple(tuple(group) for group in groups),
         )
 
     missing = tuple(
