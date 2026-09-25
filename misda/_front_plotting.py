@@ -14,7 +14,7 @@ import webbrowser
 import numpy as np
 import plotly.graph_objects as go
 
-from .api import MISSet, Ranking, SIZE_PARETO, SIZE_SPAN, rank
+from .api import MISSet, Ranking, PARETO_RETENTION, SIZE_SPAN, rank
 from ._plotting import plot_mis_set_graph
 
 
@@ -24,10 +24,10 @@ def _resolve_ranking(mis_set, ranking):
     if ranking is None or ranking == "default":
         return mis_set.structural_ranking
     if isinstance(ranking, str):
-        if ranking not in {SIZE_SPAN, SIZE_PARETO}:
+        if ranking not in {SIZE_SPAN, PARETO_RETENTION}:
             raise ValueError(
                 f"Unsupported ranking selector {ranking!r}; use 'default', "
-                f"{SIZE_SPAN!r}, {SIZE_PARETO!r}, or a Ranking instance."
+                f"{SIZE_SPAN!r}, {PARETO_RETENTION!r}, or a Ranking instance."
             )
         return rank(mis_set, policy=ranking)
     if isinstance(ranking, Ranking):
@@ -35,7 +35,7 @@ def _resolve_ranking(mis_set, ranking):
             raise ValueError("ranking belongs to a different MISSet.")
         return ranking
     raise TypeError(
-        "ranking must be None, 'default', 'size_span', 'size_pareto', "
+        "ranking must be None, 'default', 'size_span', 'pareto_retention', "
         "or a Ranking instance."
     )
 
