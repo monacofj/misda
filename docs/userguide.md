@@ -113,23 +113,26 @@ ranking = misda.rank(mis_set)
 ```
 
 The default remains `policy="size_span"`. The experimental alternative
-`policy="size_pareto"` keeps cardinality first and then prefers greater
-empirical Pareto-front retention on the observed `Y`.
+`policy="pareto_retention"` ranks candidates only by empirical Pareto-front
+retention on the observed `Y`. Cardinality is not a scientific ranking
+criterion. If retention ties exactly, the smaller MIS is ordered first only as
+an operational reduction-efficiency tie-break; tied candidates remain in the
+same scientific rank group.
 
 It requires stored Pareto evidence:
 
 ```python
 mis_set.evaluate(metrics=("pareto",), candidates="all")
-ranking = misda.rank(mis_set, policy="size_pareto")
+ranking = misda.rank(mis_set, policy="pareto_retention")
 ```
 
 Or the user may explicitly authorize that evaluation cost:
 
 ```python
-ranking = misda.rank(mis_set, policy="size_pareto", accept_cost=True)
+ranking = misda.rank(mis_set, policy="pareto_retention", accept_cost=True)
 ```
 
-`size_pareto` is experimental and does not replace the canonical structural
+`pareto_retention` is experimental and does not replace the canonical structural
 order. Its retention score is sample evidence, not a proof that the same
 objective subset is globally safe for future optimization. Dimensional support
 also remains scoped to the canonical `size_span` first-rank group.
@@ -298,6 +301,13 @@ mis.pareto.jaccard
 mis.pareto.exact_preservation
 mis.pareto.reduced_front_indices
 ```
+
+For same-sample objective projection, full-space dominance is preserved when
+objectives are removed. Hence the reduced nondominated set is always a subset
+of the full nondominated set. Under this contract, `validity = 1` and
+`jaccard = retention` exactly, so retention is the only independent
+set-membership preservation signal among those three fields. The redundant
+fields remain public for explicitness and compatibility.
 
 Exact membership agreement is deliberately separate from observed-data Pareto
 stability. When Pareto evaluation is requested, `mis_set.pareto_stability`
@@ -488,5 +498,5 @@ normative decision.
   ranking-selected dimension are distinct quantities.
 - Complete MIS enumeration is currently assumed; bounded partial enumeration
   remains future work.
-- Alternative ranking policies remain future work.
+- `pareto_retention` is experimental; additional ranking policies remain future work.
 - Maximization and mixed objective directions remain future work.
