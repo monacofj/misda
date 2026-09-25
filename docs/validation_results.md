@@ -221,3 +221,75 @@ a globally safe objective reduction need not preserve every off-front
 incomparability. Consequently, this evidence justifies continued investigation
 of global dominance distortion as a ranking signal, but not yet promotion to a
 canonical MISDA policy.
+
+
+## Variable-cardinality safe control
+
+A further analytical control tests whether observed-data preservation metrics
+implicitly favor larger MISs even when a smaller MIS is equally safe for the
+true optimization problem.
+
+For decisions `(x,y) in [0,1]^2`, define
+
+```text
+f1 = x + y
+f2 = y
+f3 = 1 - x + y
+```
+
+In the population, `corr(f1,f2)>0`, `corr(f2,f3)>0`, and
+`corr(f1,f3)=0`, so the intended positive-dependence graph is the path
+`f1--f2--f3`. Its two maximal independent sets have different cardinalities:
+
+```text
+{f2}        size 1
+{f1,f3}     size 2
+```
+
+Both are analytically optimization-safe. The full Pareto set is exactly
+`y=0` for every `x in [0,1]`. Minimizing `f2=y` alone gives the same
+decision-space Pareto set, while under `{f1,f3}` every `y>0` point is
+dominated by its same-`x`, `y=0` counterpart and all `y=0` points remain
+mutually trading off.
+
+Across 8 Sobol seeds at each of `N=256,512,1024`, MISDA discovered exactly
+these two MISs in every replicate. The observed-data criteria nevertheless
+preferred the larger safe MIS in all 24 runs:
+
+| control | N=256 | N=512 | N=1024 |
+| --- | ---: | ---: | ---: |
+| smaller safe `{f2}`: top by Pareto retention | 0/8 | 0/8 | 0/8 |
+| larger safe `{f1,f3}`: top by Pareto retention | 8/8 | 8/8 | 8/8 |
+| smaller safe `{f2}`: top by global dominance distortion | 0/8 | 0/8 | 0/8 |
+| larger safe `{f1,f3}`: top by global dominance distortion | 8/8 | 8/8 | 8/8 |
+
+For the larger MIS, observed Pareto retention is `1.0` and global dominance
+distortion is `0.0` in every run. For the smaller MIS, global dominance
+distortion is `1.0` in every run and median observed retention decreases from
+approximately `0.0667` at `N=256` to `0.0476` at `N=512` and
+`0.0323` at `N=1024`.
+
+### Consequence for ranking semantics
+
+This control establishes a limitation that the DTLZ5/DPF1 controls could not
+expose. Global dominance distortion is an excellent **conservative
+order-preservation** signal in the tested controls, but it is not a criterion
+for the **smallest globally optimization-safe reduction**.
+
+The discrepancy is not repaired by increasing the generic Sobol sample.
+The true Pareto manifold of this control lies on the boundary `y=0`; a
+scrambled finite Sobol cloud does not contain that continuum. In the sampled
+cloud, reducing to `f2` legitimately collapses many sample-specific
+trade-offs even though, over the continuous MOP, it preserves exactly the true
+Pareto set.
+
+Therefore no current observed-cloud ranking metric should be described as
+identifying the maximally aggressive optimization-safe reduction. The evidence
+supports a separation between:
+
+1. conservative preservation of the observed objective order; and
+2. global optimization equivalence/minimal safe objective cardinality.
+
+The latter requires information beyond finite-sample order preservation
+(e.g. analytical structure, targeted sampling near the Pareto set, or direct
+optimization evidence).
