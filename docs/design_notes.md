@@ -139,8 +139,11 @@ internal model selection, deterministic seeds, and uncertainty-driven tree
 stopping. Its optional permutation-null reference remains decomposed evidence;
 no single SES score is recreated.
 
-Pareto preservation currently assumes minimization and records retention,
-validity, Jaccard agreement, front sizes, and exact preservation.
+Pareto preservation currently assumes same-sample minimization and records retention,
+validity, Jaccard agreement, front sizes, and exact preservation. Under pure
+objective projection, the reduced nondominated set is a subset of the full one;
+therefore validity is identically one and Jaccard equals retention. Retention is
+the independent set-membership signal used by the experimental ranking.
 
 ## 6. Evaluation scope and computational cost
 
@@ -155,7 +158,7 @@ state partial scope explicitly rather than warning as though an error occurred.
 
 Future ranking policies may declare required metrics and computational cost.
 Expensive automatic work over a large candidate universe must then require
-explicit cost opt-in. The experimental `size_pareto` policy follows this rule:
+explicit cost opt-in. The experimental `pareto_retention` policy follows this rule:
 it requires stored Pareto evidence or `accept_cost=True`; `size_span` remains
 the canonical structural default.
 
