@@ -122,6 +122,7 @@ candidate.structural
 candidate.linear
 candidate.nonlinear
 candidate.pareto
+candidate.dominance
 ```
 
 Intrinsic candidate properties remain direct:
@@ -142,8 +143,12 @@ no single SES score is recreated.
 Pareto preservation currently assumes same-sample minimization and records retention,
 validity, Jaccard agreement, front sizes, and exact preservation. Under pure
 objective projection, the reduced nondominated set is a subset of the full one;
-therefore validity is identically one and Jaccard equals retention. Retention is
-the independent set-membership signal used by the experimental ranking.
+therefore validity is identically one and Jaccard equals retention.
+
+Dominance preservation separately counts row pairs with no dominance relation
+in full `Y` that acquire a strict dominance relation after projection. The
+experimental `dominance_preservation` ranking minimizes that observed
+new-dominance rate and uses larger cardinality only as an operational tie-break.
 
 ## 6. Evaluation scope and computational cost
 
@@ -156,11 +161,11 @@ canonical-prefix and explicit-index selectors remain compatibility paths.
 A partial evaluation is scientifically valid but incomplete. Reports therefore
 state partial scope explicitly rather than warning as though an error occurred.
 
-Future ranking policies may declare required metrics and computational cost.
-Expensive automatic work over a large candidate universe must then require
-explicit cost opt-in. The experimental `pareto_retention` policy follows this rule:
-it requires stored Pareto evidence or `accept_cost=True`; `size_span` remains
-the canonical structural default.
+Alternative ranking policies declare required metrics and computational cost.
+Expensive automatic work over a large candidate universe requires explicit cost
+opt-in. `pareto_retention` requires Pareto evidence and
+`dominance_preservation` requires dominance evidence unless `accept_cost=True`;
+`size_span` remains the canonical structural default.
 
 ## 7. Dimensional support
 
@@ -177,11 +182,11 @@ beyond the estimated latent signal dimension and subtracts a column-permutation
 null reference. Positive excess indicates organized multivariate structure
 remaining beyond the estimate.
 
-If several candidates tie at first `size_span` rank, all are evaluated using
-shared null permutations. This prevents an arbitrary deterministic label-based
-tie-break from deciding a scientific support status. The aggregate state is
-`SUPPORTED`, `PARTIALLY_SUPPORTED`, or `UNSUPPORTED`, while individual
-candidate evidence remains inspectable.
+All discovered candidates receive support evidence using shared null
+permutations. This lets an alternative ranking inspect the support of its own
+selected MIS. The compatibility aggregate `MISSet.support` remains scoped to
+the first `size_span` group and has state `SUPPORTED`, `PARTIALLY_SUPPORTED`,
+or `UNSUPPORTED`; `MISSet.support_for(candidate)` exposes individual evidence.
 
 ## 8. Result and reporting boundaries
 
