@@ -133,7 +133,8 @@ ranking = misda.rank(mis_set, policy="pareto_retention", accept_cost=True)
 ```
 
 `pareto_retention` is experimental and does not replace the canonical structural
-order. Its retention score is sample evidence, not a proof that the same
+order. It ranks preservation of the observed sample only; it must not be read
+as selecting the smallest globally optimization-safe objective subset. Its retention score is sample evidence, not a proof that the same
 objective subset is globally safe for future optimization. Dimensional support
 also remains scoped to the canonical `size_span` first-rank group.
 
