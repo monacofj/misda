@@ -196,12 +196,14 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         name=f"{name} Pareto-retention resampling probe",
         seed=int(misda_seed),
     )
-    mis_set.evaluate(metrics=("pareto",), candidates="all")
+    mis_set.evaluate(metrics=("pareto", "dominance"), candidates="all")
 
     structural = misda.rank(mis_set, policy=misda.SIZE_SPAN)
     pareto = misda.rank(mis_set, policy=misda.PARETO_RETENTION)
+    dominance = misda.rank(mis_set, policy=misda.DOMINANCE_PRESERVATION)
     structural_top = _top_group(structural)
     pareto_top = _top_group(pareto)
+    dominance_top = _top_group(dominance)
 
     # Derive the observed full-space Pareto front directly from the
     # full-space dominance relation: a row is nondominated iff no other row
@@ -219,13 +221,15 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         )
         dominance_rows.append(metrics)
 
-    global_order = sorted(
-        range(len(mis_set)),
-        key=lambda index: (
+    for index, candidate in enumerate(mis_set):
+        if not np.isclose(
+            candidate.dominance.new_dominance_rate,
             dominance_rows[index]["global_spurious_dominance_rate"],
-            tuple(repr(label) for label in mis_set[index].objectives),
-        ),
-    )
+        ):
+            raise AssertionError(
+                f"{name}: public dominance metric disagrees with probe"
+            )
+
     front_order = sorted(
         range(len(mis_set)),
         key=lambda index: (
@@ -233,20 +237,13 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
             tuple(repr(label) for label in mis_set[index].objectives),
         ),
     )
-    global_best = dominance_rows[global_order[0]][
-        "global_spurious_dominance_rate"
-    ]
+    global_best = float(
+        dominance.mis().dominance.new_dominance_rate
+    )
     front_best = dominance_rows[front_order[0]][
         "front_spurious_dominance_rate"
     ]
-    global_top = {
-        index
-        for index in global_order
-        if np.isclose(
-            dominance_rows[index]["global_spurious_dominance_rate"],
-            global_best,
-        )
-    }
+    global_top = dominance_top
     front_top = {
         index
         for index in front_order
@@ -256,8 +253,7 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         )
     }
 
-    global_selected_index = global_order[0]
-    global_selected = mis_set[global_selected_index]
+    global_selected = dominance.mis()
     candidate_sizes = [candidate.size for candidate in mis_set]
 
     selected = pareto.mis()
@@ -276,6 +272,10 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
         "global_distortion_selected_is_max_size": bool(
             global_selected.size == max(candidate_sizes)
         ),
+        "reduction_status": dominance.assessment.status,
+        "reduction_trustworthy": bool(dominance.assessment.trustworthy),
+        "selected_support_status": dominance.assessment.support_status,
+        "selected_support_reasons": ",".join(dominance.assessment.reasons),
         "latent_dimension": int(mis_set.analysis.latent_dimension),
         "structural_dimension": int(mis_set.analysis.structural_dimension),
         "pareto_selected": ",".join(map(str, selected.objectives)),
@@ -331,7 +331,7 @@ def _evaluate_replicate(name, mop, *, power, sample_seed, misda_seed):
                 candidate.pareto.exact_preservation
             )
             row[f"{control_name}_global_spurious_rate"] = float(
-                dominance_rows[index]["global_spurious_dominance_rate"]
+                candidate.dominance.new_dominance_rate
             )
             row[f"{control_name}_front_spurious_rate"] = float(
                 dominance_rows[index]["front_spurious_dominance_rate"]
