@@ -89,7 +89,7 @@ def _truth_label(name, indices):
 
 def _probe(name, mop):
     mis_set, F = _screen(name, mop)
-    pareto_ranking = misda.rank(mis_set, policy=misda.SIZE_PARETO)
+    pareto_ranking = misda.rank(mis_set, policy=misda.PARETO_RETENTION)
     pareto_position = {
         index: position + 1
         for position, index in enumerate(pareto_ranking.indices)
@@ -113,10 +113,22 @@ def _probe(name, mop):
                 "worst_r2": candidate.linear.worst_r2,
                 "mean_r2": candidate.linear.mean_r2,
                 "pareto_retention": candidate.pareto.retention,
-                "size_pareto_position": pareto_position[candidate_index],
+                "pareto_validity": candidate.pareto.validity,
+                "pareto_jaccard": candidate.pareto.jaccard,
+                "pareto_retention_position": pareto_position[candidate_index],
                 "truth": _truth_label(name, candidate.indices),
             }
         )
+
+    for row in rows:
+        if not np.isclose(row["pareto_validity"], 1.0):
+            raise AssertionError(
+                f"{name}: objective projection produced Pareto validity != 1"
+            )
+        if not np.isclose(row["pareto_jaccard"], row["pareto_retention"]):
+            raise AssertionError(
+                f"{name}: Jaccard != retention under objective projection"
+            )
 
     correlation = _rank_positions(
         rows,
@@ -141,7 +153,7 @@ def _probe(name, mop):
         row["reconstruction_position"] = reconstruction[index]
 
     table = pd.DataFrame(rows).sort_values(
-        ["size_pareto_position", "candidate_index"]
+        ["pareto_retention_position", "candidate_index"]
     )
     print(f"\n=== {name} ===")
     print(
@@ -155,10 +167,16 @@ def _probe(name, mop):
                 "correlation_position",
                 "reconstruction_position",
                 "pareto_retention",
-                "size_pareto_position",
+                "pareto_validity",
+                "pareto_jaccard",
+                "pareto_retention_position",
                 "truth",
             ]
         ].to_string(index=False)
+    )
+    print(
+        "Projection identity verified: validity=1 and Jaccard=retention "
+        "for every candidate."
     )
     return table
 
@@ -184,7 +202,9 @@ def main():
                     "correlation_position",
                     "reconstruction_position",
                     "pareto_retention",
-                    "size_pareto_position",
+                    "pareto_validity",
+                    "pareto_jaccard",
+                    "pareto_retention_position",
                     "truth",
                 ]
             ].to_string(index=False)
