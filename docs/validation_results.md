@@ -87,3 +87,75 @@ No Pareto implementation bug is indicated by these results. The current implemen
 The evidence reinforces the separation established by ADR 0014: dimensional support and Pareto stability answer different questions. A low Pareto Jaccard must not be interpreted by itself as evidence that the graph-derived dimension is wrong. Exact membership, observed-front saturation, and geometric approximation should be read together.
 
 No estimator change or fixed Pareto-stability threshold is justified by this validation run.
+
+
+# Optimization ranking resampling probe — 2026-09-25
+
+This section records branch-level evidence from PR #76 at commit
+`d26b7d20dd837ccb3b698b0e78f327cbaff6606e`. GitHub Actions run
+`36159796301` executed the dedicated `ranking policy robustness` workflow.
+This is empirical validation evidence, not a normative ranking guarantee.
+
+## Protocol
+
+The experiment isolates screening-sample variability:
+
+- objectives: `M=10`;
+- problems: DTLZ2, DTLZ5, and DPF1;
+- scrambled Sobol sample seeds: `101, 202, 303, 404, 505, 606, 707, 808`;
+- sample sizes: `N in {256, 512, 1024}`;
+- MISDA permutation seed fixed at `123`;
+- all discovered MISs receive Pareto evaluation;
+- canonical `size_span` and experimental `pareto_retention` first groups are
+  compared after discovery;
+- analytical controls are attached only after ranking and never enter MISDA.
+
+For DTLZ5, `f9,f10` is the known safe control and `f1,f10` the explicit
+unsafe witness. For DPF1, `f1,f2` is the safe base pair and `f2,f8` is the
+previous `size_span` selection. DTLZ2 is the negative control: every proper
+objective subset is analytically unsafe.
+
+## Results
+
+| problem/control | N=256 | N=512 | N=1024 |
+| --- | ---: | ---: | ---: |
+| DTLZ5 safe pair present | 8/8 | 8/8 | 8/8 |
+| DTLZ5 safe pair in `size_span` first group | 8/8 | 8/8 | 8/8 |
+| DTLZ5 safe pair in `pareto_retention` first group | 7/8 | 6/8 | 6/8 |
+| DTLZ5 unsafe witness in `size_span` first group | 8/8 | 8/8 | 8/8 |
+| DTLZ5 unsafe witness in `pareto_retention` first group | 0/8 | 0/8 | 0/8 |
+| DPF1 safe base pair present | 8/8 | 8/8 | 8/8 |
+| DPF1 safe base pair in `size_span` first group | 0/8 | 0/8 | 0/8 |
+| DPF1 safe base pair in `pareto_retention` first group | 8/8 | 8/8 | 8/8 |
+| DPF1 previous `f2,f8` in `size_span` first group | 8/8 | 8/8 | 8/8 |
+| DPF1 previous `f2,f8` in `pareto_retention` first group | 0/8 | 0/8 | 0/8 |
+| DTLZ2 any exact observed-front preservation | 0/8 | 0/8 | 0/8 |
+
+For DTLZ2, the median best observed retention decreases as the sample grows:
+`0.9193` at `N=256`, `0.7227` at `N=512`, and `0.3548` at
+`N=1024`. No sampled candidate reaches exact preservation at any tested size.
+
+For DTLZ5, increasing the sample size does not remove the ranking variability.
+The safe control is consistently discovered and the unsafe witness is
+consistently rejected by `pareto_retention`, but the safe pair is not always
+the unique highest-retention candidate. The first-group success rates
+`7/8, 6/8, 6/8` therefore argue against explaining the remaining misses as
+simple small-sample noise.
+
+For DPF1, the contrast is stable at every tested sample size:
+`pareto_retention` selects the safe base pair in every replicate, whereas
+`size_span` consistently prefers the previous `f2,f8` candidate.
+
+## Interpretation
+
+The experiment supports `pareto_retention` as a substantially better
+optimization-oriented ranking signal than `size_span` for these controls, but
+does not justify treating empirical front retention as a complete optimization
+safety criterion. DTLZ5 remains the discriminating case: retention rejects the
+known unsafe witness reliably yet sometimes prefers another two-objective MIS
+over the known safe control.
+
+The next methodological question is therefore not whether to increase the
+screening sample further, but whether a richer dominance-preservation signal
+can distinguish reductions that have similar front retention while preserving
+the no-truth, observed-data ranking contract.
