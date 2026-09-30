@@ -57,15 +57,17 @@ def evaluate_pareto_preservation(
 ):
     """Evaluate empirical Pareto preservation under objective projection.
 
-    Under the current minimization-only contract, removing objectives can only
-    add dominance relations. Every point dominated in the full objective space
-    therefore remains dominated after projection, so the reduced empirical
-    nondominated set is always a subset of the full one.
+    Objective projection can create new strict dominance relations among rows
+    that were incomparable in the full space. It can also erase an existing
+    strict dominance relation when all strict coordinates are removed and the
+    projected rows become exactly tied. Therefore neither empirical
+    nondominated set is, in general, guaranteed to contain the other.
 
-    Consequently, whenever the fronts are non-empty, ``pareto_validity`` is 1
-    and ``pareto_jaccard`` equals ``pareto_retention``. Those fields remain in
-    the public schema for explicitness and compatibility, but they are not
-    independent ranking signals under this contract.
+    ``pareto_retention``, ``pareto_validity``, and ``pareto_jaccard`` are kept
+    as distinct set-membership diagnostics. In generic continuous samples exact
+    projected ties may be rare, so validity can often equal 1 empirically, but
+    that is an observed property of the sample rather than a projection
+    identity.
     """
 
     if directions is not None:
