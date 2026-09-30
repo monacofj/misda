@@ -140,10 +140,13 @@ internal model selection, deterministic seeds, and uncertainty-driven tree
 stopping. Its optional permutation-null reference remains decomposed evidence;
 no single SES score is recreated.
 
-Pareto preservation currently assumes same-sample minimization and records retention,
-validity, Jaccard agreement, front sizes, and exact preservation. Under pure
-objective projection, the reduced nondominated set is a subset of the full one;
-therefore validity is identically one and Jaccard equals retention.
+Pareto preservation assumes same-sample minimization and records retention,
+validity, Jaccard agreement, front sizes, and exact preservation. Objective
+projection can both create new dominance among previously incomparable rows and
+erase existing strict dominance when the retained coordinates make two rows
+exactly tied. Therefore retention, validity, and Jaccard remain distinct
+set-membership diagnostics; no subset relation between the full and reduced
+empirical nondominated sets is assumed.
 
 Dominance preservation separately counts row pairs with no dominance relation
 in full `Y` that acquire a strict dominance relation after projection. The
