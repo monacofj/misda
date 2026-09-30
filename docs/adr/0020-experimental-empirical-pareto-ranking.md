@@ -63,29 +63,25 @@ Alternatively, `accept_cost=True` authorizes evaluation of missing Pareto
 evidence for the requested ranking scope. Without stored evidence or explicit
 cost authorization, ranking fails rather than performing hidden computation.
 
-## Projection identity
+## Projection semantics
 
-Under the current same-sample minimization contract, objective removal can only
-add dominance relations. Any point dominated in the full objective space
-remains dominated in every objective subset. Therefore
+Objective removal can create new strict dominance relations among rows that
+were incomparable in the full objective space. It can also erase an existing
+strict dominance relation when every coordinate carrying strict improvement is
+removed and the projected rows become exactly tied. Therefore neither
+empirical nondominated set is guaranteed, in general, to contain the other:
 
 ```text
 ND(Y_S) ⊆ ND(Y)
 ```
 
-for every retained objective subset `S`.
+is not a universal projection identity.
 
-It follows exactly that, whenever the fronts are non-empty:
-
-```text
-pareto_validity = 1
-pareto_jaccard  = pareto_retention
-```
-
-Thus retention is the only independent set-membership preservation signal among
-those three metrics for this ranking problem. Validity and Jaccard remain
-reported for compatibility and explicit diagnostics but must not be interpreted
-as independent ranking evidence.
+Consequently, `pareto_retention`, `pareto_validity`, and `pareto_jaccard` are
+kept as distinct set-membership diagnostics. In generic continuous samples,
+exact projected ties can be rare and validity may empirically equal 1, in which
+case Jaccard also equals retention. That is a property of the observed sample,
+not a theorem of objective projection.
 
 ## Interpretation
 
