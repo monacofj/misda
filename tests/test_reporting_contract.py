@@ -33,6 +33,8 @@ def test_report_preserves_rich_public_audit_contract():
         "Structural ranking:",
         "Tie groups",
         "Dimensional support:",
+        "Reduction assessment:",
+        "use-status annotation",
         "Transitivity:",
         "Spectral:",
         "Evaluation scope:",
@@ -365,3 +367,18 @@ def test_wrapped_report_preserves_legacy_pareto_stability_labels():
     assert "Observed front:" in report
     assert "Dominance margin:" in report
     assert "Additive epsilon+:" in report
+
+
+def test_dominance_ranking_report_exposes_metric_and_trust_annotation():
+    result = _evaluated_result()
+    result.evaluate(metrics=("dominance",), candidates="all")
+    ranking = misda.rank(result, policy=misda.DOMINANCE_PRESERVATION)
+
+    report = ranking.report()
+
+    assert "Policy" in report and "dominance_preservation" in report
+    assert "Reduction assessment:" in report
+    assert ranking.assessment.status in report
+    assert "dominance_preservation" in report
+    assert "new_dominance_rate" in report
+    assert "new observed dominance fraction" in report

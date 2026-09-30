@@ -53,3 +53,22 @@ def test_pareto_preservation_rejects_mixed_directions_for_now(pareto_example):
             [0, 1],
             directions=[-1, 1, -1],
         )
+
+
+def test_objective_projection_can_create_new_nondominated_rows_via_ties():
+    # Row 0 strictly dominates row 1 in full Y. After retaining only the
+    # first objective, both rows project to the same vector and are therefore
+    # both nondominated under the exact-vector-deduplication contract.
+    data = np.array([[0.0, 1.0], [0.0, 2.0]])
+
+    observed = _pareto.evaluate_pareto_preservation(data, [0])
+
+    assert observed["full_front_size"] == 1
+    assert observed["reduced_front_size"] == 2
+    assert observed["intersection_size"] == 1
+    assert observed["union_size"] == 2
+    assert observed["pareto_retention"] == 1.0
+    assert observed["pareto_validity"] == pytest.approx(0.5)
+    assert observed["pareto_jaccard"] == pytest.approx(0.5)
+    assert observed["exact_preservation"] is False
+    assert observed["reduced_front_indices"] == (0, 1)

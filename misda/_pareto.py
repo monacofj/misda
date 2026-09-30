@@ -55,7 +55,20 @@ def evaluate_pareto_preservation(
     full_front=None,
     directions=None,
 ):
-    """Evaluate retention and validity of a reduced minimization front."""
+    """Evaluate empirical Pareto preservation under objective projection.
+
+    Objective projection can create new strict dominance relations among rows
+    that were incomparable in the full space. It can also erase an existing
+    strict dominance relation when all strict coordinates are removed and the
+    projected rows become exactly tied. Therefore neither empirical
+    nondominated set is, in general, guaranteed to contain the other.
+
+    ``pareto_retention``, ``pareto_validity``, and ``pareto_jaccard`` are kept
+    as distinct set-membership diagnostics. In generic continuous samples exact
+    projected ties may be rare, so validity can often equal 1 empirically, but
+    that is an observed property of the sample rather than a projection
+    identity.
+    """
 
     if directions is not None:
         raise ValueError("Mixed objective directions are not supported.")
