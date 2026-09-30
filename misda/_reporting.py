@@ -53,12 +53,12 @@ METRIC_METADATA = {
         "how much of the original observed trade-off front survives",
     ),
     "pareto_validity": MetricMetadata(
-        "projection validity (identically 1)",
-        "objective removal cannot create new empirical nondominated rows",
+        "reduced-front precision",
+        "how much of the reduced front belongs to the original front",
     ),
     "pareto_jaccard": MetricMetadata(
-        "front Jaccard overlap (= retention)",
-        "under objective projection this equals full-front recall",
+        "front Jaccard overlap",
+        "overall agreement between original and reduced observed fronts",
     ),
     "full_front_size": MetricMetadata(
         "full-front size",
