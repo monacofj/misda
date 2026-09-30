@@ -319,12 +319,14 @@ mis.pareto.exact_preservation
 mis.pareto.reduced_front_indices
 ```
 
-For same-sample objective projection, full-space dominance is preserved when
-objectives are removed. Hence the reduced nondominated set is always a subset
-of the full nondominated set. Under this contract, `validity = 1` and
-`jaccard = retention` exactly, so retention is the only independent
-set-membership preservation signal among those three fields. The redundant
-fields remain public for explicitness and compatibility.
+Objective projection can create new strict dominance relations among rows that
+were incomparable in full `Y`. It can also erase an existing strict dominance
+relation when all strict coordinates are removed and the projected rows become
+exactly tied. Therefore neither empirical nondominated set is guaranteed to be
+a subset of the other. `retention`, `validity`, and `jaccard` are distinct
+set-membership diagnostics. In generic continuous samples exact projected ties
+may be rare, so validity can often equal 1 empirically; that is an observed
+sample property rather than a projection identity.
 
 Exact membership agreement is deliberately separate from observed-data Pareto
 stability. When Pareto evaluation is requested, `mis_set.pareto_stability`
