@@ -55,16 +55,20 @@ def test_pareto_preservation_rejects_mixed_directions_for_now(pareto_example):
         )
 
 
-def test_objective_projection_makes_validity_and_jaccard_redundant():
-    rng = np.random.default_rng(123)
-    data = rng.normal(size=(40, 6))
+def test_objective_projection_can_create_new_nondominated_rows_via_ties():
+    # Row 0 strictly dominates row 1 in full Y. After retaining only the
+    # first objective, both rows project to the same vector and are therefore
+    # both nondominated under the exact-vector-deduplication contract.
+    data = np.array([[0.0, 1.0], [0.0, 2.0]])
 
-    for selected in ((0,), (0, 2), (1, 3, 5), (0, 1, 2, 3, 4)):
-        observed = _pareto.evaluate_pareto_preservation(data, selected)
+    observed = _pareto.evaluate_pareto_preservation(data, [0])
 
-        assert observed["pareto_validity"] == 1.0
-        assert observed["pareto_jaccard"] == pytest.approx(
-            observed["pareto_retention"]
-        )
-        assert observed["reduced_front_size"] == observed["intersection_size"]
-        assert observed["union_size"] == observed["full_front_size"]
+    assert observed["full_front_size"] == 1
+    assert observed["reduced_front_size"] == 2
+    assert observed["intersection_size"] == 1
+    assert observed["union_size"] == 2
+    assert observed["pareto_retention"] == 1.0
+    assert observed["pareto_validity"] == pytest.approx(0.5)
+    assert observed["pareto_jaccard"] == pytest.approx(0.5)
+    assert observed["exact_preservation"] is False
+    assert observed["reduced_front_indices"] == (0, 1)
