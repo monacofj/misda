@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 
+from benchmarks.run_noisy_dtlz5_stress_optimization import screen_condition
 from benchmarks.run_noisy_ranking_optimization import (
     _degradation_vs_full,
     _noisy_discovery_case,
@@ -64,3 +65,17 @@ def test_controlled_condition_reproduces_known_review09_divergence():
     assert audit["policies"]["dominance_preservation"]["selected_labels"] == ["f10", "f18"]
     assert audit["policies"]["size_span"]["reduction_assessment"]["trustworthy"] is True
     assert audit["policies"]["dominance_preservation"]["reduction_assessment"]["trustworthy"] is True
+
+
+def test_dtlz5_high_noise_stress_reproduces_support_asymmetry():
+    _, screening = screen_condition(sigma=2.0, observation_seed=101)
+    size = screening["policies"]["size_span"]
+    dominance = screening["policies"]["dominance_preservation"]
+
+    assert size["selected_labels"] == ["f1", "f2", "f4", "f5", "f6", "f8", "f10"]
+    assert size["assessment"]["trustworthy"] is True
+    assert size["support"]["reasons"] == []
+
+    assert dominance["selected_labels"] == ["f1", "f2", "f5", "f7", "f8", "f9", "f10"]
+    assert dominance["assessment"]["trustworthy"] is False
+    assert dominance["support"]["reasons"] == ["TRANSITIVE_CHAINING"]
