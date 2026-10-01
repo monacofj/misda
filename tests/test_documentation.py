@@ -9,7 +9,6 @@ import pytest
 ACTIVE_DOCS = (
     Path("README.md"),
     Path("docs/userguide.md"),
-    Path("docs/design_notes.md"),
 )
 
 
@@ -31,16 +30,23 @@ def test_active_documentation_describes_new_static_contract(path):
     assert 'method="adaptive"' not in text
 
 
-def test_design_notes_state_current_dimension_and_null_envelope_semantics():
-    text = Path("docs/design_notes.md").read_text(encoding="utf-8")
+def test_documentation_has_single_normative_and_research_ledgers():
+    adr = Path("docs/adr/README.md")
+    notebook = Path("docs/research-notes/README.md")
 
-    assert "structural_dimension = alpha(G+)" in text
-    assert "latent_dimension     = alpha(G±)" in text
-    assert "B=N" in text
-    assert "r_null = max(m_1, ..., m_N)" in text
-    assert "10N` cap are obsolete" in text
-    assert "ADR 0015" in text
-    assert "ADR 0017" in text
+    assert adr.exists()
+    assert notebook.exists()
+    assert "authoritative architectural and methodological specification" in adr.read_text(
+        encoding="utf-8"
+    ).lower()
+    assert "laboratory notebook" in notebook.read_text(encoding="utf-8").lower()
+
+    for obsolete in (
+        Path("docs/decisions.md"),
+        Path("docs/design_notes.md"),
+        Path("docs/validation_results.md"),
+    ):
+        assert not obsolete.exists()
 
 
 @pytest.mark.parametrize("path", (Path("README.md"), Path("docs/userguide.md")))
