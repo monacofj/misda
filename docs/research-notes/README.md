@@ -78,7 +78,7 @@ Each note should make its current status explicit. Useful states are:
 
 ### October 2026
 
-- [`2026-10-ranking-policy-default-audit.md`](2026-10-ranking-policy-default-audit.md) — pre-default audit of `dominance_preservation`, noisy representative selection, and the aggressiveness follow-up from issue #78 / PR #79.
+- [`2026-10-ranking-policy-default-audit.md`](2026-10-ranking-policy-default-audit.md) — pre-default audit of `dominance_preservation`, noisy representative selection, and the aggressiveness follow-up from issue #78 / PR #79. This note is the scientific provenance for PR #79: it records the hypothesis that motivated the PR, the experiments it preserves, and why the default was deliberately left unchanged.
 
 ## Maintenance rule
 
