@@ -238,6 +238,7 @@ def _build_regime(
     aggressiveness,
     seed,
     name,
+    support_cache,
 ):
     if correlation_statistics.log_alpha_onset is None:
         log_alpha = null_estimate.log_alpha_null
@@ -264,20 +265,27 @@ def _build_regime(
         for item in ranked
     )
 
-    all_indices = tuple(range(len(candidates)))
-    raw_support = evaluate_dimensional_support_group(
-        normalized.data,
-        tuple(candidates[index].indices for index in all_indices),
-        structure.latent_dimension,
-        seed=seed,
-    )
-    all_support = tuple(
-        _api._candidate_support(raw, index)
-        for raw, index in zip(raw_support, all_indices)
-    )
-    support_by_index = {item.candidate_index: item for item in all_support}
+    # Profiling needs support only for the canonical first structural group.
+    # Candidate-specific support for an alternative final ranking is evaluated
+    # lazily in discovery(). The null computation is cached whenever the same
+    # retained sets and latent dimension recur in another alpha regime.
     first_group = groups[0] if groups else tuple()
-    support_results = tuple(support_by_index[index] for index in first_group)
+    selected_sets = tuple(candidates[index].indices for index in first_group)
+    support_key = (int(structure.latent_dimension), selected_sets)
+    raw_support = support_cache.get(support_key)
+    if raw_support is None:
+        raw_support = evaluate_dimensional_support_group(
+            normalized.data,
+            selected_sets,
+            structure.latent_dimension,
+            seed=seed,
+        )
+        support_cache[support_key] = raw_support
+    support_results = tuple(
+        _api._candidate_support(raw, index)
+        for raw, index in zip(raw_support, first_group)
+    )
+    support_by_index = {item.candidate_index: item for item in support_results}
 
     analysis = _api.DiscoveryAnalysis(
         original_dimension=normalized.n_objectives,
@@ -316,6 +324,24 @@ def _build_regime(
     return result
 
 
+def _ensure_candidate_support(mis_set, candidate_index):
+    """Attach candidate-specific support if profiling did not need that MIS."""
+
+    candidate_index = int(candidate_index)
+    if candidate_index in mis_set._support_by_index:
+        return mis_set._support_by_index[candidate_index]
+    candidate = mis_set[candidate_index]
+    raw = evaluate_dimensional_support_group(
+        mis_set._data,
+        (candidate.indices,),
+        mis_set.analysis.latent_dimension,
+        seed=mis_set.seed,
+    )[0]
+    support = _api._candidate_support(raw, candidate_index)
+    mis_set._support_by_index[candidate_index] = support
+    return support
+
+
 def profile(Y, *, seed=123, name=None, cancel_requested=None):
     """Map distinct structural regimes over the calibrated alpha path."""
 
@@ -342,10 +368,6 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
         null_estimate.alpha_null,
     )
 
-    # First compress the exact threshold probes into consecutive structural
-    # regimes. Keep the most aggressive point observed for each regime so that
-    # ``profile.selected`` really denotes the most aggressive acceptable point,
-    # not merely the point where that regime began.
     compressed = []
     for aggressiveness in points:
         if correlation_statistics.log_alpha_onset is None:
@@ -363,6 +385,7 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
             compressed.append((current_signature, float(aggressiveness)))
 
     regimes = []
+    support_cache = {}
     for _signature, aggressiveness in compressed:
         mis_set = _build_regime(
             normalized=normalized,
@@ -372,6 +395,7 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
             aggressiveness=aggressiveness,
             seed=seed,
             name=name,
+            support_cache=support_cache,
         )
         regimes.append(
             ProfileRegime(
@@ -426,6 +450,8 @@ def discovery(source, *, rank_policy=_api.DOMINANCE_PRESERVATION, **profile_kwar
         candidates="all",
         accept_cost=True,
     )
+    if ranking.indices:
+        _ensure_candidate_support(regime.mis_set, ranking.indices[0])
     return DiscoveryResult(
         profile=observed_profile,
         regime=regime,
