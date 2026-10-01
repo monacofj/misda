@@ -32,6 +32,11 @@ jobs:
         run: |
           python -m benchmarks.run_noisy_ranking_safety \
             --output /tmp/misda-noisy-ranking-safety.json
+      - name: DTLZ5 and DPF1 high-noise stress screening
+        run: |
+          python -m benchmarks.run_noisy_ranking_safety \
+            --sigma 0.60 --sigma 0.80 --sigma 1.00 --sigma 1.50 --sigma 2.00 \
+            --output /tmp/misda-noisy-ranking-stress.json
       - name: Established controlled noisy-robustness audit
         run: |
           python -m benchmarks.run_ranking_policy_impact \
@@ -44,6 +49,7 @@ jobs:
           name: misda-noisy-ranking-safety
           path: |
             /tmp/misda-noisy-ranking-safety.json
+            /tmp/misda-noisy-ranking-stress.json
             /tmp/misda-noisy-policy-impact.json
           if-no-files-found: warn
 
