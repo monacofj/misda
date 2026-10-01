@@ -79,6 +79,7 @@ Each note should make its current status explicit. Useful states are:
 ### October 2026
 
 - [`2026-10-ranking-policy-default-audit.md`](2026-10-ranking-policy-default-audit.md) — pre-default audit of `dominance_preservation`, noisy representative selection, and the aggressiveness follow-up from issue #78 / PR #79. This note is the scientific provenance for PR #79: it records the hypothesis that motivated the PR, the experiments it preserves, and why the default was deliberately left unchanged.
+- [`2026-10-ranking-resampling-uncertainty.md`](2026-10-ranking-resampling-uncertainty.md) — issue #80 / PR #81 follow-up testing whether row-bootstrap stability of `DeltaD` can distinguish robust dominance evidence from noise-driven representative choices; rejected as a sufficient general decision rule.
 
 ## Maintenance rule
 
