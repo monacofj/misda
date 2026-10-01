@@ -36,7 +36,6 @@ jobs:
         run: |
           python -m benchmarks.run_ranking_policy_impact \
             --suite noisy_robustness \
-            --problem-id nonlinear_blocks_4x5 \
             --output /tmp/misda-noisy-policy-impact.json
       - name: Preserve screening outputs
         if: always()
