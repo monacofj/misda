@@ -11,6 +11,12 @@ ACTIVE_DOCS = (
     Path("docs/userguide.md"),
 )
 
+OBSOLETE_DOCS = (
+    Path("docs/decisions.md"),
+    Path("docs/design_notes.md"),
+    Path("docs/validation_results.md"),
+)
+
 
 @pytest.mark.parametrize("path", ACTIVE_DOCS)
 def test_active_documentation_describes_new_static_contract(path):
@@ -41,12 +47,25 @@ def test_documentation_has_single_normative_and_research_ledgers():
     ).lower()
     assert "laboratory notebook" in notebook.read_text(encoding="utf-8").lower()
 
-    for obsolete in (
-        Path("docs/decisions.md"),
-        Path("docs/design_notes.md"),
-        Path("docs/validation_results.md"),
-    ):
+    for obsolete in OBSOLETE_DOCS:
         assert not obsolete.exists()
+
+
+def test_active_documentation_has_no_legacy_ledger_references():
+    active_surfaces = (
+        Path("README.md"),
+        Path("FILES"),
+        Path("docs/userguide.md"),
+        Path("docs/CONTRIBUTING.md"),
+        Path("docs/adr/README.md"),
+        Path("docs/research-notes/README.md"),
+    )
+    obsolete_names = tuple(path.as_posix() for path in OBSOLETE_DOCS)
+
+    for path in active_surfaces:
+        text = path.read_text(encoding="utf-8")
+        for obsolete in obsolete_names:
+            assert obsolete not in text, f"{path} still references {obsolete}"
 
 
 @pytest.mark.parametrize("path", (Path("README.md"), Path("docs/userguide.md")))
