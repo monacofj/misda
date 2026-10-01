@@ -1,0 +1,96 @@
+name: ranking policy impact
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmarks/run_ranking_policy_impact.py'
+      - 'misda/api.py'
+      - 'misda/_dominance.py'
+      - 'misda/benchmarks/**'
+      - 'tests/test_ranking_policy_impact.py'
+      - '.github/workflows/ranking-policy-impact.yml'
+  workflow_dispatch:
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Audit contract tests
+        run: pytest -q tests/test_ranking_policy_impact.py
+      - name: Controlled, fixed-noise, and comparison audit
+        run: |
+          python -m benchmarks.run_ranking_policy_impact \
+            --suite controlled \
+            --suite controlled_noisy \
+            --suite comparison \
+            --output /tmp/misda-ranking-policy-impact-core.json
+      - name: Preserve core audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-ranking-policy-impact-core
+          path: /tmp/misda-ranking-policy-impact-core.json
+          if-no-files-found: warn
+
+  sampling:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]'
+      - name: Clean sampling robustness audit
+        run: |
+          python -m benchmarks.run_ranking_policy_impact \
+            --suite sampling_robustness \
+            --output /tmp/misda-ranking-policy-impact-sampling.json
+      - name: Preserve sampling audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-ranking-policy-impact-sampling
+          path: /tmp/misda-ranking-policy-impact-sampling.json
+          if-no-files-found: warn
+
+  noisy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]'
+      - name: Observation-noise robustness audit
+        run: |
+          python -m benchmarks.run_ranking_policy_impact \
+            --suite noisy_robustness \
+            --output /tmp/misda-ranking-policy-impact-noisy.json
+      - name: Preserve noisy audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-ranking-policy-impact-noisy
+          path: /tmp/misda-ranking-policy-impact-noisy.json
+          if-no-files-found: warn
