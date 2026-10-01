@@ -2,7 +2,7 @@
 
 - Period: 2026-09-30 to 2026-10-01
 - Status: **Rejected for default promotion; follow-up open**
-- Tracking: issue #78, PR #79
+- Tracking: issue #78, PR #79; follow-up issue #80
 - Normative reference: ADR 0021
 
 ## Question
@@ -101,10 +101,42 @@ This separates two axes:
 
 The evidence does **not** justify promoting `dominance_preservation` wholesale to the public default yet. `size_span` remains the default structural order and `dominance_preservation` remains experimental.
 
-The next methodological question is whether ranking evidence needs explicit uncertainty/resampling or a conservative combined rule before any future default-policy change.
+## Next hypothesis: resampling the ranking evidence
+
+Issue #80 tests the next question directly. For a fixed observed `Y`, let
+`S_dom` be the candidate selected by `dominance_preservation` and `S_struct` the
+candidate selected by `size_span`. Holding those candidate subsets fixed, row
+resamples of `Y` will be used to estimate
+
+```text
+DeltaD = D(S_dom) - D(S_struct)
+```
+
+where `D(S)` is the observed `new_dominance_rate` after projection to `S`.
+
+The working hypothesis is:
+
+- a genuinely strong observed-order advantage should keep `DeltaD < 0` across most resamples;
+- a noise-driven representative preference should show weak support, ties, or frequent sign reversals around zero.
+
+The primary experiment deliberately does **not** rediscover graph structure in
+each bootstrap sample. That would mix uncertainty in discovery with uncertainty
+in ranking evidence. The first test isolates only the latter by comparing the
+same two candidate subsets on resampled rows.
+
+Analytical controls such as DTLZ5 and DPF1 are expected to provide the strong
+signal side of the experiment. Noisy controlled divergences from PR #79,
+especially block and antagonistic cases, provide the uncertain/noise-sensitive
+side. Benchmark truth remains external and is attached only after the Y-only
+resampling statistic has been computed.
+
+No public threshold, API change, or default-policy change is part of issue #80.
+The purpose is to determine whether resampling uncertainty can distinguish the
+robust dominance advantages previously seen in optimization controls from the
+noisy representative choices that blocked default promotion in PR #79.
 
 ## Reproducibility policy
 
 PR #79 retains the audit runners and a GitHub Actions workflow, but these experiments are scientific validation rather than ordinary acceptance tests. The workflow is manual-only (`workflow_dispatch`); `core`, `sampling`, `noisy`, and `aggressiveness` batteries are all opt-in and disabled by default, and a dispatch with no explicit selection fails immediately.
 
-This note is the scientific reason PR #79 exists: it preserves the experiment that prevented a premature default-policy change and leaves the resulting open question reproducible.
+This note is the scientific reason PR #79 exists: it preserves the experiment that prevented a premature default-policy change and now points explicitly to issue #80 for the ranking-resampling follow-up.
