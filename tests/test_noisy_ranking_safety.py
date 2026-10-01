@@ -4,6 +4,10 @@
 import numpy as np
 import pandas as pd
 
+from benchmarks.run_noisy_ranking_optimization import (
+    _degradation_vs_full,
+    _noisy_discovery_case,
+)
 from benchmarks.run_noisy_ranking_safety import observe, run_audit
 
 
@@ -34,3 +38,29 @@ def test_small_audit_preserves_clean_reference_at_sigma_zero():
     for row in result["rows"]:
         for policy in ("size_span", "dominance_preservation"):
             assert row["policies"][policy]["matches_clean_selection"] is True
+
+
+def test_degradation_positive_means_reduced_is_worse():
+    full = {"gdplus": 1.0, "igdplus": 2.0, "relative_hv": 0.8}
+    reduced = {"gdplus": 1.2, "igdplus": 2.3, "relative_hv": 0.7}
+    loss = _degradation_vs_full(reduced, full)
+    assert loss == {
+        "gdplus_loss": 0.19999999999999996,
+        "igdplus_loss": 0.2999999999999998,
+        "relative_hv_loss": 0.10000000000000009,
+    }
+
+
+def test_controlled_condition_reproduces_known_review09_divergence():
+    audit = _noisy_discovery_case(
+        "antagonistic_nonlinear_groups",
+        sigma=0.10,
+        replicate_seed=202,
+        n=300,
+        misda_seed=123,
+    )
+    assert audit["comparison"]["truth_outcome"] == "regressed"
+    assert audit["policies"]["size_span"]["selected_labels"] == ["f1", "f11"]
+    assert audit["policies"]["dominance_preservation"]["selected_labels"] == ["f10", "f18"]
+    assert audit["policies"]["size_span"]["reduction_assessment"]["trustworthy"] is True
+    assert audit["policies"]["dominance_preservation"]["reduction_assessment"]["trustworthy"] is True
