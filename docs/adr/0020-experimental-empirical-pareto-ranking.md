@@ -128,3 +128,13 @@ targeted Pareto sampling, analytical structure, or optimizer-based validation.
 - missing Pareto evidence never triggers hidden work unless `accept_cost=True`.
 - empirical Pareto retention must not be described as a guarantee of future
   optimization safety.
+
+## Research history
+
+The ranking experiments that led from reconstruction/correlation criteria to
+`pareto_retention` and then to `dominance_preservation` are recorded in
+`docs/research-notes/2026-09-optimization-reduction-safety-and-ranking.md`.
+
+The projected-tie counterexample that corrected the earlier empirical-front
+subset assumption is recorded separately in
+`docs/research-notes/2026-09-pareto-projection-semantics-correction.md`.
