@@ -1,20 +1,48 @@
 name: ranking policy impact
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'benchmarks/run_ranking_policy_impact.py'
-      - 'benchmarks/run_ranking_policy_aggressiveness_probe.py'
-      - 'misda/api.py'
-      - 'misda/_dominance.py'
-      - 'misda/benchmarks/**'
-      - 'tests/test_ranking_policy_impact.py'
-      - '.github/workflows/ranking-policy-impact.yml'
   workflow_dispatch:
+    inputs:
+      run_core:
+        description: 'Run controlled, controlled_noisy, comparison, and audit contract tests'
+        required: true
+        type: boolean
+        default: false
+      run_sampling:
+        description: 'Run clean sampling robustness audit'
+        required: true
+        type: boolean
+        default: false
+      run_noisy:
+        description: 'Run observation-noise robustness audit'
+        required: true
+        type: boolean
+        default: false
+      run_aggressiveness:
+        description: 'Run policy × aggressiveness follow-up probe'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
+  validate-selection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require an explicit audit selection
+        if: ${{ !inputs.run_core && !inputs.run_sampling && !inputs.run_noisy && !inputs.run_aggressiveness }}
+        run: |
+          echo '::error::Select at least one ranking-policy audit explicitly when dispatching this workflow.'
+          exit 1
+      - name: Confirm selected audits
+        run: |
+          echo "core=${{ inputs.run_core }}"
+          echo "sampling=${{ inputs.run_sampling }}"
+          echo "noisy=${{ inputs.run_noisy }}"
+          echo "aggressiveness=${{ inputs.run_aggressiveness }}"
+
   core:
+    needs: validate-selection
+    if: ${{ inputs.run_core }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -45,6 +73,8 @@ jobs:
           if-no-files-found: warn
 
   sampling:
+    needs: validate-selection
+    if: ${{ inputs.run_sampling }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -71,6 +101,8 @@ jobs:
           if-no-files-found: warn
 
   noisy:
+    needs: validate-selection
+    if: ${{ inputs.run_noisy }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -97,6 +129,8 @@ jobs:
           if-no-files-found: warn
 
   aggressiveness:
+    needs: validate-selection
+    if: ${{ inputs.run_aggressiveness }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
