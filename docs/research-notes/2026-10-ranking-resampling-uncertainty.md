@@ -123,6 +123,59 @@ The experiment therefore distinguishes some fragile sample-specific preferences,
 
 The magnitude of `DeltaD` was much larger for the tested DTLZ5/DPF1 controls than for the noisy controlled divergences. That empirical separation is interesting but does not justify a new cutoff: the scale of `new_dominance_rate` depends on the problem, dimensional structure, candidate geometry, and observed distribution. Introducing a threshold chosen from these benchmarks would violate the intended data-driven/no-tuned-threshold philosophy and is not supported by this experiment.
 
+## Broader implication: inference from noisy `Y`
+
+This limitation is not specific to MISDA. Any method that infers latent structure only from the observed matrix `Y` is, in general, exposed to the distinction between sampling variability and measurement/observation noise.
+
+Conceptually, if
+
+```text
+Y = Z + epsilon
+```
+
+with unobserved clean objectives `Z` and unknown observation error `epsilon`, MISDA can only operate on the dependence and order relations present in `Y`. Noise can therefore alter correlations, graph edges, MIS structure, and observed dominance relations.
+
+PCA has an analogous limitation. It decomposes the variance/covariance structure of the observed data; in broad terms, the covariance of `Y` contains both signal and noise contributions. Without additional assumptions about the noise process, repeated measurements, or other external information, PCA also cannot in general identify which part of the observed covariance is latent structure and which part is measurement noise.
+
+The mechanisms are different:
+
+- MISDA is affected through correlations, graph structure, and observed order/dominance relations;
+- PCA is affected through observed covariance, eigenvalues, and principal directions.
+
+This investigation did **not** empirically compare PCA and MISDA noise robustness, so no claim follows here that one method is generically more robust than the other. The relevant conclusion is only the shared identifiability boundary: a single noisy `Y` does not automatically reveal the corresponding clean `Z`.
+
+## Policy trade-off: structural conservatism versus optimization-oriented evidence
+
+The accumulated evidence also suggests a useful but carefully limited interpretation of `size_span` versus `dominance_preservation`.
+
+It would be too strong to say:
+
+```text
+size_span suffers less from noise but optimizes worse;
+dominance_preservation suffers more from noise but optimizes better.
+```
+
+What the current evidence supports is narrower:
+
+- `size_span` is a structural policy. It depends on the discovered graph and structural candidate descriptors and does not use the finer observed dominance geometry to distinguish representatives. In the current noisy audits it behaved more conservatively in the sense that it did not chase every observed-Y dominance advantage.
+- `dominance_preservation` is explicitly optimization-oriented **with respect to observed order in `Y`**. It uses more of the empirical geometry that is relevant to Pareto dominance and, in DTLZ5 and DPF1, selected the analytically known safe candidates that `size_span` did not select.
+- the same additional sensitivity that gives `dominance_preservation` useful discrimination also exposes it to observation-noise distortions in `Y`; the noisy audits contain both improvements and regressions relative to clean Pareto truth.
+
+Thus the present working interpretation is:
+
+```text
+size_span
+    = structurally conservative default
+
+dominance_preservation
+    = richer optimization-oriented evidence,
+      but more exposed to the detailed observed geometry of noisy Y
+```
+
+This does not yet establish that `size_span` produces worse optimizer outcomes or that `dominance_preservation` produces better ones in general. That stronger claim requires the Full-versus-Reduced MOEA validation in the original objective space. The distinction here concerns what information each ranking policy uses and what failure mode the current experiments expose.
+
+This interpretation supports the current software boundary: keep `size_span` as the public default and retain `dominance_preservation` as an explicit experimental ranking rather than promoting it to a universal replacement.
+
 ## Conclusion
 
 The simple uncertainty-aware rule
