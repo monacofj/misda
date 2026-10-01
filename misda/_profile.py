@@ -17,9 +17,6 @@ from ._support import evaluate_dimensional_support_group
 from ._validation import normalize_input_matrix
 
 
-ABSTAINED = "ABSTAINED"
-
-
 @dataclass(frozen=True)
 class ProfileRegime:
     """One distinct structural regime along the alpha/aggressiveness path."""
@@ -35,19 +32,30 @@ class ProfileRegime:
         return self.mis_set.analysis
 
     @property
-    def ranking(self):
-        return self.mis_set.structural_ranking
-
-    @property
-    def assessment(self):
-        return self.ranking.assessment
-
-    @property
     def status(self):
-        return self.assessment.status if self.assessment is not None else ABSTAINED
+        """Aggregate discovery status for this structural regime.
+
+        This is deliberately independent of any ranking policy.  A regime with
+        no structural reduction is admissible by construction; otherwise the
+        status is the aggregate dimensional-support state of the complete first
+        canonical structural tie group.
+        """
+
+        if self.analysis.structural_dimension == self.analysis.original_dimension:
+            return _api.NO_REDUNDANCY
+        support = self.mis_set.support
+        if support is None:
+            return _api.UNSUPPORTED_REDUCTION
+        if support.status == "SUPPORTED":
+            return _api.SUPPORTED_REDUCTION
+        if support.status == _api.PARTIALLY_SUPPORTED:
+            return _api.PARTIALLY_SUPPORTED
+        return _api.UNSUPPORTED_REDUCTION
 
     @property
     def acceptable(self):
+        """Whether this regime is safe for automatic profile selection."""
+
         return self.status in {_api.NO_REDUNDANCY, _api.SUPPORTED_REDUCTION}
 
 
@@ -106,74 +114,31 @@ class Profile:
         lines.append(
             "Regimes: idx  aggressiveness  alpha        latent  structural  MISs  assessment"
         )
+        interpretations = {
+            _api.NO_REDUNDANCY: "no reduction",
+            _api.SUPPORTED_REDUCTION: "reduction supported",
+            _api.PARTIALLY_SUPPORTED: "mixed support; not auto-selected",
+            _api.UNSUPPORTED_REDUCTION: "reduction not supported",
+        }
         for regime in self._regimes:
             marker = "*" if self.selected_index == regime.index else " "
             analysis = regime.analysis
+            interpretation = interpretations.get(regime.status, "inspect regime")
             lines.append(
                 f"{marker} {regime.index:>3}  {regime.aggressiveness:>14.6f}  "
                 f"{regime.alpha:>10.6g}  {analysis.latent_dimension:>6}  "
                 f"{analysis.structural_dimension:>10}  {len(regime.mis_set):>4}  "
-                f"{regime.status}"
+                f"{regime.status} — {interpretation}"
             )
         if self.selected is None:
-            lines.append("Selected regime: none — no acceptable structural regime.")
+            lines.append("Selected regime: none — no fully supported admissible regime.")
         else:
             lines.append(
-                f"Selected regime: {self.selected.index} — most aggressive acceptable "
+                f"Selected regime: {self.selected.index} — most aggressive admissible "
                 f"regime (aggressiveness={self.selected.aggressiveness:.6f}, "
                 f"alpha={self.selected.alpha:.6g})."
             )
-        return "\n".join(lines)
-
-
-@dataclass(frozen=True)
-class DiscoveryResult:
-    """High-level reduction decision derived from one selected profile regime."""
-
-    profile: Profile
-    regime: Optional[ProfileRegime]
-    ranking: Optional[_api.Ranking]
-    rank_policy: str
-
-    @property
-    def mis_set(self):
-        return None if self.regime is None else self.regime.mis_set
-
-    @property
-    def selected(self):
-        return None if self.ranking is None else self.ranking.selected
-
-    @property
-    def assessment(self):
-        return None if self.ranking is None else self.ranking.assessment
-
-    @property
-    def status(self):
-        return ABSTAINED if self.assessment is None else self.assessment.status
-
-    @property
-    def analysis(self):
-        return None if self.regime is None else self.regime.analysis
-
-    def mis(self):
-        return self.selected
-
-    def report(self):
-        lines = [f"MISDA discovery: {self.profile.name or 'Untitled'}"]
-        if self.regime is None:
-            lines.append("Decision: ABSTAINED — profile found no acceptable regime.")
-            return "\n".join(lines)
-        lines.append(
-            f"Profile regime: {self.regime.index}; "
-            f"aggressiveness={self.regime.aggressiveness:.6f}; "
-            f"alpha={self.regime.alpha:.6g}"
-        )
-        lines.append(f"Ranking policy: {self.rank_policy}")
-        objectives = ", ".join(map(str, self.selected.objectives)) if self.selected else "none"
-        lines.append(f"Selected MIS: {objectives}")
-        if self.assessment is not None:
-            reasons = ", ".join(self.assessment.reasons) or "none"
-            lines.append(f"Assessment: {self.assessment.status}; reasons={reasons}")
+        lines.append("This selects the threshold regime only; no MIS has been selected yet.")
         return "\n".join(lines)
 
 
@@ -265,12 +230,12 @@ def _build_regime(
         for item in ranked
     )
 
-    # Profiling needs support only for the canonical first structural group.
-    # Candidate-specific support for an alternative final ranking is evaluated
-    # lazily in discovery(). The null computation is cached whenever the same
-    # retained sets and latent dimension recur in another alpha regime.
-    first_group = groups[0] if groups else tuple()
-    selected_sets = tuple(candidates[index].indices for index in first_group)
+    # Profile is a structural scan, not a ranking decision.  Store support for
+    # every discovered MIS exactly as low-level discover() does, while retaining
+    # the historical aggregate support over the complete first size-span tie
+    # group.  Shared regimes reuse identical permutation work when possible.
+    all_indices = tuple(range(len(candidates)))
+    selected_sets = tuple(candidates[index].indices for index in all_indices)
     support_key = (int(structure.latent_dimension), selected_sets)
     raw_support = support_cache.get(support_key)
     if raw_support is None:
@@ -281,11 +246,15 @@ def _build_regime(
             seed=seed,
         )
         support_cache[support_key] = raw_support
-    support_results = tuple(
+    all_support_results = tuple(
         _api._candidate_support(raw, index)
-        for raw, index in zip(raw_support, first_group)
+        for raw, index in zip(raw_support, all_indices)
     )
-    support_by_index = {item.candidate_index: item for item in support_results}
+    support_by_index = {
+        item.candidate_index: item for item in all_support_results
+    }
+    first_group = groups[0] if groups else tuple()
+    support_results = tuple(support_by_index[index] for index in first_group)
 
     analysis = _api.DiscoveryAnalysis(
         original_dimension=normalized.n_objectives,
@@ -322,24 +291,6 @@ def _build_regime(
     result.support = _api.DimensionalSupport(support_results, result._candidates)
     result._support_by_index = support_by_index
     return result
-
-
-def _ensure_candidate_support(mis_set, candidate_index):
-    """Attach candidate-specific support if profiling did not need that MIS."""
-
-    candidate_index = int(candidate_index)
-    if candidate_index in mis_set._support_by_index:
-        return mis_set._support_by_index[candidate_index]
-    candidate = mis_set[candidate_index]
-    raw = evaluate_dimensional_support_group(
-        mis_set._data,
-        (candidate.indices,),
-        mis_set.analysis.latent_dimension,
-        seed=mis_set.seed,
-    )[0]
-    support = _api._candidate_support(raw, candidate_index)
-    mis_set._support_by_index[candidate_index] = support
-    return support
 
 
 def profile(Y, *, seed=123, name=None, cancel_requested=None):
@@ -422,8 +373,13 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
     )
 
 
-def discovery(source, *, rank_policy=_api.DOMINANCE_PRESERVATION, **profile_kwargs):
-    """Return the recommended MIS from a profile or directly from observed Y."""
+def discovery(source, **profile_kwargs):
+    """Return the MISSet for the regime selected by a Profile.
+
+    Raw observed Y is accepted as a convenience and is profiled first.  This
+    operation never ranks or selects an MIS; ranking policy belongs exclusively
+    to :func:`misda.rank`.
+    """
 
     if isinstance(source, Profile):
         if profile_kwargs:
@@ -437,24 +393,8 @@ def discovery(source, *, rank_policy=_api.DOMINANCE_PRESERVATION, **profile_kwar
 
     regime = observed_profile.selected
     if regime is None:
-        return DiscoveryResult(
-            profile=observed_profile,
-            regime=None,
-            ranking=None,
-            rank_policy=rank_policy,
+        raise RuntimeError(
+            "profile has no selected regime; inspect profile.report() and the "
+            "individual regimes before requesting discovery."
         )
-
-    ranking = _api.rank(
-        regime.mis_set,
-        policy=rank_policy,
-        candidates="all",
-        accept_cost=True,
-    )
-    if ranking.indices:
-        _ensure_candidate_support(regime.mis_set, ranking.indices[0])
-    return DiscoveryResult(
-        profile=observed_profile,
-        regime=regime,
-        ranking=ranking,
-        rank_policy=rank_policy,
-    )
+    return regime.mis_set
