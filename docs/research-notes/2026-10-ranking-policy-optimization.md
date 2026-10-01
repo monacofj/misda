@@ -26,18 +26,18 @@ Issue #83 is implemented on branch `issue-83-ranking-policy-optimization` in `be
 
 The experiment deliberately discovers the MIS universe only once for each MOP and then constructs both ranking views from that same `MISSet`. Both selected candidates receive the same screening diagnostics. For each MOEA seed, Full and both Reduced treatments receive the same explicit initial decision population, optimization budget, optimizer seed and independently fixed NSGA-III reference-direction seed. Reduced solutions are never judged in their projected objective spaces: each checkpoint is re-evaluated in the original M-objective space before computing quality metrics.
 
-The default scientific run uses:
+The initial scientific run used:
 
 - `M=10`;
 - a 512-point scrambled Sobol discovery sample;
 - population 60;
 - checkpoints at 50, 100, 200 and 400 generations;
-- one initial optimizer seed for the first audit, with support for repeated `--moea-seed` arguments in follow-up runs;
+- one optimizer seed (`321`);
 - a fixed Monte-Carlo seed for relative-HV measurement so metric noise is shared across treatments rather than coupled to the optimizer seed.
 
 No automatic numerical threshold is used to declare the Full run converged. Its checkpoint trajectory must be inspected before policy differences are interpreted.
 
-A dedicated workflow, `.github/workflows/ranking-policy-optimization.yml`, runs helper-contract smoke tests on the branch and can launch the scientific audit. The initial smoke run passed before the scientific execution was triggered.
+A dedicated workflow, `.github/workflows/ranking-policy-optimization.yml`, runs helper-contract smoke tests on the branch and launches the scientific/calibration audits. The smoke tests pass.
 
 ## First scientific run — 2026-10-01
 
@@ -83,27 +83,59 @@ The optimizer comparison was not stable across checkpoints. The IGD+ difference 
 | Reduced / size_span | 42.442734 | 41.734896 | 0.000000 |
 | Reduced / dominance_preservation | 52.636475 | 51.790460 | 0.000000 |
 
-The Full treatment is also clearly not converged: although GD+/IGD+ improve overall with budget, they remain very large and relative HV is zero at every checkpoint. The two Reduced trajectories cross repeatedly. Consequently this run gives no defensible ranking-policy conclusion for DPF1 and demonstrates directly that a better static dominance score on `Y` does not guarantee a better MOEA outcome at an arbitrary finite budget.
+The Full treatment is also clearly not converged at that budget. The two Reduced trajectories cross repeatedly. Consequently the initial run gives no defensible ranking-policy conclusion for DPF1 and demonstrates directly that a better static dominance score on `Y` does not guarantee a better MOEA outcome at an arbitrary finite budget.
+
+## Full-only calibration — 2026-10-01
+
+Because the first audit used only 60 NSGA-III reference directions in 10 objectives, a Full-only calibration varied population/reference-direction count (`60`, `120`, `240`) and extended the budget to 800 generations. The same run seed (`321`) and reference-direction seed (`456`) were used for this diagnostic.
+
+### DPF1 calibration
+
+DPF1 was strongly sensitive to population/reference-direction resolution. With population 60, Full was still poor at generation 400 but improved dramatically by generation 800 (`IGD+=0.689`, `HV=0.085`). With population 120 it was already close to the GT by generation 200 and remained so through generation 800:
+
+| population | generation | IGD+ | relative HV |
+|---:|---:|---:|---:|
+| 120 | 200 | 0.03444 | 0.86717 |
+| 120 | 400 | 0.05158 | 0.85496 |
+| 120 | 800 | 0.02089 | 0.89879 |
+| 240 | 100 | 0.01247 | 0.92963 |
+| 240 | 200 | 0.01241 | 0.94429 |
+| 240 | 400 | 0.02270 | 0.88966 |
+| 240 | 800 | 0.02390 | 0.90353 |
+
+Thus the poor Full result in the first DPF1 run was largely an optimization-resolution/budget problem, not evidence about the reduction itself.
+
+### DTLZ5 calibration
+
+Increasing the Full population and budget did **not** produce analogous convergence for DTLZ5. Population 60 deteriorated after generation 200; population 120 reached `IGD+=0.335` and `HV=0.078` at generation 800; population 240 reached its best observed region around generation 400 (`IGD+=0.274`, `HV=0.284`) and remained far from the quality obtained by the `f9,f10` reduction.
+
+| population | generation | IGD+ | relative HV |
+|---:|---:|---:|---:|
+| 60 | 800 | 0.99481 | 0.00000 |
+| 120 | 800 | 0.33539 | 0.07818 |
+| 240 | 400 | 0.27435 | 0.28380 |
+| 240 | 800 | 0.35059 | 0.26264 |
+
+This changes the interpretation of Full. DTLZ5 has a degenerate objective structure, and the inability of a generic 10-objective NSGA-III treatment to match the calibrated GT is itself consistent with why objective reduction can be useful. We should not tune Full until it artificially becomes the oracle. The common calibrated GT is the quality oracle; Full is one treatment using the unreduced formulation.
 
 ## Interpretation
 
-The first end-to-end run sharpens the role of the Revisão 09 metric rather than settling the default-policy question.
+The first end-to-end run and Full-only calibration sharpen the role of the Revisão 09 metric rather than settling the default-policy question.
 
-For DTLZ5, static dominance preservation, independent analytical safety, and optimizer performance align very strongly: `dominance_preservation` chooses `f9,f10`, and that reduction reaches the calibrated GT while `size_span` does not. For DPF1, the static signal is even cleaner, but the optimizer trajectories do not preserve a stable ordering between the two candidate reductions under the current configuration.
+For DTLZ5, static dominance preservation, independent analytical safety, and optimizer performance align very strongly: `dominance_preservation` chooses `f9,f10`, and that reduction reaches the calibrated GT while `size_span` does not. The fact that Full remains difficult even after increasing population and budget reinforces the practical value of a good reduction, but should not be used as evidence that one ranking policy is universally superior.
 
-A second point is now explicit: **the sampled Full optimization run is a treatment, not the ground truth**. In many-objective problems a reduced formulation may legitimately be much easier for the optimizer than the Full formulation. End-to-end quality should therefore be judged primarily against the common calibrated Pareto GT; Full is useful as a baseline only when its own convergence is adequate.
+For DPF1, the initial static signal was clean but the first optimizer comparison used an inadequate Full configuration. The calibration shows that a higher reference-direction resolution produces a credible Full baseline, so the policy comparison should be repeated under that regime and over independent optimizer seeds.
+
+A central methodological point is now explicit: **the Full optimization run is a treatment, not the ground truth**. End-to-end quality is judged against the common calibrated Pareto GT. A Reduced treatment may legitimately outperform Full because reduction can make the optimization problem easier.
 
 The current data support neither promoting `dominance_preservation` nor dismissing it. They do show that the ranking policy can have a large downstream effect and that the observed-Y dominance metric can be predictive in at least one important analytical control.
 
 ## Next step
 
-Before drawing a policy conclusion:
+The next audit should use a substantially denser NSGA-III population/reference-direction set (population 240), retain a generous 800-generation maximum budget, and repeat Full, Reduced/`size_span`, and Reduced/`dominance_preservation` over several independent MOEA seeds. The same reference-direction seed can remain fixed across paired treatments in this first multi-seed pass so that treatment differences are not confounded by different direction sets.
 
-1. calibrate the Full optimization protocol more carefully for DTLZ5 and DPF1, rather than treating 400 generations as automatically sufficient;
-2. repeat the comparison across independent MOEA seeds once a defensible optimization configuration/budget is established;
-3. interpret Reduced variants against the common GT, using Full as an additional treatment rather than as truth;
-4. only then ask whether the sign/magnitude of the static dominance advantage predicts the distribution of end-to-end optimization outcomes.
+The resulting distributions should be interpreted against the common GT at multiple checkpoints. Only after that should we ask whether the sign/magnitude of the static dominance advantage predicts end-to-end optimization quality strongly enough to influence ranking policy design.
 
 ## Status
 
-Implementation and smoke tests pass. The first scientific workflow run completed successfully and produced informative but not yet definitive results. No ranking-policy default change is justified at this stage.
+Implementation, smoke tests, first scientific audit, and Full-only calibration all pass. No ranking-policy default change is justified at this stage. A multi-seed calibrated comparison is the next experiment.
