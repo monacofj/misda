@@ -1,8 +1,8 @@
 # Ranking-policy default audit
 
 - Period: 2026-09-30 to 2026-10-01
-- Status: **Rejected for default promotion; follow-up open**
-- Tracking: issue #78, PR #79
+- Status: **Rejected for default promotion; follow-up completed**
+- Tracking: issue #78, PR #79; follow-up issue #80 / PR #81
 - Normative reference: ADR 0021
 
 ## Question
@@ -99,12 +99,25 @@ This separates two axes:
 
 ## Decision
 
-The evidence does **not** justify promoting `dominance_preservation` wholesale to the public default yet. `size_span` remains the default structural order and `dominance_preservation` remains experimental.
+The evidence does **not** justify promoting `dominance_preservation` wholesale to the public default. `size_span` remains the default structural order and `dominance_preservation` remains experimental.
 
-The next methodological question is whether ranking evidence needs explicit uncertainty/resampling or a conservative combined rule before any future default-policy change.
+## Ranking-resampling follow-up
+
+Issue #80 / PR #81 tested the next proposed remedy: whether a stable bootstrap advantage
+
+```text
+DeltaD = D(S_dom) - D(S_struct) < 0
+```
+
+could distinguish the strong DTLZ5/DPF1 signal from noisy representative choices. That experiment is recorded separately in
+`2026-10-ranking-resampling-uncertainty.md`.
+
+The result was negative as a general decision rule: DTLZ5 and DPF1 were perfectly stable under row bootstrap, but some externally regressing noisy controlled choices were also highly stable. Row resampling therefore probes uncertainty conditional on the observed `Y`; it cannot generally diagnose systematic observation-noise distortion of an unobserved clean objective matrix.
 
 ## Reproducibility policy
 
-PR #79 retains the audit runners and a GitHub Actions workflow, but these experiments are scientific validation rather than ordinary acceptance tests. The workflow is manual-only (`workflow_dispatch`); `core`, `sampling`, `noisy`, and `aggressiveness` batteries are all opt-in and disabled by default, and a dispatch with no explicit selection fails immediately.
+PR #79 retains the policy-impact and aggressiveness audit runners and a GitHub Actions workflow, but these experiments are scientific validation rather than ordinary acceptance tests. The workflow is manual-only (`workflow_dispatch`); `core`, `sampling`, `noisy`, and `aggressiveness` batteries are all opt-in and disabled by default, and a dispatch with no explicit selection fails immediately.
 
-This note is the scientific reason PR #79 exists: it preserves the experiment that prevented a premature default-policy change and leaves the resulting open question reproducible.
+The ranking-resampling follow-up remains a local reproducible ad hoc experiment rather than another workflow battery.
+
+This note is the scientific reason PR #79 exists: it preserves the experiment that prevented a premature default-policy change and points to the separate issue #80 note for the completed uncertainty follow-up.
