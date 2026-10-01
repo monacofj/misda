@@ -47,7 +47,7 @@ Passing `experimental=True` while keeping `correlation="pearson"` is permitted a
 
 Spearman is preserved as a research option because the September 2026 investigation found a genuine advantage for strongly nonlinear monotonic relations, especially under clean resampling, but also a marked loss of robustness under even small observation noise once the monotonic transformation becomes sufficiently steep. The evidence therefore did not support replacing Pearson as the default.
 
-The complete experimental rationale, formulas, benchmark design, intermediate conjectures, corrections, resampling/noise studies, the `k x sigma` sweep, and the final interpretation are recorded in:
+The complete experimental rationale, formulas, benchmark design, intermediate conjectures, corrections, resampling/noise studies, the `k x sigma` sweep, and the final interpretation are recorded in the canonical research notebook entry:
 
 `docs/research-notes/2026-09-pearson-vs-spearman-investigation.md`
 
