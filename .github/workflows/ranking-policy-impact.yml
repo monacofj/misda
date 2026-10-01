@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'benchmarks/run_ranking_policy_impact.py'
+      - 'benchmarks/run_ranking_policy_aggressiveness_probe.py'
       - 'misda/api.py'
       - 'misda/_dominance.py'
       - 'misda/benchmarks/**'
@@ -93,4 +94,29 @@ jobs:
         with:
           name: misda-ranking-policy-impact-noisy
           path: /tmp/misda-ranking-policy-impact-noisy.json
+          if-no-files-found: warn
+
+  aggressiveness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]'
+      - name: Policy by aggressiveness probe
+        run: |
+          python -m benchmarks.run_ranking_policy_aggressiveness_probe \
+            --output /tmp/misda-ranking-policy-aggressiveness.json
+      - name: Preserve aggressiveness probe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-ranking-policy-aggressiveness
+          path: /tmp/misda-ranking-policy-aggressiveness.json
           if-no-files-found: warn
