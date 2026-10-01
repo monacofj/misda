@@ -1,8 +1,8 @@
 # Ranking-policy default audit
 
 - Period: 2026-09-30 to 2026-10-01
-- Status: **Rejected for default promotion; follow-up open**
-- Tracking: issue #78, PR #79; follow-up issue #80
+- Status: **Rejected for default promotion; follow-up completed**
+- Tracking: issue #78, PR #79; follow-up issue #80 / PR #81
 - Normative reference: ADR 0021
 
 ## Question
@@ -99,44 +99,25 @@ This separates two axes:
 
 ## Decision
 
-The evidence does **not** justify promoting `dominance_preservation` wholesale to the public default yet. `size_span` remains the default structural order and `dominance_preservation` remains experimental.
+The evidence does **not** justify promoting `dominance_preservation` wholesale to the public default. `size_span` remains the default structural order and `dominance_preservation` remains experimental.
 
-## Next hypothesis: resampling the ranking evidence
+## Ranking-resampling follow-up
 
-Issue #80 tests the next question directly. For a fixed observed `Y`, let
-`S_dom` be the candidate selected by `dominance_preservation` and `S_struct` the
-candidate selected by `size_span`. Holding those candidate subsets fixed, row
-resamples of `Y` will be used to estimate
+Issue #80 / PR #81 tested the next proposed remedy: whether a stable bootstrap advantage
 
 ```text
-DeltaD = D(S_dom) - D(S_struct)
+DeltaD = D(S_dom) - D(S_struct) < 0
 ```
 
-where `D(S)` is the observed `new_dominance_rate` after projection to `S`.
+could distinguish the strong DTLZ5/DPF1 signal from noisy representative choices. That experiment is recorded separately in
+`2026-10-ranking-resampling-uncertainty.md`.
 
-The working hypothesis is:
-
-- a genuinely strong observed-order advantage should keep `DeltaD < 0` across most resamples;
-- a noise-driven representative preference should show weak support, ties, or frequent sign reversals around zero.
-
-The primary experiment deliberately does **not** rediscover graph structure in
-each bootstrap sample. That would mix uncertainty in discovery with uncertainty
-in ranking evidence. The first test isolates only the latter by comparing the
-same two candidate subsets on resampled rows.
-
-Analytical controls such as DTLZ5 and DPF1 are expected to provide the strong
-signal side of the experiment. Noisy controlled divergences from PR #79,
-especially block and antagonistic cases, provide the uncertain/noise-sensitive
-side. Benchmark truth remains external and is attached only after the Y-only
-resampling statistic has been computed.
-
-No public threshold, API change, or default-policy change is part of issue #80.
-The purpose is to determine whether resampling uncertainty can distinguish the
-robust dominance advantages previously seen in optimization controls from the
-noisy representative choices that blocked default promotion in PR #79.
+The result was negative as a general decision rule: DTLZ5 and DPF1 were perfectly stable under row bootstrap, but some externally regressing noisy controlled choices were also highly stable. Row resampling therefore probes uncertainty conditional on the observed `Y`; it cannot generally diagnose systematic observation-noise distortion of an unobserved clean objective matrix.
 
 ## Reproducibility policy
 
-PR #79 retains the audit runners and a GitHub Actions workflow, but these experiments are scientific validation rather than ordinary acceptance tests. The workflow is manual-only (`workflow_dispatch`); `core`, `sampling`, `noisy`, and `aggressiveness` batteries are all opt-in and disabled by default, and a dispatch with no explicit selection fails immediately.
+PR #79 retains the policy-impact and aggressiveness audit runners and a GitHub Actions workflow, but these experiments are scientific validation rather than ordinary acceptance tests. The workflow is manual-only (`workflow_dispatch`); `core`, `sampling`, `noisy`, and `aggressiveness` batteries are all opt-in and disabled by default, and a dispatch with no explicit selection fails immediately.
 
-This note is the scientific reason PR #79 exists: it preserves the experiment that prevented a premature default-policy change and now points explicitly to issue #80 for the ranking-resampling follow-up.
+The ranking-resampling follow-up remains a local reproducible ad hoc experiment rather than another workflow battery.
+
+This note is the scientific reason PR #79 exists: it preserves the experiment that prevented a premature default-policy change and points to the separate issue #80 note for the completed uncertainty follow-up.
