@@ -1,31 +1,51 @@
-<!--
-SPDX-FileCopyrightText: 2025 Monaco F. J. <monaco@usp.br>
-SPDX-License-Identifier: GPL-3.0-or-later
--->
-
 # Contributing to MISDA
 
-Thank you for your interest in MISDA!
+MISDA is research software. Changes must preserve both the public software
+contract and the scientific provenance of methodological changes.
 
-This project is open source, and we welcome contributions from the community to help improve the framework.
+## Public behavior
 
-## How to Contribute
+Before changing discovery, evaluation, ranking, reporting, visualization, or
+benchmark behavior:
 
-If you are interested in contributing to the source code, documentation, or proposing new features, please, feel free to contact the authors.
+1. identify the relevant ADRs in `docs/adr/`;
+2. preserve their invariants unless the change intentionally supersedes them;
+3. update tests that protect the public contract;
+4. do not silently remove report fields, metrics, selectors, or reproducibility
+   controls.
 
-See the [AUTHORS](AUTHORS) file for contact details.
+A change that intentionally alters a normative methodological or architectural
+decision requires a new ADR or an explicit superseding update to the ADR set.
 
-## Public capability preservation
+## Scientific provenance
 
-Refactors are behavior-preserving by default. User-visible scientific capabilities are part of the project contract even when their exact textual formatting is allowed to evolve.
+`docs/research-notes/` is the chronological laboratory notebook. Substantive
+investigations should preserve the question, experimental or analytical test,
+result, interpretation, and conclusion, including negative or rejected results.
 
-Before deleting, replacing, or classifying an implementation as legacy, contributors must:
+Do not create parallel historical ledgers for validation results or design
+rationale. The documentation roles are:
 
-1. identify the public behavior and diagnostics currently provided;
-2. preserve equivalent behavior in the replacement implementation, or document an intentional breaking change in a superseding ADR;
-3. add replacement contract tests before removing existing regression tests;
-4. never delete a public-behavior test merely because the implementation it protects is being removed;
-5. run the named acceptance gates and the complete test suite;
-6. verify benchmark outputs separately from MISDA-native outputs so benchmark truth cannot mask a loss of native capability.
+- `docs/adr/`: current normative method and public contract;
+- `docs/research-notes/`: scientific history and open/rejected hypotheses;
+- `docs/userguide.md`: current user workflow;
+- specialized documents: current capability-specific instructions.
 
-For reporting specifically, `tests/test_reporting_contract.py` is a minimum-capability gate. Changes to `MISSet.report()` must preserve its information families unless ADR 0016 is explicitly superseded.
+If an investigation changes the method, record the history in a research note
+and the adopted decision in an ADR, linking the two rather than copying the
+full experimental narrative into both.
+
+## Benchmarks and expensive validation
+
+Benchmark truth must remain outside runtime MISDA discovery, evaluation, and
+ranking. Scientific validation workflows may be heavier than ordinary CI and
+should not become implicit pull-request costs unless they are genuine regression
+gates. Manual validation workflows must make their selected batteries explicit
+and preserve reproducible artifacts when appropriate.
+
+## Reproducibility
+
+Stochastic experiments must use explicit seeds and record enough configuration
+to reproduce the result. When a benchmark conclusion depends on a particular
+commit or workflow run, record that provenance in the corresponding research
+note.
