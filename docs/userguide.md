@@ -6,9 +6,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # MISDA static user guide
 
 The static API separates structural discovery, candidate evaluation, and
-preference among candidates. This separation prevents a result from implying
-that an evaluation was computed when it was not and prevents ranking choices
-from feeding back into structural inference.
+preference among candidates. This prevents evaluation or ranking choices from
+feeding back into structural inference.
 
 ## 1. Input contract
 
@@ -37,11 +36,12 @@ mis_set = misda.discover(
 ```
 
 `aggressiveness` is a float in `[0,1]`. `0` selects the positive-signal onset
-and `1` the null-calibrated endpoint. `seed` controls the reproducible
-permutation procedures. `name` is an optional display label.
+and `1` the null-calibrated endpoint, with interpolation in log-alpha space.
+`seed` controls reproducible permutation procedures. `name` is an optional
+display label.
 
 `discover()` does not accept a ranking policy and does not perform linear,
-Pareto, or nonlinear candidate evaluation.
+Pareto, dominance, or nonlinear candidate evaluation.
 
 ## 3. Dimensions and graphs
 
@@ -64,30 +64,25 @@ print(analysis.structural_components)
 print(analysis.latent_components)
 ```
 
-The separation status is also stored on `analysis`. `NULL_SEPARATION` means the
-positive-signal onset precedes the null-calibrated endpoint;
-`NO_NULL_SEPARATION` means no strict separation was established.
-
 ## 4. The canonical MIS universe
 
 Every maximal independent set of `G+` is retained. `MISSet` has a fixed
-canonical order established by the structural policy `size_span`:
+canonical order established by `size_span`:
 
 ```text
 size   descending
 span   descending
 ```
 
-For a maximal independent set `S`, every vertex outside `S` must be adjacent to
-at least one vertex in `S`; otherwise `S` would not be maximal. Therefore
-`neighborhood = n - size`. Also, `avg_external_degree = span / size`. Once
-`size` is fixed, neither quantity adds an independent ranking criterion. These
-metrics remain available for structural description, but the scientific
-ranking key is explicitly `size` followed by `span`.
+For a maximal independent set `S`, maximality implies that every vertex outside
+`S` is adjacent to at least one selected vertex. Therefore
+`neighborhood = n - size`; also, `avg_external_degree = span / size`.
+`neighborhood`, `neighborhood_ratio`, and `avg_external_degree` remain useful
+descriptive metrics but do not add independent ranking criteria once `size`
+and `span` are known.
 
-A deterministic label-based tie-break makes the sequence reproducible but does
-not create a new scientific rank. Equal `size` and `span` therefore define a
-scientific tie group.
+A deterministic label tie-break makes the sequence reproducible without
+creating a new scientific rank.
 
 ```python
 candidate = mis_set[0]
@@ -101,42 +96,43 @@ candidate.structural.avg_external_degree
 candidate.structural.span
 ```
 
-A candidate does not carry a public ID or intrinsic `rank`. Its fixed position
-in the owning `MISSet` is its operational identity.
-
 ## 5. Ranking
 
 Use `rank()` to materialize an ordered view:
 
 ```python
 ranking = misda.rank(mis_set)
+mis = ranking.mis()
 ```
 
-The default remains `policy="size_span"`. The experimental alternative
-`policy="pareto_retention"` ranks candidates only by empirical Pareto-front
-retention on the observed `Y`. Cardinality is not a scientific ranking
-criterion. If retention ties exactly, the smaller MIS is ordered first only as
-an operational reduction-efficiency tie-break; tied candidates remain in the
-same scientific rank group.
+The public default remains `policy="size_span"`.
 
-It requires stored Pareto evidence:
+### 5.1 Pareto retention
+
+The experimental `pareto_retention` policy ranks only by empirical Pareto
+retention on observed `Y`. It requires stored Pareto evidence:
 
 ```python
 mis_set.evaluate(metrics=("pareto",), candidates="all")
 ranking = misda.rank(mis_set, policy="pareto_retention")
 ```
 
-Or the user may explicitly authorize that evaluation cost:
+Or the user may explicitly authorize the evaluation cost:
 
 ```python
 ranking = misda.rank(mis_set, policy="pareto_retention", accept_cost=True)
 ```
 
-`pareto_retention` is experimental and does not replace the canonical structural
-order. A second experimental policy, `dominance_preservation`, ranks by the
-fraction of row pairs with no dominance in full `Y` that acquire a dominance
-relation after projection. Lower values rank first; exact scientific ties are
-ordered with the larger MIS first as a conservative operational tie-break.
+Exact retention ties are ordered with the smaller MIS first only as an
+operational reduction-efficiency tie-break. Tied candidates remain in the same
+scientific rank group.
+
+### 5.2 Dominance preservation
+
+The experimental `dominance_preservation` policy minimizes the fraction of row
+pairs with no dominance in full `Y` that acquire a strict dominance relation
+after projection. Lower is better; exact scientific ties are ordered with the
+larger MIS first as a conservative operational tie-break.
 
 ```python
 mis_set.evaluate(metrics=("dominance",), candidates="all")
@@ -146,13 +142,23 @@ print(ranking.assessment.status)
 ```
 
 `ranking.assessment` never suppresses the selected MIS. It annotates it as
-`NO_REDUNDANCY`, `SUPPORTED_REDUCTION`, or `UNSUPPORTED_REDUCTION`. In the last
-case the candidate is still returned so its error can be inspected, but MISDA
-explicitly says not to trust the reduction. These policies use observed `Y`
-only; neither is a proof of global optimization equivalence.
+`NO_REDUNDANCY`, `SUPPORTED_REDUCTION`, or `UNSUPPORTED_REDUCTION`. Unsupported
+candidates remain returned so their empirical or benchmark error can be
+inspected.
 
-A `Ranking` references the same MIS objects and does not mutate the
-`MISSet`. The user-facing selector is `mis(level, position)`:
+Neither experimental policy is a proof of global optimization equivalence. The
+October 2026 audit found that `dominance_preservation` is selection-equivalent
+to `size_span` on the tested clean controlled batteries, but noisy observed `Y`
+can make it prefer another representative MIS without a consistent improvement
+in external Pareto truth. The default therefore remains `size_span`.
+
+The scientific history and the aggressiveness follow-up are recorded in
+`docs/research-notes/2026-10-ranking-policy-default-audit.md`.
+
+### 5.3 Ranking views
+
+A `Ranking` references the same MIS objects and does not mutate `MISSet`.
+Selection uses scientific tie level and local position:
 
 ```python
 mis = ranking.mis()                  # level=0, position=0
@@ -162,57 +168,31 @@ alternative = ranking.mis(level=0, position=3)
 ranking[:10]                         # another Ranking view
 ranking.selected                     # compatibility alias for the first MIS
 ranking.selected_dimension
-ranking.groups                       # scientific tie groups
+ranking.groups
 ```
 
-`level` selects a scientific tie group and `position` selects one MIS
-inside that group; both are zero-based. The returned object is the existing
-`MISCandidate` owned by `mis_set`, not a copy or ranking-specific wrapper.
-
-The graph-derived structural dimension and the selected dimension are distinct
-concepts:
+The graph-derived structural dimension and ranking-selected dimension are
+distinct concepts:
 
 ```python
 mis_set.analysis.structural_dimension
 ranking.selected_dimension
 ```
 
-Under the current complete enumeration and size-first canonical policy, the
-canonical selected candidate necessarily has size equal to the structural
-independence number. The definitions nevertheless remain separate so future
-ranking policies can select differently without redefining graph dimension.
-
 ## 6. Dimensional support
 
-`discover()` evaluates internal evidence for whether the graph-derived
-dimensional description is sufficient. This is a global discovery diagnostic,
-not a ranking metric and not a replacement dimension estimator.
+`discover()` evaluates internal evidence against the sufficiency of the
+observed graph-derived dimensional description. The current mechanisms are:
 
-The current mechanisms are:
-
-- `TRANSITIVE_CHAINING`: indirect max-min positive paths to the retained
-  candidate are stronger than direct positive association beyond a permutation
-  null reference;
-- `HIDDEN_SPECTRAL_STRUCTURE`: the first rank-correlation eigenvalue beyond the
-  estimated latent signal dimension exceeds its column-permutation null mean.
+- `TRANSITIVE_CHAINING`;
+- `HIDDEN_SPECTRAL_STRUCTURE`.
 
 Candidate-specific support is stored for every discovered MIS using shared null
-permutations. The historical aggregate `mis_set.support` remains defined over
-the first `size_span` tie group. Use `mis_set.support_for(candidate)` for a MIS
-selected by any ranking. Aggregate first-group states are:
-
-```text
-SUPPORTED             all tied first-rank candidates supported
-PARTIALLY_SUPPORTED   some supported and some unsupported
-UNSUPPORTED           none supported
-```
-
-Inspect the aggregate and individual evidence with:
+permutations. The compatibility aggregate `mis_set.support` remains defined
+over the first `size_span` tie group. Use `mis_set.support_for(candidate)` for a
+candidate selected by any ranking.
 
 ```python
-mis_set.support.status
-mis_set.support.supported
-mis_set.support.unsupported
 support = mis_set.support_for(ranking.mis())
 
 support.status
@@ -221,20 +201,20 @@ support.transitivity_excess
 support.spectral_excess
 ```
 
-`SUPPORTED` means that these diagnostics found no contradiction. It does not
-prove that the unknown true dimension equals the estimate.
+Aggregate first-group states are `SUPPORTED`, `PARTIALLY_SUPPORTED`, and
+`UNSUPPORTED`. A supported result means that the current diagnostics found no
+internal contradiction; it does not certify unknown global truth.
 
-## 7. MIS evaluation
+## 7. Candidate evaluation
 
-Use the `MISSet` facade for candidate-level evidence:
+Use the `MISSet` facade:
 
 ```python
 mis_set.evaluate()
 ```
 
-With no arguments this preserves the established default:
-`metrics=("linear", "pareto")`. The module form remains public and
-equivalent for compatibility:
+With no arguments the established default is
+`metrics=("linear", "pareto")`. The module form remains public and equivalent:
 
 ```python
 misda.evaluate(mis_set, metrics=("linear", "pareto"))
@@ -250,66 +230,43 @@ pareto
 dominance
 ```
 
-Structural metrics are already present after discovery. The other families are
-attached only when requested. Evaluation never changes graph structure,
-dimensions, the candidate universe, or the canonical order.
+Evaluation never changes graph structure, dimensions, the candidate universe,
+or canonical order.
 
-### 7.1 Candidate selection
-
-The evaluation scope accepts:
+### 7.1 Evaluation scope
 
 ```python
 candidates="all"
 candidates=ranking.mis()
 candidates=[ranking.mis(0, 0), ranking.mis(0, 1)]
 candidates=ranking[:10]
-
-# Existing integer/index selectors remain supported for compatibility:
-candidates=10
-candidates=[0, 4, 17]
 ```
 
-If no selector is given:
-
-- linear/Pareto-only calls evaluate all candidates;
-- any call containing nonlinear evaluation operates on one candidate.
-
-The scope applies to the whole call. Therefore:
-
-```python
-mis_set.evaluate(metrics=("linear", "nonlinear"))
-```
-
-evaluates both families on one candidate. Use separate calls if different
-scopes are desired.
-
-Whenever fewer than all candidates are evaluated, `mis_set.report()` states the
-scope and selection basis explicitly.
+Existing integer/index selectors remain supported for compatibility. Calls
+containing nonlinear evaluation default to one candidate because nonlinear
+reconstruction is expensive; linear/Pareto-only calls default to all
+candidates.
 
 ### 7.2 Linear reconstruction
 
 Linear reconstruction predicts only eliminated objectives from retained
-objectives using external PRESS/LOO semantics. It records untruncated R² and
-jackknife uncertainty.
+objectives using external PRESS/LOO semantics and records untruncated R².
 
 ```python
 mis = ranking.mis()
-
 mis.linear.mean_r2
 mis.linear.worst_r2
 mis.linear.r2("f7")
 mis.linear.jackknife.mean_r2_se
-mis.linear.jackknife.r2_se("f7")
 ```
 
-When no objective is eliminated or a target is mathematically undefined, the
-corresponding quantity is `None` with a machine-readable reason; artificial
-perfect scores are not inserted.
+Undefined quantities are represented explicitly rather than replaced by
+artificial perfect scores.
 
 ### 7.3 Pareto preservation
 
-Pareto evaluation currently assumes minimization and compares empirical
-nondominated row sets:
+Pareto evaluation assumes minimization and compares empirical nondominated row
+sets:
 
 ```python
 mis.pareto.retention
@@ -321,25 +278,18 @@ mis.pareto.reduced_front_indices
 
 Objective projection can create new strict dominance relations among rows that
 were incomparable in full `Y`. It can also erase an existing strict dominance
-relation when all strict coordinates are removed and the projected rows become
+relation when all strict coordinates are removed and projected rows become
 exactly tied. Therefore neither empirical nondominated set is guaranteed to be
-a subset of the other. `retention`, `validity`, and `jaccard` are distinct
-set-membership diagnostics. In generic continuous samples exact projected ties
-may be rare, so validity can often equal 1 empirically; that is an observed
-sample property rather than a projection identity.
+a subset of the other. Retention, validity, and Jaccard remain distinct.
 
-Exact membership agreement is deliberately separate from observed-data Pareto
-stability. When Pareto evaluation is requested, `mis_set.pareto_stability`
-reports the observed-front fraction, range-normalized dominance margins, and
-range-normalized additive epsilon from a reduced front to the observed full
-front. These quantities help distinguish a saturated/perturbation-sensitive
-front from a geometrically poor reduction; no fixed pass/fail cutoff is imposed.
+The counterexample that corrected the earlier subset assumption is preserved in
+`docs/research-notes/2026-09-pareto-projection-semantics-correction.md`.
 
-Mixed directions are outside the current contract.
+`mis_set.pareto_stability` separately reports observed-front fraction,
+range-normalized dominance margins, and range-normalized additive epsilon. No
+fixed pass/fail cutoff is imposed.
 
 ### 7.4 Nonlinear reconstruction
-
-Nonlinear evidence is explicitly requested:
 
 ```python
 mis_set.evaluate(
@@ -350,86 +300,31 @@ mis_set.evaluate(
 mis = ranking.mis()
 mis.nonlinear.mean_r2
 mis.nonlinear.worst_r2
-mis.nonlinear.r2("f7")
 ```
 
 The engine uses nested external leave-one-out Random Forest reconstruction,
-internal discrete model selection, deterministic seed derivation, and tree
-stopping based on computational versus sample uncertainty.
-
-An optional sequential null reference is attached to the same nonlinear domain:
-
-```python
-mis_set.evaluate(
-    metrics=("nonlinear",),
-    candidates=ranking.mis(),
-    null_reference=True,
-)
-
-null = ranking.mis().nonlinear.null_reference
-null.mean_null_r2
-null.above_null_r2
-null.incidental_reconstruction_rate
-null.mc_se_mean_null_r2
-```
+internal discrete model selection, deterministic seed derivation, and
+uncertainty-driven tree stopping. An optional null reference is requested with
+`null_reference=True`.
 
 ## 8. Reports and visualizations
 
-The ranking report is the complete, self-contained user report:
+The ranking report is the complete self-contained user report:
 
 ```python
 ranking = misda.rank(mis_set)
-
 print(ranking.report())
 ```
 
-It preserves the complete discovery, support, evaluation, ranking, and
-selected-MIS evidence already available in the public report contract. Report fields that are easy to misread carry a single-line annotation after
-an em dash, for example graph dimensions versus component counts, threshold
-calibration endpoints, null-envelope completion, ranking ties, support
-diagnostics, and Pareto summaries. The format is deliberately compact:
-a minimal technical definition comes first, followed by a clearer intuitive
-gloss in parentheses. Annotations do not wrap onto continuation lines; ordinary
-fields target roughly 100–110 characters when their values permit it. These
-explanations are descriptive only:
-reporting never recomputes scientific state.
-
-Existing `mis_set.report()` behavior remains supported for compatibility; the
-reporting contract does not authorize shrinking or omitting evidence.
-
-Inspect one selected MIS directly:
+Reports and visualizations consume stored state and do not trigger hidden
+candidate evaluation.
 
 ```python
 mis = ranking.mis()
-
 print(mis.report())
-graph = mis.graph_plot(show=False)
-front = mis.front_plot(show=False)
+mis.graph_plot(show=False)
+mis.front_plot(show=False)
 ```
-
-Explore another MIS in ranking coordinates without manipulating canonical
-indices:
-
-```python
-ranking.mis(0, 3).report()
-ranking.mis(0, 3).front_plot()
-```
-
-All report and visualization views consume only stored state; they do not
-trigger hidden candidate evaluation. `graph_plot()` draws stored `G+` and
-highlights the selected MIS. `front_plot()` requires Pareto evidence already
-stored for that MIS and renders the full/reduced empirical-front membership
-with Plotly. With at least three objectives it uses a rotatable 3D scatter;
-with two objectives it uses a 2D scatter. Objective selectors alter only the
-displayed projection, not Pareto membership.
-
-The previous `MISSet.graph_plot(...)` and `MISSet.front_plot(...)` selection
-forms remain supported for compatibility.
-
-Inside notebooks, `front_plot(show=True)` displays inline. From a terminal it
-writes a self-contained temporary HTML file and attempts to open it in the
-system browser; if automatic browser launch is unavailable, the retained file
-path is reported. The Plotly `Figure` is returned in all cases.
 
 See `docs/visualization.md` and ADR 0018 for the full visualization contract.
 
@@ -450,14 +345,9 @@ bench = misda.benchmark(mis_set, truth)
 print(bench.report())
 ```
 
-Truth never enters `discover()`, `MISSet.evaluate()`, or `rank()`. Declared latent and
-structural dimensions are compared with their corresponding graph independence
-numbers. The canonical ranking's selected dimension is reported separately.
+Truth never enters `discover()`, `MISSet.evaluate()`, or `rank()`.
 
-If Pareto truth is declared, the selected candidate must already have Pareto
-evidence; `benchmark()` does not perform hidden candidate evaluation.
-
-Repository-level reproducible batteries are available as:
+Repository-level reproducible batteries include:
 
 ```bash
 python -m benchmarks.run_controlled --output results/controlled.json
@@ -473,20 +363,19 @@ Notebook-level validation is organized under `benchmarks/`:
 - `controlled.ipynb`: exact-observation 13-case reference;
 - `controlled_noisy.ipynb`: fixed `sigma=0.10` reference condition;
 - `sampling_robustness.ipynb`: independent clean samples with `sigma=0`;
-- `noisy_robustness.ipynb`: observation-noise sweep across `sigma` and replicate streams;
+- `noisy_robustness.ipynb`: observation-noise sweep;
 - `comparison.ipynb`: MISDA/PCA comparison on controlled truth;
-- `classical.ipynb`: classical DTLZ reference problems.
+- `classical.ipynb`: classical DTLZ reference problems;
+- `optimization.ipynb`: paired Full/Reduced optimization proof-of-concept.
 
-The comparison battery uses a common external reconstruction metric for direct
-MISDA/PCA comparison while preserving each method's native diagnostics as
-separate estimands.
+The ordinary acceptance workflow keeps lightweight regression gates automatic.
+Heavier scientific validation batteries are run explicitly. The ranking-policy
+impact workflow introduced by PR #79 is manual-only and requires an explicit
+selection of the desired audit battery.
 
-The ordinary acceptance workflow keeps the clean scientific battery and method
-comparison as routine regression gates. The heavier fixed-noise and robustness
-studies run in the path-scoped/manual `extended benchmark validation` workflow,
-which preserves their JSON artifacts. Current empirical evidence is recorded in
-`docs/validation_results.md`; that file is a reproducibility record, not a
-normative ADR.
+The empirical history of benchmark investigations is not duplicated in a
+separate validation ledger. It lives chronologically in
+`docs/research-notes/README.md`.
 
 ## 10. `alpha_null` empirical null envelope
 
@@ -499,23 +388,31 @@ r_null = max(m_1, ..., m_N)
 log_alpha_null = positive_correlation_log_p(r_null, N)
 ```
 
-The sequential `mean ± MC-SE` stopping rule and its former `10N` cap are no
-longer part of the public estimator. Repeated calls with the same seed are
-reproducible. Legacy uncertainty fields remain available for compatibility, but
-quantities whose former Monte Carlo mean interpretation no longer applies are
-reported without misleading uncertainty semantics. See ADR 0015 for the
-normative decision.
+The former sequential `mean ± MC-SE` rule and its `10N` cap are not part of the
+current estimator. See ADR 0015 for the normative decision.
 
-## 11. Scope and limitations
+## 11. Documentation and scientific provenance
+
+The documentation layers are intentionally distinct:
+
+- `docs/adr/` is the authoritative methodological and architectural
+  specification;
+- `docs/research-notes/` is the chronological laboratory notebook containing
+  hypotheses, experiments, negative results, corrections, and open questions;
+- this user guide describes current operation of the public API;
+- specialized current-capability documents cover visualization and explicitly
+  gated experimental backends.
+
+If a research note and an ADR ever conflict, the ADR is normative. A new
+research result becomes an ADR only when it changes the method or software
+contract.
+
+## 12. Scope and limitations
 
 - Static MISDA is the current active scientific path.
-- Adaptive analysis is suspended and outside the current API and acceptance
-  gate.
-- Pairwise graph structure is correlation-based and does not establish
-  causality.
-- Structural dimension, latent dimension, connected-component counts, and a
-  ranking-selected dimension are distinct quantities.
-- Complete MIS enumeration is currently assumed; bounded partial enumeration
-  remains future work.
-- `pareto_retention` is experimental; additional ranking policies remain future work.
+- Adaptive analysis is suspended and outside the current API and acceptance gate.
+- Pairwise graph structure is correlation-based and does not establish causality.
+- Structural dimension, latent dimension, component counts, and selected dimension are distinct quantities.
+- Complete MIS enumeration is currently assumed; bounded partial enumeration remains future work.
+- `pareto_retention` and `dominance_preservation` are experimental ranking policies.
 - Maximization and mixed objective directions remain future work.
