@@ -30,9 +30,13 @@ def test_public_surface_is_discover_evaluate_rank():
     assert not hasattr(misda, "heavy")
 
 
-def test_public_ranking_policy_is_size_span():
+def test_public_structural_policy_is_size_span_and_rank_default_is_dominance():
     assert misda.SIZE_SPAN == "size_span"
     assert misda.STRUCTURAL_COVERAGE == misda.SIZE_SPAN
+    assert (
+        inspect.signature(misda.rank).parameters["policy"].default
+        == misda.DOMINANCE_PRESERVATION
+    )
 
 
 def test_discover_has_no_policy_parameter():
@@ -79,11 +83,13 @@ def test_ranking_slice_returns_ranking_view():
 def test_rank_does_not_reorder_mis_set():
     result = misda.discover(_two_blocks(), seed=19)
     before = tuple(candidate.indices for candidate in result)
+    canonical_before = tuple(result.structural_ranking.indices)
 
     ranking = misda.rank(result)
 
+    assert ranking.mis_set is result
     assert tuple(candidate.indices for candidate in result) == before
-    assert tuple(candidate.indices for candidate in ranking) == before
+    assert tuple(result.structural_ranking.indices) == canonical_before
 
 
 def test_linear_evaluation_defaults_to_all_candidates(monkeypatch):
@@ -257,7 +263,7 @@ def test_ranking_mis_selects_by_level_and_position_without_indices():
     x = np.linspace(-1.0, 1.0, 20)
     data = np.column_stack([x, x, x, x])
     result = misda.discover(data, seed=43)
-    ranking = misda.rank(result)
+    ranking = misda.rank(result, policy=misda.SIZE_SPAN)
 
     assert len(ranking.groups[0]) == 4
     assert ranking.mis() is ranking.selected
@@ -315,7 +321,7 @@ def test_evaluate_accepts_one_mis_object_as_scope(monkeypatch):
     assert result.evaluation_scope("linear") == (1, "explicit MIS")
 
 
-def test_ranking_remains_a_view_not_an_evaluator():
+def test_ranking_remains_a_view_over_the_discovered_universe():
     result = misda.discover(_two_blocks(), seed=59)
     ranking = misda.rank(result)
 

@@ -35,7 +35,7 @@ def test_misda_common_score_counts_preserved_objectives_as_exact():
     x = np.linspace(-2.0, 2.0, 12)
     frame = pd.DataFrame({"f1": x, "f2": 2.0 * x, "f3": -3.0 * x})
     result = misda.discover(frame, seed=123)
-    ranking = misda.rank(result)
+    ranking = misda.rank(result, policy=misda.SIZE_SPAN)
     misda.evaluate(result, metrics=("linear",), candidates=ranking[:1])
     selected_candidate = ranking.selected
 

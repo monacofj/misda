@@ -33,11 +33,11 @@ Each record may contain: Context, Definitions, Decision, Formal specification, R
 - [0014 — Public diagnostics and reporting semantics](0014-public-diagnostics-and-reporting-semantics.md)
 - [0015 — Empirical null envelope for alpha-null estimation](0015-empirical-null-envelope-alpha-null.md)
 - [0016 — Public capability non-regression contract](0016-public-capability-non-regression.md)
-- [0017 — Size-span canonical structural ranking](0017-size-span-canonical-ranking.md)
+- [0017 — Size-span canonical structural ranking (public rank default superseded by ADR 0022)](0017-size-span-canonical-ranking.md)
 - [0018 — Ranking-selected visualization views](0018-ranking-selected-visualization-views.md)
 - [0019 — User-facing MIS, ranking, and evaluation workflow (superseded by ADR 0022)](0019-user-facing-mis-ranking-workflow.md)
 - [0020 — Experimental empirical-Pareto ranking](0020-experimental-empirical-pareto-ranking.md)
-- [0021 — Conservative dominance-preservation reduction selection](0021-conservative-dominance-preservation-ranking.md)
-- [0022 — Profile-to-discovery user workflow](0022-profile-to-discovery-user-workflow.md)
+- [0021 — Conservative dominance-preservation reduction selection (accepted as public rank default)](0021-conservative-dominance-preservation-ranking.md)
+- [0022 — Profile-to-discovery user workflow (corrected under #91 to restore ADR 0007 separation)](0022-profile-to-discovery-user-workflow.md)
 
 All records below are retrospective unless explicitly stated otherwise. They document the current MISDA design, with later records superseding earlier decisions where explicitly stated.

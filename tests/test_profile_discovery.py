@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Monaco F. J. <monaco@usp.br>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import inspect
+
 import numpy as np
+import pytest
 
 import misda
 
@@ -42,10 +45,37 @@ def test_public_profile_exposes_ordered_regimes_and_selected_boundary():
     assert "alpha_onset=" in text
     assert "alpha_null=" in text
     assert "Selected regime:" in text
+    assert "no MIS has been selected yet" in text
+
+
+def test_profile_regime_status_is_aggregate_discovery_support_not_ranking():
+    observed = misda.profile(_two_blocks(), seed=13)
+
+    for regime in observed:
+        analysis = regime.analysis
+        if analysis.structural_dimension == analysis.original_dimension:
+            assert regime.status == misda.NO_REDUNDANCY
+        elif regime.mis_set.support.status == "SUPPORTED":
+            assert regime.status == misda.SUPPORTED_REDUCTION
+        elif regime.mis_set.support.status == misda.PARTIALLY_SUPPORTED:
+            assert regime.status == misda.PARTIALLY_SUPPORTED
+            assert not regime.acceptable
+        else:
+            assert regime.status == misda.UNSUPPORTED_REDUCTION
+            assert not regime.acceptable
+
+
+def test_profile_stores_support_for_every_discovered_mis():
+    observed = misda.profile(_two_blocks(seed=15), seed=17)
+
+    for regime in observed:
+        for candidate in regime.mis_set:
+            support = regime.mis_set.support_for(candidate)
+            assert support.candidate_index >= 0
 
 
 def test_profile_report_is_side_effect_free_for_candidate_evidence():
-    observed = misda.profile(_two_blocks(), seed=13)
+    observed = misda.profile(_two_blocks(), seed=19)
     before = [
         tuple(candidate.dominance for candidate in regime.mis_set)
         for regime in observed
@@ -61,54 +91,87 @@ def test_profile_report_is_side_effect_free_for_candidate_evidence():
     assert all(value is None for row in after for value in row)
 
 
-def test_discovery_from_profile_defaults_to_dominance_preservation():
-    observed = misda.profile(_two_blocks(), seed=17)
-    result = misda.discovery(observed)
+def test_discovery_contract_has_no_ranking_policy_and_returns_mis_set():
+    assert "rank_policy" not in inspect.signature(misda.discovery).parameters
 
-    assert isinstance(result, misda.DiscoveryResult)
+    observed = misda.profile(_two_blocks(), seed=23)
     if observed.selected is None:
-        assert result.status == misda.ABSTAINED
-        assert result.selected is None
-    else:
-        assert result.regime is observed.selected
-        assert result.rank_policy == misda.DOMINANCE_PRESERVATION
-        assert result.ranking.policy == misda.DOMINANCE_PRESERVATION
-        assert result.selected is result.ranking.selected
-        assert all(candidate.dominance is not None for candidate in result.mis_set)
+        pytest.skip("fixture produced no admissible profile regime")
+
+    mis_set = misda.discovery(observed)
+
+    assert isinstance(mis_set, misda.MISSet)
+    assert mis_set is observed.selected.mis_set
+    assert all(candidate.dominance is None for candidate in mis_set)
 
 
 def test_discovery_y_is_equivalent_to_profile_then_discovery():
-    data = _two_blocks(seed=19)
-    direct = misda.discovery(data, seed=23)
-    staged_profile = misda.profile(data, seed=23)
-    staged = misda.discovery(staged_profile)
-
-    assert direct.status == staged.status
-    assert direct.rank_policy == staged.rank_policy
-    if direct.selected is None:
-        assert staged.selected is None
-    else:
-        assert direct.selected.indices == staged.selected.indices
-        assert direct.regime.analysis.structural_dimension == staged.regime.analysis.structural_dimension
-        assert direct.regime.aggressiveness == staged.regime.aggressiveness
-
-
-def test_size_span_remains_available_and_low_level_default_is_unchanged():
-    observed = misda.profile(_two_blocks(seed=29), seed=31)
-    if observed.selected is None:
+    data = _two_blocks(seed=29)
+    staged_profile = misda.profile(data, seed=31)
+    if staged_profile.selected is None:
+        with pytest.raises(RuntimeError, match="no selected regime"):
+            misda.discovery(data, seed=31)
         return
 
-    high_level = misda.discovery(observed, rank_policy=misda.SIZE_SPAN)
-    low_level = misda.rank(observed.selected.mis_set)
+    direct = misda.discovery(data, seed=31)
+    staged = misda.discovery(staged_profile)
 
-    assert high_level.rank_policy == misda.SIZE_SPAN
-    assert high_level.ranking.policy == misda.SIZE_SPAN
-    assert high_level.selected.indices == low_level.selected.indices
-    assert low_level.policy == misda.SIZE_SPAN
+    assert isinstance(direct, misda.MISSet)
+    assert isinstance(staged, misda.MISSet)
+    assert tuple(candidate.indices for candidate in direct) == tuple(
+        candidate.indices for candidate in staged
+    )
+    assert direct.analysis.structural_dimension == staged.analysis.structural_dimension
+    assert direct.analysis.aggressiveness == staged.analysis.aggressiveness
 
 
-def test_discovery_abstains_when_profile_has_no_selected_regime():
-    base = misda.profile(_two_blocks(seed=37), seed=41)
+def test_rank_default_is_dominance_and_size_span_remains_explicit():
+    observed = misda.profile(_two_blocks(seed=37), seed=41)
+    if observed.selected is None:
+        pytest.skip("fixture produced no admissible profile regime")
+    mis_set = misda.discovery(observed)
+
+    default_ranking = misda.rank(mis_set)
+    structural_ranking = misda.rank(mis_set, policy=misda.SIZE_SPAN)
+
+    assert default_ranking.policy == misda.DOMINANCE_PRESERVATION
+    assert all(candidate.dominance is not None for candidate in mis_set)
+    assert structural_ranking.policy == misda.SIZE_SPAN
+    assert tuple(structural_ranking.indices) == tuple(
+        mis_set.structural_ranking.indices
+    )
+
+
+def test_ranking_does_not_change_discovery_universe_or_canonical_order():
+    observed = misda.profile(_two_blocks(seed=43), seed=47)
+    if observed.selected is None:
+        pytest.skip("fixture produced no admissible profile regime")
+    mis_set = misda.discovery(observed)
+
+    candidates_before = tuple(candidate.indices for candidate in mis_set)
+    canonical_before = tuple(mis_set.structural_ranking.indices)
+    dimensions_before = (
+        mis_set.analysis.original_dimension,
+        mis_set.analysis.latent_dimension,
+        mis_set.analysis.structural_dimension,
+    )
+    graph_before = frozenset(mis_set.analysis.structural_graph.edges())
+
+    ranking = misda.rank(mis_set)
+
+    assert ranking.mis_set is mis_set
+    assert tuple(candidate.indices for candidate in mis_set) == candidates_before
+    assert tuple(mis_set.structural_ranking.indices) == canonical_before
+    assert (
+        mis_set.analysis.original_dimension,
+        mis_set.analysis.latent_dimension,
+        mis_set.analysis.structural_dimension,
+    ) == dimensions_before
+    assert frozenset(mis_set.analysis.structural_graph.edges()) == graph_before
+
+
+def test_discovery_refuses_profile_without_selected_regime():
+    base = misda.profile(_two_blocks(seed=53), seed=59)
     abstaining = misda.Profile(
         regimes=base.regimes,
         selected_index=None,
@@ -121,10 +184,5 @@ def test_discovery_abstains_when_profile_has_no_selected_regime():
         experimental=base.experimental,
     )
 
-    result = misda.discovery(abstaining)
-
-    assert result.status == misda.ABSTAINED
-    assert result.regime is None
-    assert result.ranking is None
-    assert result.selected is None
-    assert "ABSTAINED" in result.report()
+    with pytest.raises(RuntimeError, match="no selected regime"):
+        misda.discovery(abstaining)

@@ -9,7 +9,7 @@ The public API must reflect the methodological separation between structural dis
 
 ## Decision
 
-The normative alpha-stage public flow is:
+The normative alpha-stage low-level public flow is:
 
 ```python
 mis_set = misda.discover(Y, ...)
@@ -17,9 +17,15 @@ misda.evaluate(mis_set, metrics=(...), candidates=...)
 ranking = misda.rank(mis_set, policy="size_span")
 ```
 
-This low-level flow remains valid for scientific instrumentation and advanced use, but ADR 0022 supersedes it as the canonical user-facing workflow with `profile(Y) -> discovery(profile)`.
+This low-level flow remains valid for scientific instrumentation and advanced use. ADR 0022 supersedes it as the canonical user-facing flow with the additional profile stage while preserving the same discovery/ranking separation:
 
-The canonical low-level structural ranking policy name is governed by ADR 0017.
+```python
+profile = misda.profile(Y)
+mis_set = misda.discovery(profile)
+ranking = misda.rank(mis_set)
+```
+
+The canonical structural ordering policy name is governed by ADR 0017. The public default policy of the separate `rank()` operation is governed by ADR 0021/0022.
 
 ### MISSet
 
@@ -44,9 +50,9 @@ These quantities are deliberately distinct.
 
 ## Invariants
 
-- `discover()` does not accept ranking policy;
+- `discover()` and high-level `discovery()` do not accept ranking policy;
 - `evaluate()` does not change candidate membership, graphs, dimensions, or canonical order;
-- `rank()` does not reorder or mutate the owning `MISSet`;
+- `rank()` does not reorder or mutate the owning `MISSet` structurally;
 - integer ranking access returns underlying candidates; slicing returns a ranking view;
 - candidate canonical positions remain stable for the life of the `MISSet`;
 - selected dimension belongs to `Ranking`, not `MISSet`.
@@ -67,4 +73,4 @@ Do not reintroduce discovery-time ranking policy, intrinsic candidate rank, a `r
 
 ## Verification
 
-API contract tests should cover ownership, indexing/slicing semantics, object identity, immutability of canonical positions, and absence of discovery mutation after evaluation/ranking.
+API contract tests should cover ownership, indexing/slicing semantics, object identity, immutability of canonical positions, absence of ranking-policy parameters on discovery, and absence of discovery mutation after evaluation/ranking.

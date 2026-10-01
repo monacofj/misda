@@ -2,14 +2,27 @@
 
 - Status: Accepted
 - Recorded: 2026-10-01
+- Corrected: 2026-10-01 under issue #91
 - Supersedes: ADR 0019 as the canonical user-facing workflow
-- Partially supersedes: ADR 0011 public-flow section
-- Refines but does not supersede: ADR 0017 and ADR 0021
+- Partially supersedes: ADR 0011 public-flow section and the public-default clause of ADR 0017
+- Refines but does not supersede: ADR 0007, ADR 0014, ADR 0017, and ADR 0021
+
+## Correction note
+
+The first version of this ADR, merged in PR #90, incorrectly made
+`discovery(profile)` apply a ranking policy and select a representative MIS.
+That contradicted ADR 0007, whose central invariant is that discovery,
+evaluation, and ranking are separate operations and that ranking policy is not
+an input to structural discovery.
+
+Issue #91 corrects that regression explicitly rather than silently redefining
+the older architectural contract. The corrected workflow below restores ADR
+0007 as a binding invariant.
 
 ## Context
 
-The low-level MISDA API deliberately separated structural discovery,
-candidate evaluation, and ranking:
+The low-level MISDA API deliberately separates structural discovery,
+candidate evidence, and preference among already discovered candidates:
 
 ```python
 mis_set = misda.discover(Y)
@@ -17,19 +30,18 @@ mis_set.evaluate(...)
 ranking = misda.rank(mis_set, policy=...)
 ```
 
-That separation remains valuable for benchmarks, validation, and expert
-instrumentation. It is, however, too low-level as the canonical workflow for a
-user who wants a defensible reduction recommendation.
+That separation remains scientifically important. A higher-level user workflow
+is still useful because the calibrated alpha path may contain several distinct
+structural regimes and the user should not need to choose an aggressiveness
+value manually.
 
-Two logically distinct decisions were being exposed as if they were one:
+There are therefore three logically distinct questions:
 
-1. which alpha/aggressiveness regime should be used for the observed `Y`;
-2. which MIS should represent the chosen regime.
+1. which alpha/aggressiveness regime is admissible for the observed `Y`;
+2. what complete MIS universe is discovered in that regime;
+3. which discovered MIS is preferred under a declared ranking policy.
 
-The ranking-policy experiments in issues #83 and #84 further showed that these
-questions should remain distinct. Structural support and threshold sensitivity
-are properties of the observed-data profile. Representative selection is a
-ranking problem within a selected regime.
+These questions must remain separate in the public API.
 
 ## Decision
 
@@ -39,21 +51,32 @@ The canonical user-facing workflow is:
 profile = misda.profile(Y)
 profile.report()
 
-result = misda.discovery(profile)
-result.report()
+mis_set = misda.discovery(profile)
+mis_set.report()
+
+ranking = misda.rank(mis_set)
+ranking.report()
+
+mis = ranking.mis()
+mis.report()
 ```
 
 The convenience form
 
 ```python
-result = misda.discovery(Y)
+mis_set = misda.discovery(Y)
 ```
 
-is equivalent to profiling first and then discovering from the resulting
-profile.
+is equivalent to profiling first and then returning the MISSet associated with
+the selected profile regime.
 
-The low-level `discover`, `evaluate`, and `rank` functions remain public and
-retain their existing semantics for scientific and advanced use.
+`profile`, `discovery`, and `rank` have separate ownership:
+
+```text
+profile    -> selects the threshold regime / alpha
+ discovery -> returns the complete MISSet for that regime
+ rank       -> orders the already discovered MISs and selects a representative
+```
 
 ## Profile semantics
 
@@ -64,96 +87,155 @@ shows their consequences, including:
 - alpha/aggressiveness;
 - latent and structural dimensions;
 - structural/latent topology and components through the stored regime result;
-- MIS universe and structural ranking;
-- dimensional-support assessment and reasons;
+- complete MIS universe and canonical structural order;
+- dimensional-support evidence;
 - `alpha_onset`, `alpha_null`, and separation/null-envelope context.
 
-Regimes are represented at their **most aggressive boundary**. Critical
-thresholds are probed on both sides and structurally equivalent consecutive
-states are compressed. This lets the stored aggressiveness of a regime mean the
-most aggressive point at which that same structural state still holds.
+Profile construction may internally build the MISSet for each structural regime
+because support is defined on discovered MISs. This does not make profile a
+ranking operation: no ranking policy is accepted or consulted when selecting
+the regime.
 
-`profile.report()` must remain observational: reporting does not trigger
-additional candidate evaluation.
+Candidate-specific support is stored for every MIS in each regime, matching the
+low-level `discover()` contract. The historical aggregate `MISSet.support`
+remains defined over the complete first canonical `size_span` scientific tie
+group as required by ADR 0014. Deterministic ordering inside that tie group may
+not decide regime support.
 
-## Selected regime
+Regimes are represented at their most aggressive boundary. Critical thresholds
+are probed on both sides and structurally equivalent consecutive states are
+compressed.
 
-`profile.selected` is the **most aggressive acceptable regime**.
+### Regime status and automatic selection
 
-A regime is acceptable when the canonical structural selection at that regime
-has assessment:
+A regime has one of the following profile-level interpretations:
+
+```text
+NO_REDUNDANCY        no structural reduction is present
+SUPPORTED_REDUCTION  aggregate discovery support is SUPPORTED
+PARTIALLY_SUPPORTED  the first structural tie group has mixed support
+UNSUPPORTED_REDUCTION aggregate discovery support is UNSUPPORTED
+```
+
+`profile.selected` is the most aggressive regime that is fully admissible for
+automatic use. The admissible states are:
 
 ```text
 NO_REDUNDANCY
 SUPPORTED_REDUCTION
 ```
 
-A regime whose canonical structural selection is
-`UNSUPPORTED_REDUCTION` is not acceptable for automatic selection.
+`PARTIALLY_SUPPORTED` remains visible but is not auto-selected because a
+scientific tie must not be resolved by deterministic candidate order.
+`UNSUPPORTED_REDUCTION` is likewise not auto-selected.
 
-If no acceptable regime exists, `profile.selected` is `None` and the high-level
-workflow abstains rather than silently using `aggressiveness=1`.
+If no admissible regime exists, `profile.selected` is `None`. The profile
+remains inspectable, but high-level discovery refuses to invent a fallback
+regime.
 
-Selection does not hide alternatives: all regimes remain available for
-inspection in the profile.
+`profile.report()` remains a compact table. Its final column may include a
+short human-readable interpretation of the status, and the report must state
+that selecting a regime does not select an MIS. Reporting remains a view over
+stored state and triggers no scientific computation.
 
 ## Discovery semantics
 
-`discovery(profile)` operates only on `profile.selected` and then chooses a
-representative MIS within that regime.
+`discovery(profile)` returns exactly the `MISSet` stored for
+`profile.selected`.
 
-The default high-level ranking policy is:
+It does not:
+
+- accept a ranking policy;
+- rank candidates;
+- select a representative MIS;
+- filter unsupported candidates;
+- compute dominance or Pareto preference evidence.
+
+If `profile.selected is None`, high-level discovery raises rather than silently
+falling back to `aggressiveness=1` or another regime.
+
+`discovery(Y)` is only the convenience composition
+`profile(Y) -> discovery(profile)`.
+
+## Ranking semantics
+
+`rank()` is the only public step that applies a ranking policy.
+
+The public default is:
 
 ```text
 dominance_preservation
 ```
 
-because the clean end-to-end experiments in #83 showed that it is more aligned
-with downstream optimization than the structural `size_span` order when the
-observed geometry is representative. Issue #84 established the epistemic
-boundary: severe corruption of `Y` can mislead dominance ranking and even
-support inferred from the same data. The default is therefore an
-observed-data recommendation, not an unconditional noise-robustness claim.
+because the clean end-to-end experiments consolidated in #85 showed that this
+policy is better aligned with downstream optimization than structural
+`size_span` when the observed geometry is representative.
 
-Users may request the structural policy explicitly:
+The canonical structural ordering stored by discovery remains `size_span`.
+Users may request it explicitly:
 
 ```python
-result = misda.discovery(profile, rank_policy="size_span")
+ranking = misda.rank(mis_set, policy="size_span")
 ```
 
-The low-level call `misda.rank(mis_set)` continues to default to `size_span`.
-This preserves ADR 0017: `size_span` remains the canonical zero-cost structural
-ordering. The new high-level default applies only to the recommendation layer.
+The default dominance ranking may compute missing dominance evidence as part of
+the ranking operation. This is ranking-time evidence enrichment, not discovery.
+Callers that require precomputed evidence may pass `accept_cost=False`.
 
-## Abstention and assessment
+Ranking considers the complete requested candidate set. Unsupported candidates
+are not filtered out. If the ranking-selected MIS is contradicted by its stored
+support diagnostics, `Ranking.assessment` reports
+`UNSUPPORTED_REDUCTION` while preserving the selected candidate for inspection
+and validation.
 
-If `profile.selected is None`, `discovery(profile)` returns an abstaining result
-rather than inventing a reduction.
+## Reporting non-regression
 
-If a selected regime exists, the ranking-selected MIS retains its
-candidate-specific `ReductionAssessment`. A high-level result therefore remains
-inspectable even when alternative ranking evidence exposes a candidate-specific
-warning.
+This ADR does not redesign the established report formats of:
+
+- `MISSet.report()`;
+- `Ranking.report()`;
+- `MISCandidate.report()`.
+
+Those formats remain protected by ADR 0016 and their existing reporting
+contract tests. Only `profile.report()` is new to this workflow and may be
+refined within the compact tabular design described above.
 
 ## Data-quality boundary
 
-`profile()` diagnoses structure **conditional on the observed `Y`**. It does not
-claim to estimate an external measurement-noise variance, reliability ratio, or
-systematic distortion from a single matrix.
-
-Known data-quality information may inform how a user interprets the profile or
-chooses a ranking policy. X-aware or replicate-aware diagnostics remain separate
-research questions.
+`profile()` and ranking diagnose the observed `Y`. They do not claim to infer
+an arbitrary external measurement-noise variance, reliability ratio, or
+systematic distortion from one matrix. Severe corruption of observed geometry
+can still mislead support and dominance evidence; the noisy-safety experiments
+record that epistemic boundary.
 
 ## Compatibility
 
-- `misda.discover(Y, aggressiveness=...)` remains available.
+- `misda.discover(Y, aggressiveness=...)` remains available for exact low-level
+  structural control.
 - `MISSet.evaluate(...)` remains available.
-- `misda.rank(...)` remains available and defaults to `size_span`.
-- benchmark runners may continue using the low-level API where exact control of
-  regime, candidate scope, and evaluation cost is scientifically necessary.
-- notebook and user-document migration is tracked separately after this API
-  contract stabilizes.
+- `misda.rank(...)` remains a view over an existing `MISSet`; its public default
+  is now `dominance_preservation`.
+- `size_span` remains the canonical structural ordering owned by discovery and
+  remains explicitly selectable as a ranking policy.
+- benchmark runners may use explicit policies and low-level primitives where
+  scientific instrumentation requires them.
+- notebook and user-document migration remains tracked separately in #87.
+
+## Verification
+
+Contract tests must verify at least that:
+
+1. `discovery()` has no ranking-policy parameter;
+2. `discovery(profile)` returns an `MISSet` and does not compute ranking
+   evidence;
+3. `rank()` is the policy-bearing operation and defaults to
+   `dominance_preservation`;
+4. ranking/evaluation do not change candidate membership, graph structure,
+   graph-derived dimensions, or canonical structural order;
+5. profile reporting has no scientific side effects;
+6. profile regimes retain candidate-specific support for all discovered MISs;
+7. existing `MISSet`, `Ranking`, and `MISCandidate` report contracts are
+   unchanged.
 
 ## Research basis
 

@@ -1,4 +1,10 @@
-"""Contracts for the pre-default ranking policy impact audit."""
+"""Contracts for the historical ranking-policy impact audit.
+
+The audit artifacts retain their original baseline/candidate labels because they
+record the pre-default experiment.  The current public default, promoted after
+that audit and the subsequent clean/noisy evidence, is
+``dominance_preservation``.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +18,7 @@ from benchmarks import run_ranking_policy_impact as impact
 from misda.benchmarks import PROBLEM_BY_ID, diagnostic_truth
 
 
-def test_audit_compares_rankings_without_changing_default():
+def test_audit_compares_rankings_without_mutating_discovery():
     problem = PROBLEM_BY_ID["total_redundancy"]
     dataset = problem.generate(N=32, seed=123, sigma=0.0)
     truth = diagnostic_truth(problem, dataset.Z)
@@ -40,7 +46,8 @@ def test_audit_compares_rankings_without_changing_default():
     )
 
     fresh = misda.discover(dataset.Y, seed=123)
-    assert misda.rank(fresh).policy == misda.SIZE_SPAN
+    assert fresh.structural_ranking.policy == misda.SIZE_SPAN
+    assert misda.rank(fresh).policy == misda.DOMINANCE_PRESERVATION
 
 
 def test_audit_summary_accounts_for_every_run():
@@ -127,7 +134,7 @@ def test_aggressiveness_state_records_both_policy_views():
     }
 
 
-def test_aggressiveness_probe_cli_writes_json_without_changing_default(tmp_path):
+def test_aggressiveness_probe_cli_writes_json_without_mutating_discovery(tmp_path):
     output = tmp_path / "ranking-policy-aggressiveness.json"
     completed = subprocess.run(
         [
@@ -156,4 +163,5 @@ def test_aggressiveness_probe_cli_writes_json_without_changing_default(tmp_path)
     problem = PROBLEM_BY_ID["blocks_4x5"]
     dataset = problem.generate(N=32, seed=123, sigma=0.0)
     fresh = misda.discover(dataset.Y, seed=123)
-    assert misda.rank(fresh).policy == misda.SIZE_SPAN
+    assert fresh.structural_ranking.policy == misda.SIZE_SPAN
+    assert misda.rank(fresh).policy == misda.DOMINANCE_PRESERVATION
