@@ -3,14 +3,15 @@
 
 """MISDA public API.
 
-The canonical user workflow separates structural regime diagnosis from the
-final representative choice::
+The canonical user workflow separates threshold-regime profiling, structural
+discovery, and final representative ranking::
 
     profile = misda.profile(Y)
-    result = misda.discovery(profile)
+    mis_set = misda.discovery(profile)
+    ranking = misda.rank(mis_set)
 
-The lower-level ``discover`` / ``evaluate`` / ``rank`` primitives remain public
-for scientific instrumentation and advanced use.
+The lower-level ``discover`` / ``evaluate`` primitives remain public for
+scientific instrumentation and advanced use.
 """
 
 from ._metadata import __version__
@@ -28,6 +29,7 @@ from ._correlation_backend import (
 _api.compute_correlation_statistics = _compute_correlation_statistics
 _api.estimate_null_positive_correlation = _estimate_null_positive_correlation
 _discover_impl = _api.discover
+_rank_impl = _api.rank
 
 from .api import (
     PARTIALLY_SUPPORTED,
@@ -52,11 +54,8 @@ from .api import (
     Ranking,
     ReductionAssessment,
     StructuralMetrics,
-    rank,
 )
 from ._profile import (
-    ABSTAINED,
-    DiscoveryResult,
     Profile,
     ProfileRegime,
     discovery as _discovery_high_level,
@@ -128,23 +127,21 @@ def profile(
 def discovery(
     source,
     *,
-    rank_policy=DOMINANCE_PRESERVATION,
     seed=123,
     name=None,
     cancel_requested=None,
     correlation="pearson",
     experimental=False,
 ):
-    """Return a high-level reduction decision from observed Y or a Profile.
+    """Return the MISSet at the regime selected by ``profile``.
 
     When ``source`` is raw Y, profiling is performed first. When it is already
-    a :class:`Profile`, the stored selected regime is used directly. The
-    high-level default is ``dominance_preservation``; low-level ``rank()`` keeps
-    its historical ``size_span`` default.
+    a :class:`Profile`, the stored selected regime is used directly. Discovery
+    never ranks or selects an MIS.
     """
 
     if isinstance(source, Profile):
-        return _discovery_high_level(source, rank_policy=rank_policy)
+        return _discovery_high_level(source)
     observed_profile = profile(
         source,
         seed=seed,
@@ -153,7 +150,38 @@ def discovery(
         correlation=correlation,
         experimental=experimental,
     )
-    return _discovery_high_level(observed_profile, rank_policy=rank_policy)
+    return _discovery_high_level(observed_profile)
+
+
+def rank(
+    mis_set,
+    policy=DOMINANCE_PRESERVATION,
+    *,
+    candidates="all",
+    accept_cost=None,
+):
+    """Create a policy-dependent ranking over an already discovered MISSet.
+
+    ``dominance_preservation`` is the public default. The canonical structural
+    ordering stored by discovery remains ``size_span`` and can be requested
+    explicitly. Missing dominance evidence is evaluated by the default ranking
+    call; callers may pass ``accept_cost=False`` to require precomputed evidence.
+    Other non-structural policies retain the explicit-cost contract unless
+    ``accept_cost=True`` is supplied.
+    """
+
+    if accept_cost is None:
+        accept_cost = policy == DOMINANCE_PRESERVATION
+    return _rank_impl(
+        mis_set,
+        policy=policy,
+        candidates=candidates,
+        accept_cost=accept_cost,
+    )
+
+
+# Keep ``misda.api.rank`` and ``misda.rank`` aligned with the public default.
+_api.rank = rank
 
 
 from ._pareto_stability import ParetoStabilityDiagnostics, evaluate
@@ -178,7 +206,6 @@ __all__ = [
     "UNSUPPORTED_REDUCTION",
     "STRUCTURAL_COVERAGE",
     "PARTIALLY_SUPPORTED",
-    "ABSTAINED",
     "StructuralMetrics",
     "JackknifeMetrics",
     "LinearMetrics",
@@ -196,7 +223,6 @@ __all__ = [
     "Ranking",
     "ProfileRegime",
     "Profile",
-    "DiscoveryResult",
     "profile",
     "discovery",
     "discover",
