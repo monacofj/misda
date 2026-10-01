@@ -1,0 +1,56 @@
+name: ranking policy optimization
+
+on:
+  push:
+    branches:
+      - issue-83-ranking-policy-optimization
+    paths:
+      - "benchmarks/run_ranking_policy_optimization.py"
+      - "tests/test_ranking_policy_optimization.py"
+      - ".github/workflows/ranking-policy-optimization.yml"
+      - "docs/research-notes/2026-10-ranking-policy-optimization.md"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Ranking-policy optimization helper tests
+        run: pytest -q tests/test_ranking_policy_optimization.py
+
+  science:
+    if: ${{ contains(github.event.head_commit.message, '[science]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]'
+      - name: Full vs both ranking-policy reductions
+        run: |
+          python -m benchmarks.run_ranking_policy_optimization \
+            --output /tmp/misda-ranking-policy-optimization.json
+          cat /tmp/misda-ranking-policy-optimization.json
+      - name: Preserve experiment output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-ranking-policy-optimization
+          path: /tmp/misda-ranking-policy-optimization.json
+          if-no-files-found: warn
