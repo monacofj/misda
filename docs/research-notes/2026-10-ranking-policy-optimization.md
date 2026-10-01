@@ -68,7 +68,7 @@ This is strong evidence that the ranking choice has a real end-to-end consequenc
 
 ### DPF1
 
-The two policies again selected different two-objective reductions:
+The two policies again selected different two-objective reductions from the same discovery result:
 
 - `size_span`: `f2, f8`, observed new-dominance rate `0.335535`;
 - `dominance_preservation`: `f1, f2`, observed new-dominance rate `0.0` with exact observed dominance preservation.
@@ -118,24 +118,65 @@ Increasing the Full population and budget did **not** produce analogous converge
 
 This changes the interpretation of Full. DTLZ5 has a degenerate objective structure, and the inability of a generic 10-objective NSGA-III treatment to match the calibrated GT is itself consistent with why objective reduction can be useful. We should not tune Full until it artificially becomes the oracle. The common calibrated GT is the quality oracle; Full is one treatment using the unreduced formulation.
 
+## Calibrated multi-seed audit — 2026-10-01
+
+The calibrated comparison used population/reference-direction count `240`, 800 generations, checkpoints at `100, 200, 400, 800`, five independent MOEA seeds (`321, 654, 987, 135, 246`), and a fixed reference-direction seed (`456`) shared by paired treatments. Discovery remained fixed to the same 512-point Sobol sample and MISDA seed `123`, so this experiment isolates optimizer stochasticity rather than discovery uncertainty.
+
+### DTLZ5
+
+At generation 800, the mean original-space metrics across five seeds were:
+
+| treatment | mean GD+ | mean IGD+ | mean relative HV |
+|---|---:|---:|---:|
+| Full | 5.374652 | 0.333968 | 0.114574 |
+| Reduced / size_span | 2.574853 | 1.401879 | ~0.000000 |
+| Reduced / dominance_preservation | 0.000258 | 0.002001 | 0.999726 |
+
+`dominance_preservation` beat `size_span` decisively in **all five seeds**. Its final IGD+ stayed essentially fixed around `0.0020` and its relative HV around `0.9997`, whereas the `size_span` reduction was much worse and highly variable in the original objective space. The dominance-selected pair `f9,f10` therefore behaves as an optimizer-effective reduction across the tested MOEA stochasticity, while `f1,f10` does not.
+
+This is stronger than the first single-seed result: the DTLZ5 end-to-end difference is not an optimizer-seed accident.
+
+### DPF1
+
+At generation 800, the corresponding means were:
+
+| treatment | mean GD+ | mean IGD+ | mean relative HV |
+|---|---:|---:|---:|
+| Full | 0.003519 | 0.032929 | 0.900753 |
+| Reduced / size_span | 0.002716 | 0.005311 | 0.968846 |
+| Reduced / dominance_preservation | 0.000700 | 0.003718 | 0.976099 |
+
+The dominance-selected `f1,f2` reduction had the better final result in **four of five seeds** by GD+, IGD+ and relative HV. In the remaining seed (`987`), `size_span` was slightly better. The mean advantage of `dominance_preservation` was therefore real but modest compared with DTLZ5:
+
+- mean `ΔIGD+ = -0.001593` for `dominance_preservation - size_span`;
+- mean `ΔHV = +0.007253`;
+- mean `ΔGD+ = -0.002016`.
+
+Both reduced formulations were substantially closer to the common GT than Full at the final budget, reinforcing the practical observation that objective reduction can make the optimization problem easier even when Full itself is a valid baseline treatment.
+
+The checkpoint trajectories also matter. DPF1 exhibited substantial transient differences: in some seeds one reduced formulation converged much earlier than the other, and the ordering could reverse before both reached the low-error region. Thus a static dominance advantage on `Y` should not be interpreted as a guarantee of faster convergence at every finite budget.
+
 ## Interpretation
 
-The first end-to-end run and Full-only calibration sharpen the role of the Revisão 09 metric rather than settling the default-policy question.
+The calibrated multi-seed run changes the strength, but not the scope, of the conclusion.
 
-For DTLZ5, static dominance preservation, independent analytical safety, and optimizer performance align very strongly: `dominance_preservation` chooses `f9,f10`, and that reduction reaches the calibrated GT while `size_span` does not. The fact that Full remains difficult even after increasing population and budget reinforces the practical value of a good reduction, but should not be used as evidence that one ranking policy is universally superior.
+For the two clean controls where the policies disagree, the **direction** of the Revisão 09 dominance signal aligned with the end-to-end optimization result: the MIS with better observed dominance preservation was also the better final reduction on average. In DTLZ5 the effect is overwhelming and consistent across all five seeds; in DPF1 it is smaller but still favors `dominance_preservation` in four of five seeds.
 
-For DPF1, the initial static signal was clean but the first optimizer comparison used an inadequate Full configuration. The calibration shows that a higher reference-direction resolution produces a credible Full baseline, so the policy comparison should be repeated under that regime and over independent optimizer seeds.
+However, the **magnitude** of the static dominance difference is not a calibrated predictor of optimizer benefit. DTLZ5 had only a moderate static improvement (`ΔD ≈ -0.071`) but an enormous end-to-end gain, whereas DPF1 had a much larger static improvement (`ΔD ≈ -0.336`, including exact observed dominance preservation) but only a modest final optimization advantage once both reductions converged. The static metric therefore has qualitative signal in these controls, but should not be read as an effect-size estimator for MOEA performance.
 
-A central methodological point is now explicit: **the Full optimization run is a treatment, not the ground truth**. End-to-end quality is judged against the common calibrated Pareto GT. A Reduced treatment may legitimately outperform Full because reduction can make the optimization problem easier.
+The experiment also confirms that **Full is a treatment, not the truth**. All treatments must be judged in the original objective space against the same calibrated Pareto GT. A good reduction may legitimately outperform Full because reducing the objective space changes the difficulty of the optimizer's search.
 
-The current data support neither promoting `dominance_preservation` nor dismissing it. They do show that the ranking policy can have a large downstream effect and that the observed-Y dominance metric can be predictive in at least one important analytical control.
+These results strengthen the case that `dominance_preservation` is a meaningful optimization-oriented ranking policy when the observed `Y` is representative. They do **not** justify making it the default. Revisão 09 already showed noisy cases in which the dominance preference is extremely bootstrap-stable but wrong relative to clean truth. The present audit used clean DTLZ5/DPF1 and varied optimizer stochasticity, not observation noise or discovery sampling.
 
-## Next step
+Both tested reductions also remain internally marked `UNSUPPORTED_REDUCTION` because of `TRANSITIVE_CHAINING`; this experiment intentionally evaluates the downstream ranking consequence rather than overriding that safety assessment.
 
-The next audit should use a substantially denser NSGA-III population/reference-direction set (population 240), retain a generous 800-generation maximum budget, and repeat Full, Reduced/`size_span`, and Reduced/`dominance_preservation` over several independent MOEA seeds. The same reference-direction seed can remain fixed across paired treatments in this first multi-seed pass so that treatment differences are not confounded by different direction sets.
+A defensible current interpretation is therefore:
 
-The resulting distributions should be interpreted against the common GT at multiple checkpoints. Only after that should we ask whether the sign/magnitude of the static dominance advantage predicts end-to-end optimization quality strongly enough to influence ranking policy design.
+- `size_span` remains the structural/conservative default;
+- `dominance_preservation` now has concrete end-to-end evidence as an optimization-oriented alternative on clean controls;
+- the sign of its static advantage may be useful evidence, but its magnitude should not be interpreted quantitatively;
+- the unresolved obstacle to promotion remains reliability under distorted/noisy `Y`, not lack of optimization benefit in the clean cases studied here.
 
 ## Status
 
-Implementation, smoke tests, first scientific audit, and Full-only calibration all pass. No ranking-policy default change is justified at this stage. A multi-seed calibrated comparison is the next experiment.
+The initial scope of Issue #83 is complete: implementation, smoke tests, Full-only calibration, and the five-seed calibrated Full-vs-Reduced audit all succeeded. The experiment provides strong positive evidence for `dominance_preservation` in clean DTLZ5 and DPF1, but no ranking-policy default change is justified from this scope alone.
