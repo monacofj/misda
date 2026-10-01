@@ -9,6 +9,8 @@ The ADRs serve two purposes simultaneously:
 
 Each ADR distinguishes, when applicable, the normative contract from the current implementation. Implementation details may change when the stated invariants are preserved.
 
+Scientific exploration and validation history are deliberately kept outside this directory in `docs/research-notes/`. Research notes explain how a decision was reached, including rejected hypotheses and negative results; ADRs define only the current normative method or software contract. When useful, an ADR links to the corresponding research note instead of duplicating the experimental record.
+
 ## ADR structure
 
 Each record may contain: Context, Definitions, Decision, Formal specification, Rationale, Invariants, Current implementation, Permitted implementation variations, Forbidden shortcuts / regression risks, Verification, Computational consequences, and References.
