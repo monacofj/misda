@@ -46,6 +46,17 @@ jobs:
       - name: Full vs both ranking-policy reductions
         run: |
           python -m benchmarks.run_ranking_policy_optimization \
+            --population 240 \
+            --generations 800 \
+            --checkpoint 100 \
+            --checkpoint 200 \
+            --checkpoint 400 \
+            --checkpoint 800 \
+            --moea-seed 321 \
+            --moea-seed 654 \
+            --moea-seed 987 \
+            --moea-seed 135 \
+            --moea-seed 246 \
             --output /tmp/misda-ranking-policy-optimization.json
           cat /tmp/misda-ranking-policy-optimization.json
       - name: Preserve experiment output
