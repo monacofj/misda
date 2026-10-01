@@ -369,3 +369,96 @@ more important is that:
 This closes the current ranking/acceptance search at a pragmatic point: known
 limitations are reported rather than recursively addressed by adding more
 heuristics.
+
+
+# Ranking-policy impact audit — 2026-09-30
+
+PR #79 compares the current canonical `size_span` selection with experimental
+`dominance_preservation` before any proposal to change the public default. The
+audit is observational: every objective matrix is discovered once, both ranking
+views operate on the same MIS universe, and benchmark truth is attached only
+after both policies have selected a candidate.
+
+GitHub Actions run `36796210419` executed the policy-impact workflow at commit
+`98ba7be4562536c18da41135ce758be69d081a42`; the ordinary acceptance gate
+`36796210311` also passed. The audit checks that candidate evaluation and
+ranking leave graph structure, threshold calibration, dimensions, and the MIS
+universe unchanged.
+
+## Clean and fixed-noise results
+
+| suite | runs | same MIS | divergences | truth improved | truth regressed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| controlled | 13 | 13 | 0 | 0 | 0 |
+| comparison | 5 | 5 | 0 | 0 | 0 |
+| sampling robustness | 260 | 260 | 0 | 0 | 0 |
+| controlled noisy (`sigma=0.10`) | 13 | 5 | 8 | 7 | 1 |
+
+Thus `dominance_preservation` is exactly selection-equivalent to `size_span`
+for every clean controlled case, every comparison case, and all 260 clean
+sampling-resampling runs. In the single fixed-noise realization it selects a
+different MIS in 8/13 cases while preserving the selected dimension in all 13.
+Seven divergences improve the declared Pareto truth metric and one slightly
+reduces it (`blocks_4x5`). That case still retains exactly one objective from
+each declared block and improves both the observed new-dominance rate and the
+observed noisy-sample Pareto Jaccard; only its clean-truth Pareto Jaccard is
+slightly lower.
+
+## Observation-noise robustness
+
+The full noise sweep contains 200 runs: eight focused problems, five replicate
+seeds, and `sigma in {0, 0.05, 0.10, 0.20, 0.40}`.
+
+| quantity | result |
+| --- | ---: |
+| same selected MIS | 123/200 |
+| policy divergences | 77/200 |
+| same selected dimension | 200/200 |
+| trust-status changes | 0/200 |
+| declared-truth improvements | 32/200 |
+| declared-truth regressions | 40/200 |
+| neutral truth comparisons | 128/200 |
+
+At `sigma=0`, the policies agree in all 40 focused runs. All 77 policy
+divergences occur under nonzero observation noise, and by construction every
+one has a strictly better observed new-dominance rate under
+`dominance_preservation`. Nevertheless, external Pareto-truth agreement does
+not improve monotonically: among all 200 runs there are 32 improvements and 40
+regressions. The mean clean-truth Pareto-Jaccard difference across the 77
+divergences is approximately `-0.0057`.
+
+The regressions do **not** represent structural-dimension failures. Every one of
+the 40 regressions is exclusively a Pareto-truth regression: no run loses its
+declared structural-unit adequacy, no run changes selected dimension, and no
+run changes the reduction trust status. The strongest negative contribution is
+`nonlinear_blocks_4x5`, where the mean clean-truth Pareto-Jaccard change over
+20 policy divergences is approximately `-0.0416`. In contrast, `blocks_4x5`
+has a positive mean truth change of approximately `+0.0230` over its 20
+divergences.
+
+Averaged over all 77 noisy policy divergences, the candidate policy improves
+the observed noisy-sample Pareto Jaccard slightly (`+0.0032`) while the external
+clean-truth Pareto Jaccard decreases slightly (`-0.0057`). This is consistent
+with the policy optimizing observed-Y order preservation rather than denoised
+or latent Pareto truth.
+
+## Consequence for the default-policy decision
+
+The clean-data evidence is strong: `dominance_preservation` preserves every
+previously selected MIS across the controlled, comparison, and 20-seed sampling
+batteries. It also remains structurally conservative under observation noise:
+all tested dimensions, declared structural units, and trust annotations are
+preserved.
+
+However, the observation-noise audit does **not** support promoting
+`dominance_preservation` wholesale to the public default yet. Under noisy Y it
+frequently chooses a different representative MIS and that observed-order gain
+does not translate reliably into better external Pareto truth. The fixed-noise
+reference is favorable, but the multi-seed noise sweep contains more Pareto
+truth regressions than improvements.
+
+The appropriate next question is therefore narrower than a simple default
+swap: determine whether the reduction-selection policy should incorporate
+noise robustness, uncertainty, or a conservative tie/selection rule before the
+public default is changed. The current `size_span` default remains unchanged by
+this audit.
