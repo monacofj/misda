@@ -1,6 +1,6 @@
 # ADR 0019 — User-facing MIS, ranking, and evaluation workflow
 
-- Status: Accepted
+- Status: Superseded by ADR 0022
 - Recorded: 2026-09-20
 
 ## Context
