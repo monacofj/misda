@@ -1,0 +1,427 @@
+# SPDX-FileCopyrightText: 2026 Monaco F. J. <monaco@usp.br>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""High-level structural profile and discovery workflow."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Optional, Tuple
+
+import numpy as np
+
+from . import api as _api
+from ._graph import build_dependency_graphs
+from ._statistics import interpolate_log_alpha, separation_status
+from ._support import evaluate_dimensional_support_group
+from ._validation import normalize_input_matrix
+
+
+ABSTAINED = "ABSTAINED"
+
+
+@dataclass(frozen=True)
+class ProfileRegime:
+    """One distinct structural regime along the alpha/aggressiveness path."""
+
+    index: int
+    aggressiveness: float
+    alpha: float
+    log_alpha: float
+    mis_set: _api.MISSet
+
+    @property
+    def analysis(self):
+        return self.mis_set.analysis
+
+    @property
+    def ranking(self):
+        return self.mis_set.structural_ranking
+
+    @property
+    def assessment(self):
+        return self.ranking.assessment
+
+    @property
+    def status(self):
+        return self.assessment.status if self.assessment is not None else ABSTAINED
+
+    @property
+    def acceptable(self):
+        return self.status in {_api.NO_REDUNDANCY, _api.SUPPORTED_REDUCTION}
+
+
+class Profile:
+    """Diagnostic map of structural regimes inferred from one observed Y."""
+
+    def __init__(
+        self,
+        *,
+        regimes,
+        selected_index,
+        alpha_onset,
+        alpha_null,
+        separation,
+        seed,
+        name=None,
+        correlation="pearson",
+        experimental=False,
+    ):
+        self._regimes = tuple(regimes)
+        self.selected_index = selected_index
+        self.alpha_onset = alpha_onset
+        self.alpha_null = float(alpha_null)
+        self.separation_status = separation
+        self.seed = int(seed)
+        self.name = name
+        self.correlation = correlation
+        self.experimental = bool(experimental)
+
+    def __len__(self):
+        return len(self._regimes)
+
+    def __iter__(self):
+        return iter(self._regimes)
+
+    def __getitem__(self, key):
+        return self._regimes[key]
+
+    @property
+    def regimes(self):
+        return self._regimes
+
+    @property
+    def selected(self) -> Optional[ProfileRegime]:
+        if self.selected_index is None:
+            return None
+        return self._regimes[self.selected_index]
+
+    def report(self):
+        lines = [f"MISDA profile: {self.name or 'Untitled'}"]
+        onset = "None" if self.alpha_onset is None else f"{self.alpha_onset:.6g}"
+        lines.append(
+            f"Threshold path: alpha_onset={onset}; alpha_null={self.alpha_null:.6g}; "
+            f"separation={getattr(self.separation_status, 'value', self.separation_status)}"
+        )
+        lines.append(
+            "Regimes: idx  aggressiveness  alpha        latent  structural  MISs  assessment"
+        )
+        for regime in self._regimes:
+            marker = "*" if self.selected_index == regime.index else " "
+            analysis = regime.analysis
+            lines.append(
+                f"{marker} {regime.index:>3}  {regime.aggressiveness:>14.6f}  "
+                f"{regime.alpha:>10.6g}  {analysis.latent_dimension:>6}  "
+                f"{analysis.structural_dimension:>10}  {len(regime.mis_set):>4}  "
+                f"{regime.status}"
+            )
+        if self.selected is None:
+            lines.append("Selected regime: none — no acceptable structural regime.")
+        else:
+            lines.append(
+                f"Selected regime: {self.selected.index} — most aggressive acceptable "
+                f"regime (aggressiveness={self.selected.aggressiveness:.6f}, "
+                f"alpha={self.selected.alpha:.6g})."
+            )
+        return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class DiscoveryResult:
+    """High-level reduction decision derived from one selected profile regime."""
+
+    profile: Profile
+    regime: Optional[ProfileRegime]
+    ranking: Optional[_api.Ranking]
+    rank_policy: str
+
+    @property
+    def mis_set(self):
+        return None if self.regime is None else self.regime.mis_set
+
+    @property
+    def selected(self):
+        return None if self.ranking is None else self.ranking.selected
+
+    @property
+    def assessment(self):
+        return None if self.ranking is None else self.ranking.assessment
+
+    @property
+    def status(self):
+        return ABSTAINED if self.assessment is None else self.assessment.status
+
+    @property
+    def analysis(self):
+        return None if self.regime is None else self.regime.analysis
+
+    def mis(self):
+        return self.selected
+
+    def report(self):
+        lines = [f"MISDA discovery: {self.profile.name or 'Untitled'}"]
+        if self.regime is None:
+            lines.append("Decision: ABSTAINED — profile found no acceptable regime.")
+            return "\n".join(lines)
+        lines.append(
+            f"Profile regime: {self.regime.index}; "
+            f"aggressiveness={self.regime.aggressiveness:.6f}; "
+            f"alpha={self.regime.alpha:.6g}"
+        )
+        lines.append(f"Ranking policy: {self.rank_policy}")
+        objectives = ", ".join(map(str, self.selected.objectives)) if self.selected else "none"
+        lines.append(f"Selected MIS: {objectives}")
+        if self.assessment is not None:
+            reasons = ", ".join(self.assessment.reasons) or "none"
+            lines.append(f"Assessment: {self.assessment.status}; reasons={reasons}")
+        return "\n".join(lines)
+
+
+def _critical_aggressiveness(correlation_statistics, alpha_onset, alpha_null):
+    """Return points immediately after each threshold change along the alpha path."""
+
+    if alpha_onset is None:
+        return (1.0,)
+    alpha_onset = float(alpha_onset)
+    alpha_null = float(alpha_null)
+    if alpha_onset == alpha_null:
+        return (1.0,)
+
+    upper = np.triu(correlation_statistics.valid_pairs, k=1)
+    pair_log_p = correlation_statistics.log_p[upper]
+    pair_alpha = np.exp(pair_log_p[np.isfinite(pair_log_p)])
+    lo = min(alpha_onset, alpha_null)
+    hi = max(alpha_onset, alpha_null)
+    pair_alpha = np.unique(pair_alpha[(pair_alpha >= lo) & (pair_alpha <= hi)])
+
+    executed = [alpha_onset, alpha_null]
+    increasing = alpha_null > alpha_onset
+    for threshold in pair_alpha:
+        threshold = float(threshold)
+        if threshold == alpha_onset or threshold == alpha_null:
+            continue
+        direction = np.inf if increasing else -np.inf
+        value = float(np.nextafter(threshold, direction))
+        if lo <= value <= hi:
+            executed.append(value)
+
+    denominator = alpha_null - alpha_onset
+    values = []
+    for alpha in executed:
+        aggressiveness = (float(alpha) - alpha_onset) / denominator
+        aggressiveness = min(1.0, max(0.0, float(aggressiveness)))
+        values.append(aggressiveness)
+    return tuple(sorted(set(values)))
+
+
+def _state_signature(correlation_statistics, log_alpha):
+    structure = build_dependency_graphs(correlation_statistics, log_alpha)
+    ranked, groups = _api._rank_size_span(structure, correlation_statistics.labels)
+    grouped_mis = tuple(
+        tuple(tuple(ranked[index]["mis_indices"]) for index in group)
+        for group in groups
+    )
+    return (
+        structure.structural_dimension,
+        structure.latent_dimension,
+        structure.structural_components,
+        structure.latent_components,
+        grouped_mis,
+    )
+
+
+def _build_regime(
+    *,
+    normalized,
+    correlation_statistics,
+    null_estimate,
+    separation,
+    aggressiveness,
+    seed,
+    name,
+):
+    if correlation_statistics.log_alpha_onset is None:
+        log_alpha = null_estimate.log_alpha_null
+    else:
+        log_alpha = interpolate_log_alpha(
+            correlation_statistics.log_alpha_onset,
+            null_estimate.log_alpha_null,
+            aggressiveness,
+        )
+    structure = build_dependency_graphs(correlation_statistics, log_alpha)
+    ranked, groups = _api._rank_size_span(structure, normalized.labels)
+    candidates = tuple(
+        _api.MISCandidate(
+            objectives=tuple(item["mis_labels"]),
+            indices=tuple(item["mis_indices"]),
+            structural=_api.StructuralMetrics(
+                neighborhood=int(item["neighborhood"]),
+                neighborhood_ratio=float(item["neighborhood_ratio"]),
+                span=int(item["span"]),
+                avg_external_degree=float(item["avg_external_degree"]),
+                avg_internal_degree=float(item["avg_internal_degree"]),
+            ),
+        )
+        for item in ranked
+    )
+
+    all_indices = tuple(range(len(candidates)))
+    raw_support = evaluate_dimensional_support_group(
+        normalized.data,
+        tuple(candidates[index].indices for index in all_indices),
+        structure.latent_dimension,
+        seed=seed,
+    )
+    all_support = tuple(
+        _api._candidate_support(raw, index)
+        for raw, index in zip(raw_support, all_indices)
+    )
+    support_by_index = {item.candidate_index: item for item in all_support}
+    first_group = groups[0] if groups else tuple()
+    support_results = tuple(support_by_index[index] for index in first_group)
+
+    analysis = _api.DiscoveryAnalysis(
+        original_dimension=normalized.n_objectives,
+        latent_dimension=structure.latent_dimension,
+        structural_dimension=structure.structural_dimension,
+        alpha_onset=correlation_statistics.alpha_onset,
+        log_alpha_onset=correlation_statistics.log_alpha_onset,
+        alpha_null=null_estimate.alpha_null,
+        log_alpha_null=null_estimate.log_alpha_null,
+        alpha=float(np.exp(log_alpha)),
+        log_alpha=float(log_alpha),
+        aggressiveness=float(aggressiveness),
+        separation_status=separation,
+        structural_graph=structure.structural_graph,
+        dependence_graph=structure.dependence_graph,
+        structural_components=structure.structural_components,
+        latent_components=structure.latent_components,
+        alpha_null_converged=bool(null_estimate.converged),
+        alpha_null_reason=null_estimate.reason,
+        alpha_null_permutations=int(null_estimate.n_permutations),
+        alpha_null_se_mc=float(null_estimate.se_mc),
+        alpha_null_r_interval=tuple(null_estimate.r_interval),
+        alpha_null_log_interval=tuple(null_estimate.log_alpha_interval),
+    )
+    result = _api.MISSet(
+        analysis=analysis,
+        candidates=candidates,
+        rank_groups=groups,
+        data=normalized.data,
+        labels=normalized.labels,
+        seed=seed,
+        name=name,
+    )
+    result.support = _api.DimensionalSupport(support_results, result._candidates)
+    result._support_by_index = support_by_index
+    return result
+
+
+def profile(Y, *, seed=123, name=None, cancel_requested=None):
+    """Map distinct structural regimes over the calibrated alpha path."""
+
+    normalized = normalize_input_matrix(Y)
+    correlation_statistics = _api.compute_correlation_statistics(normalized)
+
+    def signature(log_alpha):
+        return _api._discovery_signature(correlation_statistics, log_alpha)
+
+    null_estimate = _api.estimate_null_positive_correlation(
+        normalized,
+        signature=signature,
+        seed=seed,
+        cancel_requested=cancel_requested,
+    )
+    separation = separation_status(
+        correlation_statistics.log_alpha_onset,
+        null_estimate.log_alpha_null,
+    )
+
+    aggressiveness_points = _critical_aggressiveness(
+        correlation_statistics,
+        correlation_statistics.alpha_onset,
+        null_estimate.alpha_null,
+    )
+    distinct = []
+    previous_signature = None
+    for aggressiveness in aggressiveness_points:
+        if correlation_statistics.log_alpha_onset is None:
+            log_alpha = null_estimate.log_alpha_null
+        else:
+            log_alpha = interpolate_log_alpha(
+                correlation_statistics.log_alpha_onset,
+                null_estimate.log_alpha_null,
+                aggressiveness,
+            )
+        current_signature = _state_signature(correlation_statistics, log_alpha)
+        if current_signature == previous_signature:
+            continue
+        mis_set = _build_regime(
+            normalized=normalized,
+            correlation_statistics=correlation_statistics,
+            null_estimate=null_estimate,
+            separation=separation,
+            aggressiveness=aggressiveness,
+            seed=seed,
+            name=name,
+        )
+        distinct.append(
+            ProfileRegime(
+                index=len(distinct),
+                aggressiveness=float(aggressiveness),
+                alpha=float(mis_set.analysis.alpha),
+                log_alpha=float(mis_set.analysis.log_alpha),
+                mis_set=mis_set,
+            )
+        )
+        previous_signature = current_signature
+
+    selected_index = next(
+        (regime.index for regime in reversed(distinct) if regime.acceptable),
+        None,
+    )
+    return Profile(
+        regimes=distinct,
+        selected_index=selected_index,
+        alpha_onset=correlation_statistics.alpha_onset,
+        alpha_null=null_estimate.alpha_null,
+        separation=separation,
+        seed=seed,
+        name=name,
+    )
+
+
+def discovery(source, *, rank_policy=_api.DOMINANCE_PRESERVATION, **profile_kwargs):
+    """Return the recommended MIS from a profile or directly from observed Y."""
+
+    if isinstance(source, Profile):
+        if profile_kwargs:
+            unexpected = ", ".join(sorted(profile_kwargs))
+            raise TypeError(
+                f"profile options are not accepted when source is already a Profile: {unexpected}"
+            )
+        observed_profile = source
+    else:
+        observed_profile = profile(source, **profile_kwargs)
+
+    regime = observed_profile.selected
+    if regime is None:
+        return DiscoveryResult(
+            profile=observed_profile,
+            regime=None,
+            ranking=None,
+            rank_policy=rank_policy,
+        )
+
+    ranking = _api.rank(
+        regime.mis_set,
+        policy=rank_policy,
+        candidates="all",
+        accept_cost=True,
+    )
+    return DiscoveryResult(
+        profile=observed_profile,
+        regime=regime,
+        ranking=ranking,
+        rank_policy=rank_policy,
+    )
