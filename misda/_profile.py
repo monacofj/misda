@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -178,7 +178,7 @@ class DiscoveryResult:
 
 
 def _critical_aggressiveness(correlation_statistics, alpha_onset, alpha_null):
-    """Return points immediately after each threshold change along the alpha path."""
+    """Return boundary probes spanning every threshold transition on the path."""
 
     if alpha_onset is None:
         return (1.0,)
@@ -195,15 +195,14 @@ def _critical_aggressiveness(correlation_statistics, alpha_onset, alpha_null):
     pair_alpha = np.unique(pair_alpha[(pair_alpha >= lo) & (pair_alpha <= hi)])
 
     executed = [alpha_onset, alpha_null]
-    increasing = alpha_null > alpha_onset
     for threshold in pair_alpha:
         threshold = float(threshold)
         if threshold == alpha_onset or threshold == alpha_null:
             continue
-        direction = np.inf if increasing else -np.inf
-        value = float(np.nextafter(threshold, direction))
-        if lo <= value <= hi:
-            executed.append(value)
+        for direction in (-np.inf, 0.0, np.inf):
+            value = threshold if direction == 0.0 else float(np.nextafter(threshold, direction))
+            if lo <= value <= hi:
+                executed.append(value)
 
     denominator = alpha_null - alpha_onset
     values = []
@@ -337,14 +336,18 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
         null_estimate.log_alpha_null,
     )
 
-    aggressiveness_points = _critical_aggressiveness(
+    points = _critical_aggressiveness(
         correlation_statistics,
         correlation_statistics.alpha_onset,
         null_estimate.alpha_null,
     )
-    distinct = []
-    previous_signature = None
-    for aggressiveness in aggressiveness_points:
+
+    # First compress the exact threshold probes into consecutive structural
+    # regimes. Keep the most aggressive point observed for each regime so that
+    # ``profile.selected`` really denotes the most aggressive acceptable point,
+    # not merely the point where that regime began.
+    compressed = []
+    for aggressiveness in points:
         if correlation_statistics.log_alpha_onset is None:
             log_alpha = null_estimate.log_alpha_null
         else:
@@ -354,8 +357,13 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
                 aggressiveness,
             )
         current_signature = _state_signature(correlation_statistics, log_alpha)
-        if current_signature == previous_signature:
-            continue
+        if compressed and compressed[-1][0] == current_signature:
+            compressed[-1] = (current_signature, float(aggressiveness))
+        else:
+            compressed.append((current_signature, float(aggressiveness)))
+
+    regimes = []
+    for _signature, aggressiveness in compressed:
         mis_set = _build_regime(
             normalized=normalized,
             correlation_statistics=correlation_statistics,
@@ -365,23 +373,22 @@ def profile(Y, *, seed=123, name=None, cancel_requested=None):
             seed=seed,
             name=name,
         )
-        distinct.append(
+        regimes.append(
             ProfileRegime(
-                index=len(distinct),
+                index=len(regimes),
                 aggressiveness=float(aggressiveness),
                 alpha=float(mis_set.analysis.alpha),
                 log_alpha=float(mis_set.analysis.log_alpha),
                 mis_set=mis_set,
             )
         )
-        previous_signature = current_signature
 
     selected_index = next(
-        (regime.index for regime in reversed(distinct) if regime.acceptable),
+        (regime.index for regime in reversed(regimes) if regime.acceptable),
         None,
     )
     return Profile(
-        regimes=distinct,
+        regimes=regimes,
         selected_index=selected_index,
         alpha_onset=correlation_statistics.alpha_onset,
         alpha_null=null_estimate.alpha_null,
