@@ -1,6 +1,6 @@
 # ADR 0011 — Public API and object model
 
-- Status: Accepted
+- Status: Accepted; public-flow section partially superseded by ADR 0022
 - Recorded: 2026-09-11 (retrospective)
 
 ## Context
@@ -17,7 +17,9 @@ misda.evaluate(mis_set, metrics=(...), candidates=...)
 ranking = misda.rank(mis_set, policy="size_span")
 ```
 
-The canonical ranking policy name is governed by ADR 0017.
+This low-level flow remains valid for scientific instrumentation and advanced use, but ADR 0022 supersedes it as the canonical user-facing workflow with `profile(Y) -> discovery(profile)`.
+
+The canonical low-level structural ranking policy name is governed by ADR 0017.
 
 ### MISSet
 
