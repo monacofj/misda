@@ -1,0 +1,147 @@
+name: noisy ranking safety
+
+on:
+  push:
+    branches:
+      - issue-84-noisy-ranking-safety
+    paths:
+      - "benchmarks/run_noisy_ranking_safety.py"
+      - "benchmarks/run_noisy_ranking_optimization.py"
+      - "benchmarks/run_noisy_dtlz5_stress_optimization.py"
+      - "benchmarks/run_noisy_moeabench_stress_optimization.py"
+      - "tests/test_noisy_ranking_safety.py"
+      - ".github/workflows/noisy-ranking-safety.yml"
+      - "docs/research-notes/2026-10-noisy-ranking-safety.md"
+  workflow_dispatch:
+
+jobs:
+  screening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Helper tests
+        run: pytest -q tests/test_noisy_ranking_safety.py
+      - name: DTLZ5 and DPF1 noisy screening grid
+        run: |
+          python -m benchmarks.run_noisy_ranking_safety \
+            --output /tmp/misda-noisy-ranking-safety.json
+      - name: DTLZ5 and DPF1 high-noise stress screening
+        run: |
+          python -m benchmarks.run_noisy_ranking_safety \
+            --sigma 0.60 --sigma 0.80 --sigma 1.00 --sigma 1.50 --sigma 2.00 \
+            --output /tmp/misda-noisy-ranking-stress.json
+      - name: Established controlled noisy-robustness audit
+        run: |
+          python -m benchmarks.run_ranking_policy_impact \
+            --suite noisy_robustness \
+            --output /tmp/misda-noisy-policy-impact.json
+      - name: Preserve screening outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-noisy-ranking-safety
+          path: |
+            /tmp/misda-noisy-ranking-safety.json
+            /tmp/misda-noisy-ranking-stress.json
+            /tmp/misda-noisy-policy-impact.json
+          if-no-files-found: warn
+
+  science:
+    if: ${{ contains(github.event.head_commit.message, '[science]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Helper tests
+        run: pytest -q tests/test_noisy_ranking_safety.py
+      - name: End-to-end noisy discovery audit
+        run: |
+          python -m benchmarks.run_noisy_ranking_optimization \
+            --condition antagonistic_nonlinear_groups:0.10:202 \
+            --condition antagonistic_nonlinear_groups:0.10:101 \
+            --output /tmp/misda-noisy-ranking-optimization.json
+          cat /tmp/misda-noisy-ranking-optimization.json
+      - name: Preserve optimization output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-noisy-ranking-optimization
+          path: /tmp/misda-noisy-ranking-optimization.json
+          if-no-files-found: warn
+
+  dtlz_stress:
+    if: ${{ contains(github.event.head_commit.message, '[dtlz-stress]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Helper tests
+        run: pytest -q tests/test_noisy_ranking_safety.py
+      - name: DTLZ5 high-noise support boundary audit
+        run: |
+          python -m benchmarks.run_noisy_dtlz5_stress_optimization \
+            --output /tmp/misda-noisy-dtlz5-stress.json
+          cat /tmp/misda-noisy-dtlz5-stress.json
+      - name: Preserve stress output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-noisy-dtlz5-stress
+          path: /tmp/misda-noisy-dtlz5-stress.json
+          if-no-files-found: warn
+
+  supported_stress:
+    if: ${{ contains(github.event.head_commit.message, '[supported-stress]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Helper tests
+        run: pytest -q tests/test_noisy_ranking_safety.py
+      - name: Supported high-noise ranking disagreements
+        run: |
+          python -m benchmarks.run_noisy_moeabench_stress_optimization \
+            --condition DTLZ5:1.00:404 \
+            --condition DPF1:2.00:505 \
+            --output /tmp/misda-supported-noisy-ranking-stress.json
+          cat /tmp/misda-supported-noisy-ranking-stress.json
+      - name: Preserve supported-stress output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-supported-noisy-ranking-stress
+          path: /tmp/misda-supported-noisy-ranking-stress.json
+          if-no-files-found: warn
