@@ -6,6 +6,7 @@ on:
       - issue-84-noisy-ranking-safety
     paths:
       - "benchmarks/run_noisy_ranking_safety.py"
+      - "benchmarks/run_noisy_ranking_optimization.py"
       - "tests/test_noisy_ranking_safety.py"
       - ".github/workflows/noisy-ranking-safety.yml"
       - "docs/research-notes/2026-10-noisy-ranking-safety.md"
@@ -27,15 +28,22 @@ jobs:
           python -m pip install -e '.[benchmarks]' pytest
       - name: Helper tests
         run: pytest -q tests/test_noisy_ranking_safety.py
-      - name: Noisy discovery screening grid
+      - name: DTLZ5 and DPF1 noisy screening grid
         run: |
           python -m benchmarks.run_noisy_ranking_safety \
             --output /tmp/misda-noisy-ranking-safety.json
-          cat /tmp/misda-noisy-ranking-safety.json
-      - name: Preserve screening output
+      - name: Established controlled noisy-robustness audit
+        run: |
+          python -m benchmarks.run_ranking_policy_impact \
+            --suite noisy_robustness \
+            --problem-id nonlinear_blocks_4x5 \
+            --output /tmp/misda-noisy-policy-impact.json
+      - name: Preserve screening outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: misda-noisy-ranking-safety
-          path: /tmp/misda-noisy-ranking-safety.json
+          path: |
+            /tmp/misda-noisy-ranking-safety.json
+            /tmp/misda-noisy-policy-impact.json
           if-no-files-found: warn
