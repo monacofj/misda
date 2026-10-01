@@ -101,3 +101,15 @@ extra objectives is acceptable when that better preserves the observed order.
 - `NO_REDUNDANCY` must be possible when no objective reduction is discovered.
 - support attached to an alternative selected MIS is candidate-specific rather
   than borrowed from the canonical first structural group.
+
+## Research history
+
+The experiments that motivated this policy, including DTLZ5, DPF1, DTLZ2,
+SAFE_PATH, Pareto-retention comparison, and the conservative decision probe, are
+recorded chronologically in
+`docs/research-notes/2026-09-optimization-reduction-safety-and-ranking.md`.
+
+The later pre-default audit that tested this policy across existing clean and
+noisy benchmark batteries, and rejected immediate promotion to the public
+default, is recorded in
+`docs/research-notes/2026-10-ranking-policy-default-audit.md`.
