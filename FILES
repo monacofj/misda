@@ -7,23 +7,21 @@ MISDA PROJECT FILE STRUCTURE
 misda/__init__.py
     Small public facade exporting the static MISDA API:
       - discover: structural inference and complete MIS universe.
-      - evaluate: candidate-level linear, nonlinear, and Pareto evidence.
+      - evaluate: candidate-level linear, nonlinear, Pareto, and dominance evidence.
       - rank: ranking views under named policies.
       - benchmark: declaration-aware scientific assessment kept outside discovery.
 
 misda/api.py
     Static discovery/evaluation/ranking implementation and typed result model:
       - MISSet and MISCandidate.
-      - Ranking and the canonical size_span policy.
-      - StructuralMetrics, LinearMetrics, NonlinearMetrics, and ParetoMetrics.
-      - DimensionalSupport and CandidateSupport.
+      - Ranking and named ranking policies.
+      - StructuralMetrics, LinearMetrics, NonlinearMetrics, ParetoMetrics, and
+        DominanceMetrics.
+      - DimensionalSupport, CandidateSupport, and reduction assessment.
 
 misda/_reporting.py
-    Rich, side-effect-free stored-state reporting:
-      - complete MISSet and Ranking reports with public non-regression coverage.
-      - intrinsic single-MIS reports.
-      - dimensions, topology, thresholds, dimensional support, ranking,
-        linear, Pareto, nonlinear/null-reference and Pareto-stability evidence.
+    Rich, side-effect-free stored-state reporting for discovery, ranking,
+    candidate evidence, support diagnostics, and selected reductions.
 
 misda/_graph.py
     Construction of G+ and G±, independence-number dimensions, and structural
@@ -43,7 +41,11 @@ misda/_reconstruction.py
     reference protocol.
 
 misda/_pareto.py
-    Pareto-front preservation metrics.
+    Empirical Pareto-front preservation metrics.
+
+misda/_dominance.py
+    Observed pairwise dominance-preservation evidence used by the experimental
+    dominance_preservation ranking policy.
 
 misda/_ranking.py
     Structural candidate measurements used by ranking policies.
@@ -60,94 +62,79 @@ misda/benchmark.py
     Benchmark declarations, reports, serialization, and regression comparison.
 
 misda/benchmarks/
-    Controlled diagnostic problem definitions, truth helpers, legacy regression
-    generators, reproducible classical DTLZ references, and comparison helpers.
+    Controlled diagnostic problem definitions, truth helpers, reproducible
+    classical references, comparison helpers, and validation infrastructure.
 
 misda/benchmarks/validation.py
     Shared implementation for fixed-noise controlled validation, clean
-    multi-sample robustness, and observation-noise robustness. Notebook and CLI
-    front ends use this same implementation.
+    multi-sample robustness, and observation-noise robustness.
 
 
 2. BENCHMARK NOTEBOOKS & FRONT ENDS (benchmarks/)
 --------------------------------------------------
 
 benchmarks/controlled.ipynb
-    Canonical 13-case controlled benchmark under exact observation Y=Z, with
-    one documented section per case and a final suite summary.
+    Canonical 13-case controlled benchmark under exact observation Y=Z.
 
 benchmarks/controlled_noisy.ipynb
     The same 13-case benchmark under a fixed scale-relative noisy observation
-    regime, with per-case interpretation of what the added noise tests.
+    regime.
 
 benchmarks/sampling_robustness.ipynb
-    Clean sampling study across independent sample seeds with sigma=0,
-    isolating finite-sample variability from observation noise.
+    Clean sampling study across independent sample seeds with sigma=0.
 
 benchmarks/noisy_robustness.ipynb
-    Focused multi-sigma/multi-replicate observation-noise robustness study using
-    a representative subset of controlled diagnostics.
+    Focused multi-sigma/multi-replicate observation-noise robustness study.
 
 benchmarks/comparison.ipynb
-    MISDA/PCA method comparison on clean controlled diagnostics with explicit
-    truth. Native estimands remain distinct; direct comparison uses a common
-    external reconstruction score at explicitly named dimensions.
+    MISDA/PCA comparison on clean controlled diagnostics with explicit truth.
 
 benchmarks/classical.ipynb
-    MISDA on reproducible DTLZ2/DTLZ5 Pareto-front samples. Known front geometry
-    is reference context, not MISDA latent/structural ground truth.
+    Reproducible DTLZ reference problems; analytical front geometry is reference
+    context, not MISDA latent/structural truth.
+
+benchmarks/optimization.ipynb
+    Paired optimization proof-of-concept comparing Full and Reduced problems in
+    the original objective space.
 
 benchmarks/run_controlled.py
-    Executable clean 13-problem scientific battery.
-
 benchmarks/run_controlled_noisy.py
-    Executable fixed-noise 13-problem reference battery.
-
 benchmarks/run_sampling_robustness.py
-    Executable clean multi-sample robustness study.
-
 benchmarks/run_noisy_robustness.py
-    Executable observation-noise robustness sweep.
-
 benchmarks/run_comparison.py
-    Executable diagnostic MISDA/PCA comparison battery.
-
 benchmarks/run_classical.py
-    Executable DTLZ2/DTLZ5 reference-MOP front end.
+    Executable front ends corresponding to the benchmark batteries above.
 
-benchmarks/_baseline.py
-    Historical baseline comparison helpers used only by regression tests.
+benchmarks/run_ranking_policy_impact.py
+    Reproducible pre-default audit comparing size_span and
+    dominance_preservation on identical generated objective matrices.
 
-benchmarks/cases.py
-    Compatibility shim exposing the historical controlled generators used by
-    characterization tests.
-
-benchmarks/mop_definitions.py
-    Compatibility shim for the historical MOP generator names.
-
-benchmarks/r5_baseline.json
-    Provenance marker for the successful pre-R5 acceptance artifacts.
+benchmarks/run_ranking_policy_aggressiveness_probe.py
+    Manual policy-by-aggressiveness follow-up used to distinguish threshold
+    sensitivity from noisy representative-selection sensitivity.
 
 
 3. DOCUMENTATION
 ----------------
 
 docs/userguide.md
-    User-facing guide for the static public API and benchmark workflow.
+    User-facing guide for the current static API and benchmark workflow.
 
 docs/visualization.md
-    User-facing contract and examples for ranking-selected graph/front views,
-    Plotly axis selectors, and notebook/terminal display behavior.
+    User-facing visualization contract and examples.
 
-docs/design_notes.md
-    Design rationale and implementation notes complementary to the ADRs.
+docs/experimental-correlation.md
+    Reproducible documentation for the explicitly gated Spearman research
+    backend; the canonical default remains Pearson.
 
 docs/CONTRIBUTING.md
     Contribution guidance, including public-capability preservation rules.
 
 docs/adr/
-    Architecture Decision Records defining the normative methodological and
-    public-contract invariants of MISDA.
+    The single normative architectural and methodological ledger. ADRs define
+    the current method and public-contract invariants.
 
 docs/research-notes/
-    Historical research notes retained for provenance but not normative design.
+    The chronological MISDA research notebook: hypotheses, experiments,
+    negative results, corrections, validation evidence, and open questions.
+    It is scientific provenance, not normative specification.
