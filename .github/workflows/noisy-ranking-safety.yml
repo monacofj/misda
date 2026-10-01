@@ -113,3 +113,34 @@ jobs:
           name: misda-noisy-dtlz5-stress
           path: /tmp/misda-noisy-dtlz5-stress.json
           if-no-files-found: warn
+
+  supported_stress:
+    if: ${{ contains(github.event.head_commit.message, '[supported-stress]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[benchmarks]' pytest
+      - name: Helper tests
+        run: pytest -q tests/test_noisy_ranking_safety.py
+      - name: Supported high-noise ranking disagreements
+        run: |
+          python -m benchmarks.run_noisy_ranking_optimization \
+            --condition DTLZ5:1.00:404 \
+            --condition DPF1:2.00:505 \
+            --output /tmp/misda-supported-noisy-ranking-stress.json
+          cat /tmp/misda-supported-noisy-ranking-stress.json
+      - name: Preserve supported-stress output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misda-supported-noisy-ranking-stress
+          path: /tmp/misda-supported-noisy-ranking-stress.json
+          if-no-files-found: warn
