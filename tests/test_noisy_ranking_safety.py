@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 
 from benchmarks.run_noisy_dtlz5_stress_optimization import screen_condition
+from benchmarks.run_noisy_moeabench_stress_optimization import (
+    screen_condition as screen_moeabench_condition,
+)
 from benchmarks.run_noisy_ranking_optimization import (
     _degradation_vs_full,
     _noisy_discovery_case,
@@ -79,3 +82,20 @@ def test_dtlz5_high_noise_stress_reproduces_support_asymmetry():
     assert dominance["selected_labels"] == ["f1", "f2", "f5", "f7", "f8", "f9", "f10"]
     assert dominance["assessment"]["trustworthy"] is False
     assert dominance["support"]["reasons"] == ["TRANSITIVE_CHAINING"]
+
+
+def test_supported_moeabench_stress_conditions_reproduce_policy_disagreement():
+    conditions = (
+        ("DTLZ5", 1.0, 404),
+        ("DPF1", 2.0, 505),
+    )
+    for problem, sigma, observation_seed in conditions:
+        _, screening = screen_moeabench_condition(
+            problem,
+            sigma=sigma,
+            observation_seed=observation_seed,
+        )
+        assert screening["same_selected_mis"] is False
+        for policy in ("size_span", "dominance_preservation"):
+            assert screening["policies"][policy]["assessment"]["trustworthy"] is True
+            assert screening["policies"][policy]["support"]["status"] == "SUPPORTED"
