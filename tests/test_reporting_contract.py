@@ -204,7 +204,7 @@ def test_benchmark_embeds_the_native_report_verbatim():
 
 def test_ranking_report_is_complete_and_preserves_default_report_contract():
     result = _evaluated_result()
-    ranking = misda.rank(result)
+    ranking = misda.rank(result, policy=misda.SIZE_SPAN)
 
     report = ranking.report()
 
@@ -225,7 +225,7 @@ def test_ranking_report_is_complete_and_preserves_default_report_contract():
 
 def test_mis_report_focuses_on_intrinsic_stored_evidence():
     result = _evaluated_result()
-    ranking = misda.rank(result)
+    ranking = misda.rank(result, policy=misda.SIZE_SPAN)
 
     report = ranking.mis().report()
 
@@ -243,7 +243,7 @@ def test_mis_report_focuses_on_intrinsic_stored_evidence():
 
 def test_ranking_and_mis_reports_never_run_hidden_evaluation(monkeypatch):
     result = _evaluated_result()
-    ranking = misda.rank(result)
+    ranking = misda.rank(result, policy=misda.SIZE_SPAN)
 
     def fail(*args, **kwargs):
         raise AssertionError("report attempted a new scientific calculation")
@@ -297,7 +297,7 @@ def test_report_explains_top_level_fields_without_losing_values():
 
 def test_report_explains_support_and_intrinsic_mis_metrics():
     result = _evaluated_result()
-    ranking = misda.rank(result)
+    ranking = misda.rank(result, policy=misda.SIZE_SPAN)
 
     complete = ranking.report()
     for explanation in (
@@ -326,10 +326,13 @@ def test_report_explains_support_and_intrinsic_mis_metrics():
         assert explanation in intrinsic
 
 
-def test_default_ranking_report_remains_exactly_the_complete_mis_set_report():
+def test_size_span_ranking_report_remains_exactly_the_complete_mis_set_report():
     result = _evaluated_result()
 
-    assert misda.rank(result).report() == result.report()
+    assert (
+        misda.rank(result, policy=misda.SIZE_SPAN).report()
+        == result.report()
+    )
 
 
 def test_metric_annotations_keep_technical_and_intuitive_text_on_one_line():
